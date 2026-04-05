@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SpecBridge — BEP GR Procurement Intelligence</title>
+
+  <!-- Supabase JS v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    /* =============================================
+       SPECBRIDGE — Base Styles
+       Day 1 shell. Build screen by screen.
+    ============================================= */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --border:    #2a2d3a;
+      --accent:    #4f7cff;
+      --accent-hover: #3d6aed;
+      --success:   #22c55e;
+      --warning:   #f59e0b;
+      --danger:    #ef4444;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --radius:    8px;
+      --font:      -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    /* Pages — only one visible at a time */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* Nav */
+    #nav {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    #nav.visible { display: flex; }
+    .nav-logo { font-weight: 700; font-size: 16px; letter-spacing: -0.3px; }
+    .nav-logo span { color: var(--accent); }
+    .nav-links { display: flex; gap: 4px; }
+    .nav-link {
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 13px;
+      transition: all 0.15s;
+      border: none;
+      background: none;
+    }
+    .nav-link:hover, .nav-link.active { background: var(--border); color: var(--text); }
+    .nav-user { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+    .nav-user button {
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .nav-user button:hover { color: var(--text); border-color: var(--muted); }
+
+    /* Container */
+    .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: none;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-secondary:hover { background: #353849; }
+    .btn-ghost { background: none; border: 1px solid var(--border); color: var(--muted); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Form elements */
+    input, textarea, select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      padding: 8px 12px;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+
+    /* Status badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .badge-in-process   { background: rgba(79,124,255,0.15); color: #7ba7ff; }
+    .badge-nopo         { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .badge-anticipated  { background: rgba(168,85,247,0.15); color: #c084fc; }
+    .badge-po-received  { background: rgba(34,197,94,0.15);  color: #4ade80; }
+    .badge-on-hold      { background: rgba(100,116,139,0.15); color: #94a3b8; }
+    .badge-lost         { background: rgba(239,68,68,0.15);  color: #f87171; }
+
+    /* Completeness bar */
+    .score-bar-wrap { height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .score-bar-fill { height: 100%; border-radius: 99px; transition: width 0.5s ease; }
+
+    /* Toast */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 9999;
+    }
+    .toast {
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      max-width: 320px;
+      animation: slideIn 0.2s ease;
+      border-left: 3px solid;
+    }
+    .toast-success { background: #0f2a1a; border-color: var(--success); color: #86efac; }
+    .toast-warning { background: #2a1f0a; border-color: var(--warning); color: #fde68a; }
+    .toast-error   { background: #2a0f0f; border-color: var(--danger);  color: #fca5a5; }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+    /* Loading spinner */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* =============================================
+       PAGE: LOGIN
+    ============================================= */
+    #page-login {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-box {
+      width: 360px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 36px 32px;
+    }
+    .login-logo { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .login-logo span { color: var(--accent); }
+    .login-tagline { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+    .login-form { display: flex; flex-direction: column; gap: 16px; }
+    .login-form .form-group { display: flex; flex-direction: column; }
+    .login-error { color: #f87171; font-size: 12px; margin-top: 8px; display: none; }
+
+    /* =============================================
+       PAGE: DASHBOARD
+    ============================================= */
+    .dash-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .dash-header h1 { font-size: 20px; font-weight: 700; }
+    .dash-header p { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .metric-card { text-align: center; padding: 20px; }
+    .metric-value { font-size: 28px; font-weight: 700; }
+    .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    .bucket-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .bucket-card { cursor: pointer; transition: border-color 0.15s; }
+    .bucket-card:hover { border-color: var(--accent); }
+    .bucket-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 12px; }
+    .bucket-count { font-size: 32px; font-weight: 700; }
+    .bucket-list { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .project-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: var(--bg);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .project-row:hover { background: #13161f; }
+    .project-name { font-size: 13px; font-weight: 500; }
+    .project-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .project-score { font-size: 11px; color: var(--muted); }
+
+    /* =============================================
+       PAGE: NEW PROJECT
+    ============================================= */
+    .new-project-form { max-width: 640px; display: flex; flex-direction: column; gap: 20px; }
+    .classify-panel {
+      padding: 16px;
+      background: rgba(79,124,255,0.05);
+      border: 1px solid rgba(79,124,255,0.2);
+      border-radius: var(--radius);
+      display: none;
+    }
+    .classify-panel.visible { display: block; }
+    .classify-result { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .classify-tag {
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 11px;
+      background: rgba(79,124,255,0.1);
+      color: #7ba7ff;
+      border: 1px solid rgba(79,124,255,0.2);
+    }
+
+    /* =============================================
+       PAGE: SPEC CAPTURE
+    ============================================= */
+    .spec-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+    .tab-bar { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab-btn {
+      padding: 6px 14px;
+      border-radius: var(--radius);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+    .tab-btn.complete { border-color: var(--success); color: var(--success); }
+    .tab-content { display: none; }
+    .tab-content.active { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .field-group { display: flex; flex-direction: column; }
+    .field-group.full-width { grid-column: 1 / -1; }
+    .field-required::after { content: ' *'; color: var(--danger); }
+    .gap-panel {
+      position: sticky;
+      top: 72px;
+      width: 280px;
+      flex-shrink: 0;
+    }
+    .spec-layout { display: flex; gap: 24px; }
+    .spec-main { flex: 1; min-width: 0; }
+    .gap-item {
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .gap-critical { background: rgba(239,68,68,0.08); border-left: 3px solid var(--danger); color: #fca5a5; }
+    .gap-warning  { background: rgba(245,158,11,0.08); border-left: 3px solid var(--warning); color: #fde68a; }
+
+    /* =============================================
+       PAGE: REVIEW & ROUTE
+    ============================================= */
+    .review-score-ring {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      border: 4px solid;
+      margin: 0 auto 20px;
+    }
+    .review-score-ring .score-num { font-size: 32px; font-weight: 700; }
+    .review-score-ring .score-label { font-size: 10px; color: var(--muted); }
+    .route-tiers { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 20px; }
+    .route-tier {
+      padding: 16px;
+      border-radius: var(--radius);
+      border: 2px solid var(--border);
+      text-align: center;
+      opacity: 0.4;
+      transition: all 0.2s;
+    }
+    .route-tier.active { opacity: 1; border-color: var(--accent); background: rgba(79,124,255,0.06); }
+    .route-tier-score { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+    .route-tier-action { font-size: 13px; font-weight: 600; }
+
+    /* =============================================
+       PAGE: RFQ OUTPUT
+    ============================================= */
+    .rfq-output-wrap {
+      background: white;
+      color: #1a1a1a;
+      border-radius: var(--radius);
+      padding: 40px;
+      font-family: Georgia, serif;
+      line-height: 1.6;
+      font-size: 14px;
+      max-width: 720px;
+    }
+    .rfq-output-wrap h1 { font-size: 18px; margin-bottom: 8px; }
+    .rfq-output-wrap h2 { font-size: 14px; margin-top: 20px; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+    .should-cost-panel { margin-top: 20px; }
+
+    /* =============================================
+       PAGE: SAVINGS DASHBOARD
+    ============================================= */
+    .savings-metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 24px; }
+    .savings-metric { text-align: center; }
+    .savings-value { font-size: 24px; font-weight: 700; color: var(--success); }
+    .savings-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- =============================================
+     TOAST CONTAINER
+============================================= -->
+<div id="toast-container"></div>
+
+<!-- =============================================
+     NAV BAR
+============================================= -->
+<nav id="nav">
+  <div class="nav-logo">Spec<span>Bridge</span></div>
+  <div class="nav-links">
+    <button class="nav-link" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="nav-link" onclick="showPage('new-project')">New Project</button>
+    <button class="nav-link" onclick="showPage('savings')">Savings</button>
+  </div>
+  <div class="nav-user">
+    <span id="nav-user-name">—</span>
+    <button onclick="handleSignOut()">Sign out</button>
+  </div>
+</nav>
+
+<!-- =============================================
+     PAGE: LOGIN
+============================================= -->
+<div id="page-login" class="page active">
+  <div class="login-box">
+    <div class="login-logo">Spec<span>Bridge</span></div>
+    <div class="login-tagline">BEP GR Procurement Intelligence</div>
+    <div class="login-form">
+      <div class="form-group">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" placeholder="you@bepgr.com" />
+      </div>
+      <div class="form-group">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" placeholder="••••••••"
+          onkeydown="if(event.key==='Enter') handleLogin()" />
+      </div>
+      <button class="btn btn-primary" id="login-btn" onclick="handleLogin()">
+        Sign in
+      </button>
+      <div class="login-error" id="login-error"></div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     PAGE: DASHBOARD
+============================================= -->
+<div id="page-dashboard" class="page">
+  <div class="container">
+    <div class="dash-header">
+      <div>
+        <h1>Dashboard</h1>
+        <p id="dash-subtitle">BEP GR · Loading projects…</p>
+      </div>
+      <button class="btn btn-primary" onclick="showPage('new-project')">+ New Project</button>
+    </div>
+
+    <!-- Metric cards -->
+    <div class="metrics-row">
+      <div class="card metric-card">
+        <div class="metric-value" id="metric-total">—</div>
+        <div class="metric-label">Active Projects</div>
+      </div>
+      <div class="card metric-card">
+        <div class="metric-value" id="metric-avg-score" style="color:var(--warning)">—</div>
+        <div class="metric-label">Avg Completeness</div>
+      </div>
+      <div class="card metric-card">
+        <div class="metric-value" id="metric-pipeline" style="color:var(--success)">—</div>
+        <div class="metric-label">Pipeline Value</div>
+      </div>
+    </div>
+
+    <!-- 4 Bucket grid — mirrors Paul's weekly meeting structure -->
+    <div class="bucket-grid">
+      <div class="card bucket-card" onclick="filterByStatus('in_process_rfq')">
+        <div class="bucket-title">In-Process RFQs</div>
+        <div class="bucket-count" id="count-in-process">—</div>
+        <div class="bucket-list" id="list-in-process"></div>
+      </div>
+      <div class="card bucket-card" onclick="filterByStatus('nopo_authorization')">
+        <div class="bucket-title">NOPO Authorization</div>
+        <div class="bucket-count" id="count-nopo">—</div>
+        <div class="bucket-list" id="list-nopo"></div>
+      </div>
+      <div class="card bucket-card" onclick="filterByStatus('anticipated_order')">
+        <div class="bucket-title">Anticipated Orders</div>
+        <div class="bucket-count" id="count-anticipated">—</div>
+        <div class="bucket-list" id="list-anticipated"></div>
+      </div>
+      <div class="card bucket-card" onclick="filterByStatus('new_po_received')">
+        <div class="bucket-title">New POs Received</div>
+        <div class="bucket-count" id="count-po">—</div>
+        <div class="bucket-list" id="list-po"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     PAGE: NEW PROJECT
+============================================= -->
+<div id="page-new-project" class="page">
+  <div class="container">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
+      <h1 style="font-size:18px;font-weight:700">New Project</h1>
+    </div>
+    <div class="new-project-form">
+      <div class="card" style="display:flex;flex-direction:column;gap:16px">
+        <div class="field-group">
+          <label>Project Name *</label>
+          <input type="text" id="np-name" placeholder="e.g. Ford APTL Dyno Upgrade" />
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="field-group">
+            <label>Customer *</label>
+            <input type="text" id="np-customer" placeholder="Ford, GM, Stellantis…" />
+          </div>
+          <div class="field-group">
+            <label>RFQ Number</label>
+            <input type="text" id="np-rfq-num" placeholder="Optional" />
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Project Description — paste or type everything you know</label>
+          <textarea id="np-description" rows="4"
+            placeholder="Describe the scope, customer requirements, equipment involved, special considerations…"
+            oninput="onDescriptionInput()"></textarea>
+        </div>
+        <div class="field-group">
+          <label>Due Date</label>
+          <input type="date" id="np-due-date" />
+        </div>
+      </div>
+
+      <!-- AI Classification panel — appears after description typed -->
+      <div class="classify-panel" id="classify-panel">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <div class="spinner" id="classify-spinner" style="display:none"></div>
+          <span style="font-size:12px;font-weight:600;color:var(--accent)">AI Classification</span>
+        </div>
+        <div id="classify-results"></div>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="handleCreateProject()">Create Project &amp; Capture Spec →</button>
+        <button class="btn btn-secondary" onclick="showPage('dashboard')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     PAGE: SPEC CAPTURE
+============================================= -->
+<div id="page-spec-capture" class="page">
+  <div class="container" style="max-width:1200px">
+    <div class="spec-header">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <button class="btn btn-ghost" onclick="showPage('dashboard')">← Back</button>
+          <h1 style="font-size:18px;font-weight:700" id="spec-project-name">Project Name</h1>
+          <span id="spec-badge" class="badge badge-in-process">In Process</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
+          <div style="flex:1;max-width:240px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:11px;color:var(--muted)">Completeness</span>
+              <span style="font-size:11px;font-weight:600" id="spec-score-label">0%</span>
+            </div>
+            <div class="score-bar-wrap">
+              <div class="score-bar-fill" id="spec-score-bar" style="width:0%;background:var(--danger)"></div>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="handleReviewRoute()">Review &amp; Route →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="spec-layout">
+      <div class="spec-main">
+        <!-- 7 Category Tabs -->
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="project_overview"   onclick="switchTab('project_overview')">Project Overview</button>
+          <button class="tab-btn"         data-tab="technical_reqs"    onclick="switchTab('technical_reqs')">Technical Reqs</button>
+          <button class="tab-btn"         data-tab="materials"         onclick="switchTab('materials')">Materials</button>
+          <button class="tab-btn"         data-tab="dimensions"        onclick="switchTab('dimensions')">Dimensions</button>
+          <button class="tab-btn"         data-tab="surface_finish"    onclick="switchTab('surface_finish')">Surface &amp; Finish</button>
+          <button class="tab-btn"         data-tab="delivery"          onclick="switchTab('delivery')">Delivery</button>
+          <button class="tab-btn"         data-tab="certifications"    onclick="switchTab('certifications')">Certifications</button>
+          <button class="tab-btn"         data-tab="installation_scope" onclick="switchTab('installation_scope')" style="border-color:var(--danger);color:var(--danger)">⚠ Install Scope</button>
+        </div>
+
+        <!-- Tab content panels — built dynamically by renderSpecTab() -->
+        <div id="tab-project_overview"  class="tab-content active card" style="padding:20px"></div>
+        <div id="tab-technical_reqs"    class="tab-content card" style="padding:20px"></div>
+        <div id="tab-materials"         class="tab-content card" style="padding:20px"></div>
+        <div id="tab-dimensions"        class="tab-content card" style="padding:20px"></div>
+        <div id="tab-surface_finish"    class="tab-content card" style="padding:20px"></div>
+        <div id="tab-delivery"          class="tab-content card" style="padding:20px"></div>
+        <div id="tab-certifications"     class="tab-content card" style="padding:20px"></div>
+        <div id="tab-installation_scope" class="tab-content card" style="padding:20px;border-color:rgba(239,68,68,0.3)"></div>
+      </div>
+
+      <!-- Gap panel -->
+      <div class="gap-panel">
+        <div class="card" style="padding:16px">
+          <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">
+            Gap Flags
+            <span id="gap-count" style="margin-left:6px;background:var(--danger);color:white;font-size:10px;padding:1px 6px;border-radius:99px">0</span>
+          </div>
+          <div id="gap-list">
+            <div style="color:var(--muted);font-size:12px">Run gap check to see flags</div>
+          </div>
+          <button class="btn btn-secondary" style="width:100%;margin-top:12px;font-size:12px" onclick="handleGapCheck()">
+            Check Gaps with AI
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     PAGE: REVIEW & ROUTE
+============================================= -->
+<div id="page-review" class="page">
+  <div class="container" style="max-width:680px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <button class="btn btn-ghost" onclick="showPage('spec-capture')">← Back to Spec</button>
+      <h1 style="font-size:18px;font-weight:700">Review &amp; Route</h1>
+    </div>
+    <div class="card" style="text-align:center;padding:32px">
+      <div class="review-score-ring" id="review-ring" style="border-color:var(--warning)">
+        <div class="score-num" id="review-score-num">—</div>
+        <div class="score-label">COMPLETENESS</div>
+      </div>
+      <div id="review-project-name" style="font-size:16px;font-weight:600;margin-bottom:4px">—</div>
+      <div id="review-summary" style="color:var(--muted);font-size:13px;max-width:400px;margin:0 auto"></div>
+      <div class="route-tiers">
+        <div class="route-tier" id="tier-hold">
+          <div class="route-tier-score">0–49%</div>
+          <div class="route-tier-action">🔴 Hold — Incomplete</div>
+        </div>
+        <div class="route-tier" id="tier-review">
+          <div class="route-tier-score">50–79%</div>
+          <div class="route-tier-action">🟡 Engineer Review</div>
+        </div>
+        <div class="route-tier" id="tier-send">
+          <div class="route-tier-score">80–100%</div>
+          <div class="route-tier-action">🟢 Ready to Send</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-primary" onclick="handleGenerateRFQ()">Generate RFQ Document →</button>
+      <button class="btn btn-secondary" onclick="showPage('spec-capture')">Back to Spec</button>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     PAGE: RFQ OUTPUT
+============================================= -->
+<div id="page-rfq-output" class="page">
+  <div class="container" style="max-width:800px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-ghost" onclick="showPage('review')">← Back</button>
+        <h1 style="font-size:18px;font-weight:700">RFQ Document</h1>
+      </div>
+      <button class="btn btn-secondary" onclick="copyRFQ()">Copy to Clipboard</button>
+    </div>
+    <div class="rfq-output-wrap" id="rfq-content">
+      <p style="color:#9ca3af">Generating RFQ…</p>
+    </div>
+    <div class="card should-cost-panel" id="should-cost-panel" style="display:none">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">
+        Should-Cost Estimate <span style="font-size:10px;color:var(--accent)">(Procurement only)</span>
+      </div>
+      <div id="should-cost-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     PAGE: SAVINGS DASHBOARD
+============================================= -->
+<div id="page-savings" class="page">
+  <div class="container">
+    <div style="margin-bottom:24px">
+      <h1 style="font-size:20px;font-weight:700">Savings Dashboard</h1>
+      <p style="color:var(--muted);font-size:13px;margin-top:2px">BEP GR · Baseline vs. SpecBridge</p>
+    </div>
+    <div class="savings-metrics">
+      <div class="card savings-metric">
+        <div class="savings-value" id="sv-overrun">—</div>
+        <div class="savings-label">Overrun Rate (Baseline)</div>
+      </div>
+      <div class="card savings-metric">
+        <div class="savings-value" id="sv-incomplete">—</div>
+        <div class="savings-label">RFQ Incomplete Rate</div>
+      </div>
+      <div class="card savings-metric">
+        <div class="savings-value" id="sv-hours">—</div>
+        <div class="savings-label">Avg Eng Hours / RFQ</div>
+      </div>
+      <div class="card savings-metric">
+        <div class="savings-value" id="sv-change-orders">—</div>
+        <div class="savings-label">Change Orders (12mo)</div>
+      </div>
+      <div class="card savings-metric">
+        <div class="savings-value" id="sv-annual-save">—</div>
+        <div class="savings-label">Est. Annual Savings</div>
+      </div>
+      <div class="card savings-metric">
+        <div class="savings-value" id="sv-3yr">—</div>
+        <div class="savings-label">3-Year Projection</div>
+      </div>
+    </div>
+    <div class="card" style="padding:32px;text-align:center;color:var(--muted)">
+      <p style="font-size:13px">Chart placeholder — populate after Mark's upstream session with real BEP GR baseline numbers.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- =============================================
+     SPECBRIDGE APPLICATION LOGIC
+============================================= -->
+<script>
+'use strict';
+
+// =============================================
+// CONFIG — Supabase credentials (demo: anon key inline)
+// NOTE: Replace ANTHROPIC_API_KEY in Supabase Edge Function secrets
+//       via: supabase.com → specbridge project → Settings → Edge Functions → Secrets
+// =============================================
+const SUPABASE_URL  = 'https://vvukjjuxjhlpuczcxirp.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2dWtqanV4amhscHVjemN4aXJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzOTY0NzYsImV4cCI6MjA5MDk3MjQ3Nn0.w3QFp8OOvZh5_c3olFU6MropqNq1jlJh8uxS7-a8IGY';
+const EDGE_URL      = `${SUPABASE_URL}/functions/v1/claude-proxy`;
+
+// Init Supabase client
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// App state
+let currentUser    = null;
+let currentProject = null;
+let classifyTimer  = null;
+
+// =============================================
+// CORE UTILITY 1 — showPage()
+// Hide all pages, show target. Update nav.
+// =============================================
+function showPage(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById(`page-${pageId}`);
+  if (target) target.classList.add('active');
+
+  // Nav visibility
+  const nav = document.getElementById('nav');
+  nav.classList.toggle('visible', pageId !== 'login');
+
+  // Active nav link
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  const map = { 'dashboard': 0, 'new-project': 1, 'savings': 2 };
+  if (map[pageId] !== undefined) {
+    document.querySelectorAll('.nav-link')[map[pageId]]?.classList.add('active');
+  }
+
+  // Load page data
+  if (pageId === 'dashboard') loadDashboard();
+
+  window.scrollTo(0, 0);
+}
+
+// =============================================
+// CORE UTILITY 2 — dbQuery()
+// Single Supabase wrapper. Consistent error handling.
+// Usage: await dbQuery('projects', 'select', { eq: ['status', 'in_process_rfq'] })
+// =============================================
+async function dbQuery(table, op, options = {}) {
+  try {
+    let q = db.from(table);
+
+    if (op === 'select') {
+      q = q.select(options.select || '*');
+      if (options.eq)  { const [col, val] = options.eq;  q = q.eq(col, val); }
+      if (options.in)  { const [col, arr] = options.in;  q = q.in(col, arr); }
+      if (options.order) q = q.order(options.order[0], { ascending: options.order[1] ?? false });
+      if (options.limit) q = q.limit(options.limit);
+    }
+    if (op === 'insert') q = q.insert(options.data).select();
+    if (op === 'update') {
+      q = q.update(options.data);
+      if (options.eq) { const [col, val] = options.eq; q = q.eq(col, val); }
+      q = q.select();
+    }
+    if (op === 'upsert') q = q.upsert(options.data, { onConflict: options.onConflict }).select();
+    if (op === 'delete') {
+      if (options.eq) { const [col, val] = options.eq; q = q.eq(col, val); }
+      q = q.delete();
+    }
+
+    const { data, error } = await q;
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error(`dbQuery error [${table}.${op}]:`, err);
+    showToast(`Database error: ${err.message}`, 'error');
+    return null;
+  }
+}
+
+// =============================================
+// CORE UTILITY 3 — callClaude()
+// All AI calls go through the claude-proxy edge function.
+// Actions: classify | check_gaps | should_cost | generate_rfq
+// =============================================
+async function callClaude(action, payload) {
+  try {
+    const session = await db.auth.getSession();
+    const token   = session?.data?.session?.access_token;
+    if (!token) throw new Error('Not authenticated');
+
+    const res = await fetch(EDGE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ action, payload }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const json = await res.json();
+    return json.result;
+  } catch (err) {
+    console.error(`callClaude error [${action}]:`, err);
+    showToast(`AI error: ${err.message}`, 'error');
+    return null;
+  }
+}
+
+// =============================================
+// CORE UTILITY 4 — showToast()
+// One toast, three types: success | warning | error
+// Built Day 1. Used everywhere.
+// =============================================
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
+// =============================================
+// UTILITY — saveField()
+// Fires on input blur. Updates spec_entries. Triggers refreshScore().
+// Usage: saveField(projectId, 'spec_entries', 'category', 'field_key', value)
+// =============================================
+async function saveField(projectId, category, fieldKey, value) {
+  const result = await dbQuery('spec_entries', 'upsert', {
+    data: {
+      project_id:  projectId,
+      category:    category,
+      field_key:   fieldKey,
+      field_label: document.querySelector(`[data-field-key="${fieldKey}"]`)?.dataset.fieldLabel || fieldKey,
+      field_value: value || null,
+    },
+    onConflict: 'project_id,category,field_key',
+  });
+  if (result) refreshScore(projectId);
+}
+
+// =============================================
+// UTILITY — refreshScore()
+// Reads all spec_entries for project. Weighted calculation.
+// Updates completeness bar + score label.
+// =============================================
+async function refreshScore(projectId) {
+  const entries = await dbQuery('spec_entries', 'select', {
+    eq: ['project_id', projectId],
+  });
+  if (!entries) return;
+
+  const required = entries.filter(e => e.is_required);
+  const filled   = required.filter(e => e.field_value && e.field_value.trim() !== '');
+  const score    = required.length ? Math.round((filled.length / required.length) * 100) : 0;
+
+  // Update UI
+  const bar   = document.getElementById('spec-score-bar');
+  const label = document.getElementById('spec-score-label');
+  if (bar) {
+    bar.style.width = `${score}%`;
+    bar.style.background = score >= 80 ? 'var(--success)' : score >= 50 ? 'var(--warning)' : 'var(--danger)';
+  }
+  if (label) label.textContent = `${score}%`;
+
+  // Persist to projects table
+  await dbQuery('projects', 'update', {
+    data: { completeness_score: score },
+    eq:   ['id', projectId],
+  });
+
+  return score;
+}
+
+// =============================================
+// AUTH
+// =============================================
+async function handleLogin() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn      = document.getElementById('login-btn');
+  const errEl    = document.getElementById('login-error');
+
+  errEl.style.display = 'none';
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Signing in…';
+
+  const { error } = await db.auth.signInWithPassword({ email, password });
+
+  btn.disabled = false;
+  btn.innerHTML = 'Sign in';
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  showToast('Signed in successfully', 'success');
+}
+
+async function handleSignOut() {
+  await db.auth.signOut();
+  currentUser = null;
+  currentProject = null;
+  showPage('login');
+}
+
+// Auth state listener — single source of truth for routing
+db.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) {
+    currentUser = session.user;
+    document.getElementById('nav-user-name').textContent =
+      session.user.email?.split('@')[0] ?? 'User';
+    showPage('dashboard');
+  } else {
+    showPage('login');
+  }
+});
+
+// =============================================
+// DASHBOARD
+// =============================================
+async function loadDashboard() {
+  const projects = await dbQuery('projects', 'select', {
+    select: 'id,name,customer,status,quoted_value,completeness_score,project_type',
+    order:  ['created_at', false],
+  });
+  if (!projects) return;
+
+  const byStatus = {
+    in_process_rfq:    projects.filter(p => p.status === 'in_process_rfq'),
+    nopo_authorization: projects.filter(p => p.status === 'nopo_authorization'),
+    anticipated_order: projects.filter(p => p.status === 'anticipated_order'),
+    new_po_received:   projects.filter(p => p.status === 'new_po_received'),
+  };
+
+  // Metrics
+  const active   = projects.filter(p => !['on_hold','lost'].includes(p.status));
+  const avgScore = active.length
+    ? Math.round(active.reduce((s,p) => s + (p.completeness_score||0), 0) / active.length)
+    : 0;
+  const pipeline = active.reduce((s,p) => s + (p.quoted_value||0), 0);
+
+  document.getElementById('metric-total').textContent     = active.length;
+  document.getElementById('metric-avg-score').textContent = `${avgScore}%`;
+  document.getElementById('metric-pipeline').textContent  =
+    pipeline ? `$${(pipeline/1e6).toFixed(1)}M` : '—';
+  document.getElementById('dash-subtitle').textContent    =
+    `BEP GR · ${projects.length} projects · updated just now`;
+
+  // Render each bucket
+  const buckets = [
+    { key: 'in_process_rfq',    countId: 'count-in-process',  listId: 'list-in-process' },
+    { key: 'nopo_authorization', countId: 'count-nopo',        listId: 'list-nopo' },
+    { key: 'anticipated_order', countId: 'count-anticipated',  listId: 'list-anticipated' },
+    { key: 'new_po_received',   countId: 'count-po',           listId: 'list-po' },
+  ];
+
+  buckets.forEach(({ key, countId, listId }) => {
+    const list = byStatus[key] || [];
+    document.getElementById(countId).textContent = list.length;
+    const listEl = document.getElementById(listId);
+    listEl.innerHTML = list.slice(0, 3).map(p => `
+      <div class="project-row" onclick="openProject('${p.id}')">
+        <div>
+          <div class="project-name">${escHtml(p.name)}</div>
+          <div class="project-meta">${escHtml(p.customer)} · ${p.project_type || '—'}</div>
+        </div>
+        <div class="project-score">${p.completeness_score ?? '—'}%</div>
+      </div>
+    `).join('');
+    if (list.length > 3) {
+      listEl.innerHTML += `<div style="text-align:center;font-size:11px;color:var(--muted);padding:6px 0">+${list.length - 3} more</div>`;
+    }
+  });
+}
+
+async function openProject(projectId) {
+  const rows = await dbQuery('projects', 'select', { eq: ['id', projectId] });
+  if (!rows || !rows.length) return;
+  currentProject = rows[0];
+  await loadSpecCapture(currentProject);
+  showPage('spec-capture');
+}
+
+// =============================================
+// NEW PROJECT
+// =============================================
+let describeTimer = null;
+function onDescriptionInput() {
+  clearTimeout(describeTimer);
+  const desc = document.getElementById('np-description').value.trim();
+  if (desc.length < 30) return;
+  describeTimer = setTimeout(() => runClassify(desc), 800);
+}
+
+async function runClassify(description) {
+  const panel   = document.getElementById('classify-panel');
+  const spinner = document.getElementById('classify-spinner');
+  const results = document.getElementById('classify-results');
+
+  panel.classList.add('visible');
+  spinner.style.display = 'inline-block';
+  results.innerHTML = '';
+
+  const result = await callClaude('classify', { description });
+
+  spinner.style.display = 'none';
+  if (!result) return;
+
+  results.innerHTML = `
+    <div style="font-size:13px;margin-bottom:8px">
+      <strong>Type:</strong> ${escHtml(result.project_type || '—')} &nbsp;
+      <strong>Complexity:</strong> ${escHtml(result.complexity || '—')} &nbsp;
+      <strong>Confidence:</strong> ${result.confidence ?? '—'}%
+    </div>
+    <div class="classify-result">
+      ${(result.tags || []).map(t => `<span class="classify-tag">${escHtml(t)}</span>`).join('')}
+    </div>
+  `;
+
+  // Pre-fill project type
+  if (result.project_type) {
+    window._classifiedType = result.project_type;
+  }
+}
+
+async function handleCreateProject() {
+  const name   = document.getElementById('np-name').value.trim();
+  const cust   = document.getElementById('np-customer').value.trim();
+  const rfqNum = document.getElementById('np-rfq-num').value.trim();
+  const desc   = document.getElementById('np-description').value.trim();
+  const due    = document.getElementById('np-due-date').value;
+
+  if (!name || !cust) {
+    showToast('Project name and customer are required', 'warning');
+    return;
+  }
+
+  // Get BEP GR entity id
+  const entities = await dbQuery('entities', 'select', { eq: ['short_name', 'BEP GR'] });
+  const entityId = entities?.[0]?.id;
+
+  const rows = await dbQuery('projects', 'insert', {
+    data: {
+      name,
+      customer:     cust,
+      rfq_number:   rfqNum || null,
+      notes:        desc || null,
+      project_type: window._classifiedType || null,
+      due_date:     due || null,
+      entity_id:    entityId || null,
+      created_by:   currentUser?.id,
+      status:       'in_process_rfq',
+    },
+  });
+
+  if (!rows || !rows.length) return;
+  currentProject = rows[0];
+  window._classifiedType = null;
+
+  showToast(`Project "${name}" created`, 'success');
+  await loadSpecCapture(currentProject);
+  showPage('spec-capture');
+}
+
+// =============================================
+// SPEC CAPTURE
+// =============================================
+const SPEC_TABS = {
+  project_overview: {
+    label: 'Project Overview',
+    fields: [
+      { key: 'project_description', label: 'Project Description',    required: true,  wide: true },
+      { key: 'customer_name',       label: 'Customer Name',          required: true },
+      { key: 'project_type',        label: 'Project Type',           required: true },
+      { key: 'quantity',            label: 'Quantity Required',      required: true },
+      { key: 'target_price',        label: 'Target Budget (USD)',    required: false },
+    ]
+  },
+  technical_reqs: {
+    label: 'Technical Requirements',
+    fields: [
+      { key: 'function_description',  label: 'Functional Description',   required: true,  wide: true },
+      { key: 'performance_spec',      label: 'Performance Spec / KPIs',  required: true,  wide: true },
+      { key: 'environmental_rating',  label: 'Environmental Rating',     required: false },
+      { key: 'safety_requirements',   label: 'Safety Requirements',      required: true },
+    ]
+  },
+  materials: {
+    label: 'Materials',
+    fields: [
+      { key: 'primary_material',       label: 'Primary Material',         required: true },
+      { key: 'material_grade',         label: 'Material Grade / Spec',    required: true },
+      { key: 'material_certifications',label: 'Material Certifications',  required: false },
+      { key: 'finish_treatment',       label: 'Finish / Treatment',       required: false },
+    ]
+  },
+  dimensions: {
+    label: 'Dimensions',
+    fields: [
+      { key: 'overall_envelope',    label: 'Overall Envelope (LxWxH)',  required: true },
+      { key: 'critical_tolerances', label: 'Critical Tolerances',       required: true },
+      { key: 'drawing_reference',   label: 'Drawing / Model Reference', required: true },
+      { key: 'weight_limit',        label: 'Weight Limit',              required: false },
+    ]
+  },
+  surface_finish: {
+    label: 'Surface & Finish',
+    fields: [
+      { key: 'surface_roughness_ra', label: 'Surface Roughness (Ra)', required: false },
+      { key: 'coating_spec',         label: 'Coating Specification',  required: false },
+      { key: 'colour_callout',       label: 'Colour Callout',         required: false },
+    ]
+  },
+  delivery: {
+    label: 'Delivery',
+    fields: [
+      { key: 'required_by_date',      label: 'Required-By Date',         required: true },
+      { key: 'delivery_location',     label: 'Delivery Location',        required: true },
+      { key: 'packaging_requirements',label: 'Packaging Requirements',   required: false },
+      { key: 'incoterms',             label: 'Incoterms',                required: false },
+    ]
+  },
+  certifications: {
+    label: 'Certifications',
+    fields: [
+      { key: 'quality_standard',       label: 'Quality Standard',         required: true },
+      { key: 'iatf_required',          label: 'IATF 16949 Required?',     required: false },
+      { key: 'first_article_required', label: 'First Article (PPAP)?',    required: false },
+      { key: 'special_certs',          label: 'Special Certifications',   required: false },
+    ]
+  },
+  // 8th category — confirmed required after Slate $1M installation miss
+  // Mark Mensonides on record: "Where did this get factored within the deal desk?"
+  installation_scope: {
+    label: 'Installation Scope',
+    fields: [
+      { key: 'installation_required',    label: 'Installation Required?',              required: true },
+      { key: 'site_location',            label: 'Site Location / Plant',               required: true },
+      { key: 'incoming_power_spec',      label: 'Incoming Power (V / Phase / Hz)',      required: true },
+      { key: 'machine_weight_lbs',       label: 'Machine Weight (lbs)',                required: true },
+      { key: 'crane_required',           label: 'Crane Required? (threshold: 5,000 lbs)', required: false },
+      { key: 'routing_distance',         label: 'Cable / Conduit Routing Distance',    required: false },
+      { key: 'preferred_installer',      label: 'Preferred Installer',                 required: false },
+      { key: 'site_visit_required',      label: 'Site Visit Required Before Quote?',   required: true },
+      { key: 'installation_budget_type', label: 'Installation Budget: Firm or Estimate?', required: true, wide: true },
+      { key: 'culver_in_scope',          label: 'Sub-Installer / Culver in Scope?',    required: false, wide: true },
+    ]
+  },
+};
+
+async function loadSpecCapture(project) {
+  document.getElementById('spec-project-name').textContent = project.name;
+
+  // Load existing spec entries
+  const entries = await dbQuery('spec_entries', 'select', {
+    eq: ['project_id', project.id],
+  });
+  const entryMap = {};
+  (entries || []).forEach(e => {
+    entryMap[`${e.category}__${e.field_key}`] = e.field_value;
+  });
+
+  // Render each tab
+  Object.entries(SPEC_TABS).forEach(([tabKey, tab]) => {
+    const el = document.getElementById(`tab-${tabKey}`);
+    if (!el) return;
+    el.innerHTML = tab.fields.map(f => {
+      const val = entryMap[`${tabKey}__${f.key}`] || '';
+      const isWide = f.wide ? 'full-width' : '';
+      const reqClass = f.required ? 'field-required' : '';
+      return `
+        <div class="field-group ${isWide}">
+          <label class="${reqClass}" for="field-${f.key}">${escHtml(f.label)}</label>
+          <input
+            type="text"
+            id="field-${f.key}"
+            data-field-key="${f.key}"
+            data-field-label="${escHtml(f.label)}"
+            data-category="${tabKey}"
+            value="${escHtml(val)}"
+            onblur="saveField('${project.id}', '${tabKey}', '${f.key}', this.value)"
+          />
+        </div>`;
+    }).join('');
+  });
+
+  await refreshScore(project.id);
+}
+
+function switchTab(tabKey) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${tabKey}`)?.classList.add('active');
+  document.querySelector(`[data-tab="${tabKey}"]`)?.classList.add('active');
+}
+
+async function handleGapCheck() {
+  if (!currentProject) return;
+
+  const entries = await dbQuery('spec_entries', 'select', {
+    eq: ['project_id', currentProject.id],
+  });
+  const simplified = (entries || []).map(e => ({
+    category: e.category,
+    field:    e.field_key,
+    label:    e.field_label,
+    value:    e.field_value,
+  }));
+
+  const gapList = document.getElementById('gap-list');
+  gapList.innerHTML = '<div class="spinner" style="margin:12px auto;display:block"></div>';
+
+  const result = await callClaude('check_gaps', {
+    project_type: currentProject.project_type || 'custom manufacturing',
+    spec_entries: simplified,
+  });
+
+  if (!result) {
+    gapList.innerHTML = '<div style="color:var(--muted);font-size:12px">Gap check failed.</div>';
+    return;
+  }
+
+  const gaps = result.gaps || [];
+  document.getElementById('gap-count').textContent = gaps.length;
+
+  gapList.innerHTML = gaps.length === 0
+    ? '<div style="color:var(--success);font-size:12px">No critical gaps found!</div>'
+    : gaps.map(g => `
+        <div class="gap-item gap-${g.severity}">
+          <strong style="display:block;margin-bottom:3px">${escHtml(g.category)} — ${escHtml(g.field_key)}</strong>
+          ${escHtml(g.message)}
+        </div>`).join('');
+
+  showToast(`Gap check complete — ${gaps.length} flag${gaps.length !== 1 ? 's' : ''} found`, gaps.length ? 'warning' : 'success');
+}
+
+// =============================================
+// REVIEW & ROUTE
+// =============================================
+async function handleReviewRoute() {
+  if (!currentProject) return;
+  const score = await refreshScore(currentProject.id);
+
+  document.getElementById('review-score-num').textContent = `${score}%`;
+  document.getElementById('review-project-name').textContent = currentProject.name;
+  document.getElementById('review-summary').textContent =
+    score >= 80 ? 'Spec is complete. Ready to generate and send RFQ.'
+    : score >= 50 ? 'Spec needs additional detail before sending to suppliers.'
+    : 'Spec is incomplete. Return to capture and fill required fields.';
+
+  const ring = document.getElementById('review-ring');
+  ring.style.borderColor = score >= 80 ? 'var(--success)' : score >= 50 ? 'var(--warning)' : 'var(--danger)';
+
+  document.getElementById('tier-hold').classList.toggle('active',   score < 50);
+  document.getElementById('tier-review').classList.toggle('active', score >= 50 && score < 80);
+  document.getElementById('tier-send').classList.toggle('active',   score >= 80);
+
+  showPage('review');
+}
+
+// =============================================
+// RFQ OUTPUT
+// =============================================
+async function handleGenerateRFQ() {
+  if (!currentProject) return;
+  showPage('rfq-output');
+  document.getElementById('rfq-content').innerHTML = '<p style="color:#9ca3af">Generating RFQ with Claude…</p>';
+
+  const entries = await dbQuery('spec_entries', 'select', {
+    eq: ['project_id', currentProject.id],
+  });
+
+  const result = await callClaude('generate_rfq', {
+    project:     currentProject,
+    spec_entries: (entries || []).map(e => ({ category: e.category, field: e.field_key, label: e.field_label, value: e.field_value })),
+  });
+
+  if (!result) {
+    document.getElementById('rfq-content').innerHTML = '<p style="color:var(--danger)">RFQ generation failed.</p>';
+    return;
+  }
+
+  // Render markdown-ish RFQ in the white panel
+  const rfqText = result.rfq_document || '';
+  document.getElementById('rfq-content').innerHTML = simpleMarkdown(rfqText);
+
+  // Save to reports table
+  await dbQuery('reports', 'insert', {
+    data: {
+      project_id:  currentProject.id,
+      title:       `RFQ — ${currentProject.name}`,
+      report_type: 'rfq_document',
+      content:     rfqText,
+      created_by:  currentUser?.id,
+    },
+  });
+
+  showToast('RFQ generated and saved', 'success');
+}
+
+function copyRFQ() {
+  const text = document.getElementById('rfq-content').innerText;
+  navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard', 'success'));
+}
+
+// =============================================
+// HELPERS
+// =============================================
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function simpleMarkdown(md) {
+  return md
+    .replace(/^# (.+)$/gm,    '<h1>$1</h1>')
+    .replace(/^## (.+)$/gm,   '<h2>$1</h2>')
+    .replace(/^### (.+)$/gm,  '<h3 style="margin-top:16px;margin-bottom:6px">$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\n\n/g,          '</p><p>')
+    .replace(/\n/g,            '<br>')
+    .replace(/^(.+)$/gm, (line) => line.startsWith('<') ? line : `<p>${line}</p>`);
+}
+
+function filterByStatus(status) {
+  // TODO: filter dashboard list — Day 2 feature
+  showToast(`Filtering by: ${status.replace(/_/g,' ')}`, 'success');
+}
+</script>
+
+</body>
+</html>
