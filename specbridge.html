@@ -729,8 +729,8 @@ const EDGE_URL      = `${SUPABASE_URL}/functions/v1/claude-proxy`;
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// App state
-let currentUser    = null;
+// App state — demo mode, no auth required
+let currentUser    = { email: 'demo@bepgr.com', id: 'demo' };
 let currentProject = null;
 let classifyTimer  = null;
 
@@ -743,9 +743,9 @@ function showPage(pageId) {
   const target = document.getElementById(`page-${pageId}`);
   if (target) target.classList.add('active');
 
-  // Nav visibility
+  // Nav always visible in demo mode
   const nav = document.getElementById('nav');
-  nav.classList.toggle('visible', pageId !== 'login');
+  nav.classList.add('visible');
 
   // Active nav link
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
@@ -805,15 +805,11 @@ async function dbQuery(table, op, options = {}) {
 // =============================================
 async function callClaude(action, payload) {
   try {
-    const session = await db.auth.getSession();
-    const token   = session?.data?.session?.access_token;
-    if (!token) throw new Error('Not authenticated');
-
     const res = await fetch(EDGE_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${SUPABASE_ANON}`,
       },
       body: JSON.stringify({ action, payload }),
     });
@@ -899,76 +895,16 @@ async function refreshScore(projectId) {
 }
 
 // =============================================
-// AUTH
+// AUTH — demo mode, skip login
 // =============================================
-let _signUpMode = false;
-
-function toggleSignUp(e) {
-  e.preventDefault();
-  _signUpMode = !_signUpMode;
-  const btn   = document.getElementById('login-btn');
-  const link  = e.target;
-  btn.textContent = _signUpMode ? 'Create account' : 'Sign in';
-  link.textContent = _signUpMode ? 'Back to sign in' : 'Create one';
-  document.getElementById('login-error').style.display = 'none';
+function handleSignOut() {
+  showToast('Demo mode — sign out disabled', 'info');
 }
 
-async function handleLogin() {
-  const email    = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  const btn      = document.getElementById('login-btn');
-  const errEl    = document.getElementById('login-error');
-
-  errEl.style.display = 'none';
-  btn.disabled = true;
-  btn.innerHTML = _signUpMode
-    ? '<div class="spinner"></div> Creating…'
-    : '<div class="spinner"></div> Signing in…';
-
-  let error;
-  if (_signUpMode) {
-    ({ error } = await db.auth.signUp({ email, password }));
-    if (!error) {
-      btn.disabled = false;
-      btn.textContent = 'Create account';
-      showToast('Account created! Check your email to confirm, then sign in.', 'success');
-      toggleSignUp({ preventDefault: () => {}, target: document.querySelector('a[onclick]') });
-      return;
-    }
-  } else {
-    ({ error } = await db.auth.signInWithPassword({ email, password }));
-  }
-
-  btn.disabled = false;
-  btn.textContent = _signUpMode ? 'Create account' : 'Sign in';
-
-  if (error) {
-    errEl.textContent = error.message;
-    errEl.style.display = 'block';
-    return;
-  }
-
-  showToast('Signed in successfully', 'success');
+// Boot straight to dashboard
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('nav-user-name').textContent = 'ryan.pearman';
   showPage('dashboard');
-}
-
-async function handleSignOut() {
-  await db.auth.signOut();
-  currentUser = null;
-  currentProject = null;
-  showPage('login');
-}
-
-// Auth state listener — single source of truth for routing
-db.auth.onAuthStateChange(async (event, session) => {
-  if (session?.user) {
-    currentUser = session.user;
-    document.getElementById('nav-user-name').textContent =
-      session.user.email?.split('@')[0] ?? 'User';
-    showPage('dashboard');
-  } else {
-    showPage('login');
-  }
 });
 
 // =============================================
