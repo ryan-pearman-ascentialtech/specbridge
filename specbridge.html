@@ -417,6 +417,10 @@
       <button class="btn btn-primary" id="login-btn" onclick="handleLogin()">
         Sign in
       </button>
+      <div style="text-align:center;margin-top:4px;">
+        <span style="color:var(--muted);font-size:13px;">No account? </span>
+        <a href="#" style="color:var(--accent);font-size:13px;" onclick="toggleSignUp(event)">Create one</a>
+      </div>
       <div class="login-error" id="login-error"></div>
     </div>
   </div>
@@ -897,6 +901,18 @@ async function refreshScore(projectId) {
 // =============================================
 // AUTH
 // =============================================
+let _signUpMode = false;
+
+function toggleSignUp(e) {
+  e.preventDefault();
+  _signUpMode = !_signUpMode;
+  const btn   = document.getElementById('login-btn');
+  const link  = e.target;
+  btn.textContent = _signUpMode ? 'Create account' : 'Sign in';
+  link.textContent = _signUpMode ? 'Back to sign in' : 'Create one';
+  document.getElementById('login-error').style.display = 'none';
+}
+
 async function handleLogin() {
   const email    = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
@@ -905,12 +921,26 @@ async function handleLogin() {
 
   errEl.style.display = 'none';
   btn.disabled = true;
-  btn.innerHTML = '<div class="spinner"></div> Signing in…';
+  btn.innerHTML = _signUpMode
+    ? '<div class="spinner"></div> Creating…'
+    : '<div class="spinner"></div> Signing in…';
 
-  const { error } = await db.auth.signInWithPassword({ email, password });
+  let error;
+  if (_signUpMode) {
+    ({ error } = await db.auth.signUp({ email, password }));
+    if (!error) {
+      btn.disabled = false;
+      btn.textContent = 'Create account';
+      showToast('Account created! Check your email to confirm, then sign in.', 'success');
+      toggleSignUp({ preventDefault: () => {}, target: document.querySelector('a[onclick]') });
+      return;
+    }
+  } else {
+    ({ error } = await db.auth.signInWithPassword({ email, password }));
+  }
 
   btn.disabled = false;
-  btn.innerHTML = 'Sign in';
+  btn.textContent = _signUpMode ? 'Create account' : 'Sign in';
 
   if (error) {
     errEl.textContent = error.message;
