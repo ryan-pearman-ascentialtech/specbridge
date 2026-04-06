@@ -1040,7 +1040,7 @@ async function handleCreateProject() {
       project_type: window._classifiedType || null,
       due_date:     due || null,
       entity_id:    entityId || null,
-      created_by:   currentUser?.id,
+      created_by:   null,
       status:       'in_process_rfq',
     },
   });
