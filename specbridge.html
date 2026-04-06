@@ -1058,84 +1058,115 @@ async function handleCreateProject() {
 // SPEC CAPTURE
 // =============================================
 const SPEC_TABS = {
+
+  // TAB 1 — Who, what, why
   project_overview: {
     label: 'Project Overview',
     fields: [
-      { key: 'project_description', label: 'Project Description',    required: true,  wide: true },
-      { key: 'customer_name',       label: 'Customer Name',          required: true },
-      { key: 'project_type',        label: 'Project Type',           required: true },
-      { key: 'quantity',            label: 'Quantity Required',      required: true },
-      { key: 'target_price',        label: 'Target Budget (USD)',    required: false },
+      { key: 'project_description', label: 'Project Description',         required: true,  wide: true },
+      { key: 'customer_name',       label: 'Customer / Plant',            required: true },
+      { key: 'project_type',        label: 'Project Type (e.g. Conveyor, Test Stand, Weld Cell)', required: true },
+      { key: 'quantity',            label: 'Number of Machines / Units',  required: true },
+      { key: 'target_budget',       label: 'Customer Target Budget (USD)',required: false },
+      { key: 'baan_order_number',   label: 'BaaN Order / PO Number',      required: false },
     ]
   },
-  technical_reqs: {
-    label: 'Technical Requirements',
+
+  // TAB 2 — What does the machine do and how fast
+  system_specs: {
+    label: 'System & Machine Specs',
     fields: [
-      { key: 'function_description',  label: 'Functional Description',   required: true,  wide: true },
-      { key: 'performance_spec',      label: 'Performance Spec / KPIs',  required: true,  wide: true },
-      { key: 'environmental_rating',  label: 'Environmental Rating',     required: false },
-      { key: 'safety_requirements',   label: 'Safety Requirements',      required: true },
+      { key: 'function_description',  label: 'What does it do? (plain English)',      required: true, wide: true },
+      { key: 'throughput_rate',       label: 'Throughput / Cycle Rate (JPH, PPM, etc.)', required: true },
+      { key: 'machine_type',          label: 'Machine Type / Configuration',          required: true },
+      { key: 'physical_envelope',     label: 'Physical Envelope — L x W x H (ft)',   required: true },
+      { key: 'machine_weight',        label: 'Estimated Machine Weight (lbs)',        required: true },
+      { key: 'environmental_rating',  label: 'Environment (NEMA rating, washdown, etc.)', required: false },
+      { key: 'special_requirements',  label: 'Special / Unique Requirements',        required: false, wide: true },
     ]
   },
-  materials: {
-    label: 'Materials',
+
+  // TAB 3 — Controls, PLC, safety — the "brains"
+  controls_electrical: {
+    label: 'Controls & Electrical',
     fields: [
-      { key: 'primary_material',       label: 'Primary Material',         required: true },
-      { key: 'material_grade',         label: 'Material Grade / Spec',    required: true },
-      { key: 'material_certifications',label: 'Material Certifications',  required: false },
-      { key: 'finish_treatment',       label: 'Finish / Treatment',       required: false },
+      { key: 'plc_platform',      label: 'PLC Platform (e.g. Allen Bradley, Siemens)', required: true },
+      { key: 'hmi_required',      label: 'HMI Required? Type / Size',                  required: true },
+      { key: 'safety_rating',     label: 'Safety Rating Required (PLe, SIL 2/3, etc.)', required: true },
+      { key: 'network_protocol',  label: 'Network Protocol (EtherNet/IP, Profibus)',   required: false },
+      { key: 'panel_enclosure',   label: 'Panel Enclosure Type (NEMA 12, 4X, etc.)',  required: false },
+      { key: 'vision_system',     label: 'Vision / Inspection System Required?',      required: false },
+      { key: 'ce_marking',        label: 'CE Marking Required?',                      required: true },
     ]
   },
-  dimensions: {
-    label: 'Dimensions',
+
+  // TAB 4 — How do we prove it works before it ships
+  testing_commissioning: {
+    label: 'Testing & Commissioning',
     fields: [
-      { key: 'overall_envelope',    label: 'Overall Envelope (LxWxH)',  required: true },
-      { key: 'critical_tolerances', label: 'Critical Tolerances',       required: true },
-      { key: 'drawing_reference',   label: 'Drawing / Model Reference', required: true },
-      { key: 'weight_limit',        label: 'Weight Limit',              required: false },
+      { key: 'fat_required',        label: 'FAT Required? (Factory Acceptance Test at BEP GR)', required: true },
+      { key: 'sat_required',        label: 'SAT Required? (Site Acceptance Test at customer)',  required: true },
+      { key: 'runoff_duration',     label: 'Run-Off Duration (hours at full rate)',             required: false },
+      { key: 'acceptance_criteria', label: 'Acceptance Criteria (uptime %, defect rate, etc.)', required: true, wide: true },
+      { key: 'debug_hours',         label: 'Estimated Debug / Commissioning Hours',            required: false },
+      { key: 'customer_witness',    label: 'Customer Witness Required at FAT?',                required: false },
     ]
   },
-  surface_finish: {
-    label: 'Surface & Finish',
+
+  // TAB 5 — Where and when does it need to be
+  delivery_logistics: {
+    label: 'Delivery & Logistics',
     fields: [
-      { key: 'surface_roughness_ra', label: 'Surface Roughness (Ra)', required: false },
-      { key: 'coating_spec',         label: 'Coating Specification',  required: false },
-      { key: 'colour_callout',       label: 'Colour Callout',         required: false },
+      { key: 'required_by_date',   label: 'Required-By Date',                        required: true },
+      { key: 'delivery_location',  label: 'Ship-To Location / Plant Address',        required: true },
+      { key: 'lead_time_weeks',    label: 'Agreed Lead Time (weeks)',                required: true },
+      { key: 'shipping_method',    label: 'Shipping Method (flatbed, container, etc.)', required: false },
+      { key: 'incoterms',          label: 'Incoterms (DAP, FCA, etc.)',              required: false },
+      { key: 'export_compliance',  label: 'Export Control / ITAR Applicable?',      required: false },
     ]
   },
-  delivery: {
-    label: 'Delivery',
+
+  // TAB 6 — How BEP GR gets paid and protected
+  commercial_terms: {
+    label: 'Commercial Terms',
     fields: [
-      { key: 'required_by_date',      label: 'Required-By Date',         required: true },
-      { key: 'delivery_location',     label: 'Delivery Location',        required: true },
-      { key: 'packaging_requirements',label: 'Packaging Requirements',   required: false },
-      { key: 'incoterms',             label: 'Incoterms',                required: false },
+      { key: 'contract_type',         label: 'Contract Type (T&M, Fixed Price, NTE)', required: true },
+      { key: 'payment_terms',         label: 'Payment Terms (Net 30, milestone, etc.)', required: true },
+      { key: 'warranty_months',       label: 'Warranty Period (months)',               required: true },
+      { key: 'liquidated_damages',    label: 'Liquidated Damages Clause?',             required: true },
+      { key: 'change_order_process',  label: 'Change Order / ECN Process',             required: false, wide: true },
+      { key: 'nda_required',          label: 'NDA / IP Agreement Required?',          required: false },
     ]
   },
-  certifications: {
-    label: 'Certifications',
+
+  // TAB 7 — Customer-specific requirements beyond the machine
+  customer_requirements: {
+    label: 'Customer Requirements',
     fields: [
-      { key: 'quality_standard',       label: 'Quality Standard',         required: true },
-      { key: 'iatf_required',          label: 'IATF 16949 Required?',     required: false },
-      { key: 'first_article_required', label: 'First Article (PPAP)?',    required: false },
-      { key: 'special_certs',          label: 'Special Certifications',   required: false },
+      { key: 'customer_std',        label: 'Customer Engineering Standards Doc',      required: false },
+      { key: 'iatf_required',       label: 'IATF 16949 / TS Compliance Required?',   required: false },
+      { key: 'ppap_required',       label: 'PPAP / First Article Required?',         required: false },
+      { key: 'cybersecurity_req',   label: 'Cybersecurity / Network Access Requirements', required: false },
+      { key: 'spare_parts_list',    label: 'Spare Parts List Required?',             required: false },
+      { key: 'training_required',   label: 'Operator / Maintenance Training Required?', required: true },
+      { key: 'documentation_req',   label: 'Documentation Package (manuals, drawings, BOM)', required: true, wide: true },
     ]
   },
-  // 8th category — confirmed required after Slate $1M installation miss
-  // Mark Mensonides on record: "Where did this get factored within the deal desk?"
+
+  // TAB 8 — The Slate $1M lesson — never skip this
   installation_scope: {
     label: 'Installation Scope',
     fields: [
-      { key: 'installation_required',    label: 'Installation Required?',              required: true },
-      { key: 'site_location',            label: 'Site Location / Plant',               required: true },
-      { key: 'incoming_power_spec',      label: 'Incoming Power (V / Phase / Hz)',      required: true },
-      { key: 'machine_weight_lbs',       label: 'Machine Weight (lbs)',                required: true },
-      { key: 'crane_required',           label: 'Crane Required? (threshold: 5,000 lbs)', required: false },
-      { key: 'routing_distance',         label: 'Cable / Conduit Routing Distance',    required: false },
-      { key: 'preferred_installer',      label: 'Preferred Installer',                 required: false },
-      { key: 'site_visit_required',      label: 'Site Visit Required Before Quote?',   required: true },
-      { key: 'installation_budget_type', label: 'Installation Budget: Firm or Estimate?', required: true, wide: true },
-      { key: 'culver_in_scope',          label: 'Sub-Installer / Culver in Scope?',    required: false, wide: true },
+      { key: 'installation_required',    label: 'Installation Required?',                    required: true },
+      { key: 'site_location',            label: 'Site Location / Plant',                     required: true },
+      { key: 'incoming_power_spec',      label: 'Incoming Power (V / Phase / Hz)',           required: true },
+      { key: 'machine_weight_lbs',       label: 'Machine Weight (lbs)',                      required: true },
+      { key: 'crane_required',           label: 'Crane Required? (threshold: 5,000 lbs)',    required: false },
+      { key: 'routing_distance',         label: 'Cable / Conduit Routing Distance',          required: false },
+      { key: 'preferred_installer',      label: 'Preferred Installer',                       required: false },
+      { key: 'site_visit_required',      label: 'Site Visit Required Before Quote?',         required: true },
+      { key: 'installation_budget_type', label: 'Installation Budget: Firm or Estimate?',   required: true, wide: true },
+      { key: 'culver_in_scope',          label: 'Sub-Installer / Culver in Scope?',         required: false, wide: true },
     ]
   },
 };
