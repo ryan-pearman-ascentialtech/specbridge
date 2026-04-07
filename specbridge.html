@@ -420,55 +420,7 @@
         <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:14px">
           AE Performance — YTD 2026
         </div>
-        <table class="po-table">
-          <thead>
-            <tr>
-              <th>AE</th>
-              <th>POs</th>
-              <th>ECNs</th>
-              <th>ECN Rate</th>
-              <th>Avg Margin</th>
-              <th>Total Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Jennifer Willbrandt</strong></td>
-              <td>9</td>
-              <td><span class="ecn-pill ecn-yes">5</span></td>
-              <td style="color:var(--danger)">55.6%</td>
-              <td>30.2%</td>
-              <td>$2.89M</td>
-            </tr>
-            <tr>
-              <td><strong>Paul Kitchen</strong></td>
-              <td>6</td>
-              <td><span class="ecn-pill ecn-yes">2</span></td>
-              <td style="color:var(--warning)">33.3%</td>
-              <td>32.6%</td>
-              <td>$3.56M</td>
-            </tr>
-            <tr>
-              <td><strong>Darin Levander</strong></td>
-              <td>8</td>
-              <td><span class="ecn-pill ecn-yes">2</span></td>
-              <td style="color:var(--warning)">25.0%</td>
-              <td>39.3%</td>
-              <td>$1.27M</td>
-            </tr>
-            <tr>
-              <td><strong>Jeremy Gutierrez</strong></td>
-              <td>2</td>
-              <td><span class="ecn-pill ecn-no">0</span></td>
-              <td style="color:var(--success)">0%</td>
-              <td>55.8%</td>
-              <td>$323K</td>
-            </tr>
-          </tbody>
-        </table>
-        <div style="margin-top:14px;padding:10px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--muted);line-height:1.5">
-          💡 <strong>Insight:</strong> Jennifer's ECN rate is 55.6% — concentrated in GM Arlington. SpecBridge captures installation scope on every quote to reduce this.
-        </div>
+        <div id="ae-table-container"></div>
       </div>
     </div>
 
@@ -1095,11 +1047,75 @@ function filterPOs() {
 }
 
 // =============================================
+// AE PERFORMANCE TABLE — calculated live from HISTORICAL_POS
+// =============================================
+function renderAETable() {
+  const AES = ['Jennifer Willbrandt', 'Paul Kitchen', 'Darin Levander', 'Jeremy Gutierrez'];
+  const stats = {};
+  AES.forEach(ae => { stats[ae] = { pos: 0, ecns: 0, totalValue: 0, margins: [] }; });
+
+  HISTORICAL_POS.forEach(po => {
+    if (!stats[po.ae]) return;
+    const s = stats[po.ae];
+    s.pos++;
+    if (po.ecn) s.ecns++;
+    s.totalValue += po.value;
+    if (po.margin !== null) s.margins.push(po.margin);
+  });
+
+  // Sort by ECN rate descending
+  const sorted = AES.map(ae => ({ ae, ...stats[ae] }))
+    .sort((a, b) => (b.ecns / b.pos) - (a.ecns / a.pos));
+
+  const fmtVal = v => v >= 1000000 ? `$${(v/1000000).toFixed(2)}M` : `$${Math.round(v/1000)}K`;
+  const fmtPct = (n, d) => d ? ((n/d)*100).toFixed(1) + '%' : '—';
+  const ecnColor = r => r >= 0.5 ? 'var(--danger)' : r >= 0.25 ? 'var(--warning)' : 'var(--success)';
+
+  // Build insight for highest-risk AE
+  const top = sorted[0];
+  const topRate = top.pos ? (top.ecns / top.pos) : 0;
+  const insightAE = topRate > 0
+    ? `💡 <strong>Insight:</strong> ${top.ae.split(' ')[0]}'s ECN rate is ${fmtPct(top.ecns, top.pos)} — the highest on the team. SpecBridge captures installation scope on every quote to reduce rework exposure.`
+    : `💡 <strong>Insight:</strong> No ECNs recorded YTD. SpecBridge helps keep it that way.`;
+
+  const rows = sorted.map(s => {
+    const rate = s.pos ? s.ecns / s.pos : 0;
+    const avgMargin = s.margins.length ? (s.margins.reduce((a,b) => a+b, 0) / s.margins.length).toFixed(1) + '%' : '—';
+    const ecnPill = s.ecns > 0
+      ? `<span class="ecn-pill ecn-yes">${s.ecns}</span>`
+      : `<span class="ecn-pill ecn-no">0</span>`;
+    return `<tr>
+      <td><strong>${s.ae}</strong></td>
+      <td>${s.pos}</td>
+      <td>${ecnPill}</td>
+      <td style="color:${ecnColor(rate)}">${fmtPct(s.ecns, s.pos)}</td>
+      <td>${avgMargin}</td>
+      <td>${fmtVal(s.totalValue)}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `
+    <table class="po-table">
+      <thead>
+        <tr>
+          <th>AE</th><th>POs</th><th>ECNs</th><th>ECN Rate</th><th>Avg Margin</th><th>Total Value</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:14px;padding:10px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--muted);line-height:1.5">
+      ${insightAE}
+    </div>`;
+
+  const el = document.getElementById('ae-table-container');
+  if (el) el.innerHTML = html;
+}
+
 // BOOT
 // =============================================
 loadDashboard();
-// Pre-render PO table for when savings page opens
-setTimeout(() => renderPOTable(HISTORICAL_POS), 100);
+// Pre-render savings tables for when savings page opens
+setTimeout(() => { renderPOTable(HISTORICAL_POS); renderAETable(); }, 100);
 </script>
 </body>
 </html>
