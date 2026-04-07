@@ -146,10 +146,18 @@
 
     /* AI ACTIONS */
     .ai-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
-    .rfq-output { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px; font-size: 12px; line-height: 1.8; white-space: pre-wrap; max-height: 400px; overflow-y: auto; margin-top: 12px; display: none; }
-    .should-cost-output { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-top: 12px; display: none; }
-    .cost-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
-    .cost-total { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; font-weight: 700; color: var(--accent); }
+    .cost-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .cost-total { display: flex; justify-content: space-between; padding: 10px 0 4px; font-size: 16px; font-weight: 700; color: var(--accent); }
+
+    /* RESULTS MODAL */
+    .results-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500; display: none; align-items: center; justify-content: center; }
+    .results-modal-overlay.open { display: flex; }
+    .results-modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; width: 740px; max-width: 94vw; max-height: 85vh; display: flex; flex-direction: column; }
+    .results-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .results-modal-title { font-size: 17px; font-weight: 700; }
+    .results-modal-body { flex: 1; overflow-y: auto; }
+    .results-modal-footer { display: flex; gap: 10px; padding-top: 16px; border-top: 1px solid var(--border); margin-top: 16px; }
+    .rfq-text { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 16px 20px; font-size: 13px; line-height: 1.9; white-space: pre-wrap; font-family: var(--font); }
 
     /* NAV BADGE */
     .nav-badge { background: var(--danger); color: #fff; border-radius: 999px; font-size: 10px; font-weight: 700; padding: 1px 6px; margin-left: 4px; vertical-align: middle; }
@@ -366,8 +374,6 @@
           <button class="btn btn-secondary btn-sm" onclick="runShouldCost()">💰 Should Cost</button>
           <button class="btn btn-secondary btn-sm" onclick="runGenerateRFQ()">📄 Generate RFQ</button>
         </div>
-        <div class="should-cost-output" id="should-cost-output"></div>
-        <div class="rfq-output" id="rfq-output"></div>
       </div>
     </div>
   </div>
@@ -456,6 +462,23 @@
       </div>
     </div>
     <div id="review-list"></div>
+  </div>
+</div>
+
+<!-- =============================================
+     RESULTS MODAL (Should Cost + RFQ)
+============================================= -->
+<div id="results-modal" class="results-modal-overlay" onclick="if(event.target===this)closeResultsModal()">
+  <div class="results-modal-box">
+    <div class="results-modal-header">
+      <div class="results-modal-title" id="results-modal-title">Results</div>
+      <button class="btn btn-secondary btn-sm" onclick="closeResultsModal()">✕ Close</button>
+    </div>
+    <div class="results-modal-body" id="results-modal-body"></div>
+    <div class="results-modal-footer">
+      <button class="btn btn-secondary" onclick="copyResults()">📋 Copy to Clipboard</button>
+      <button class="btn btn-secondary" onclick="closeResultsModal()">Close</button>
+    </div>
   </div>
 </div>
 
@@ -971,18 +994,31 @@ async function runShouldCost() {
   btn.disabled = false; btn.innerHTML = '💰 Should Cost';
   if (!result) return;
 
-  const out = document.getElementById('should-cost-output');
-  out.style.display = 'block';
-  out.innerHTML = `
-    <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">Should-Cost Estimate</div>
-    ${(result.labor_breakdown||[]).map(r=>`
-      <div class="cost-row">
-        <span>${escHtml(r.role)}</span>
-        <span>${r.hours}h @ $${r.rate}/hr = ${fmtUSD(r.subtotal)}</span>
-      </div>`).join('')}
-    <div class="cost-row"><span>Materials</span><span>${fmtUSD(result.materials_estimate)}</span></div>
-    <div class="cost-total"><span>Total Estimate (${result.confidence||'—'} confidence)</span><span>${fmtUSD(result.total_estimate)}</span></div>
-    <div style="font-size:11px;color:var(--muted);margin-top:6px">${escHtml(result.notes||'')}</div>`;
+  const rows = (result.labor_breakdown||[]).map(r =>
+    `<div class="cost-row"><span>${escHtml(r.role)}</span><span>${r.hours}h @ $${r.rate}/hr = ${fmtUSD(r.subtotal)}</span></div>`
+  ).join('');
+
+  const html = `
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:14px">Labor Breakdown</div>
+    ${rows}
+    <div class="cost-row"><span>Materials &amp; Components</span><span>${fmtUSD(result.materials_estimate)}</span></div>
+    <div class="cost-total">
+      <span>Total Estimate <span style="font-size:12px;font-weight:400;color:var(--muted)">(${result.confidence||'—'} confidence)</span></span>
+      <span>${fmtUSD(result.total_estimate)}</span>
+    </div>
+    ${result.notes ? `<div style="margin-top:14px;padding:12px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--muted);line-height:1.6">${escHtml(result.notes)}</div>` : ''}`;
+
+  const copyText = [
+    'SHOULD-COST ESTIMATE — ' + currentProject.name,
+    '---',
+    ...(result.labor_breakdown||[]).map(r => `${r.role}: ${r.hours}h @ $${r.rate}/hr = $${r.subtotal?.toLocaleString()}`),
+    `Materials: $${result.materials_estimate?.toLocaleString()}`,
+    '---',
+    `TOTAL: $${result.total_estimate?.toLocaleString()} (${result.confidence} confidence)`,
+    result.notes || '',
+  ].join('\n');
+
+  openResultsModal('💰 Should-Cost Estimate', html, copyText);
 
   // Save total estimate back to project so dashboard + review queue show it
   if (result.total_estimate && currentProject?.id) {
@@ -1014,9 +1050,8 @@ async function runGenerateRFQ() {
   btn.disabled = false; btn.innerHTML = '📄 Generate RFQ';
   if (!result) return;
 
-  const out = document.getElementById('rfq-output');
-  out.style.display = 'block';
-  out.textContent = result;
+  const html = `<div class="rfq-text">${escHtml(result)}</div>`;
+  openResultsModal('📄 Generated RFQ Document', html, result);
   showToast('RFQ document generated', 'success');
 }
 
@@ -1093,6 +1128,27 @@ function filterPOs() {
 }
 
 // =============================================
+// =============================================
+// RESULTS MODAL (Should Cost + RFQ)
+// =============================================
+function openResultsModal(title, html, copyText) {
+  document.getElementById('results-modal-title').textContent = title;
+  document.getElementById('results-modal-body').innerHTML = html;
+  window._resultsCopyText = copyText || '';
+  document.getElementById('results-modal').classList.add('open');
+}
+
+function closeResultsModal() {
+  document.getElementById('results-modal').classList.remove('open');
+}
+
+function copyResults() {
+  if (!window._resultsCopyText) return;
+  navigator.clipboard.writeText(window._resultsCopyText)
+    .then(() => showToast('Copied to clipboard', 'success'))
+    .catch(() => showToast('Copy failed — try selecting text manually', 'error'));
+}
+
 // =============================================
 // ROUTE MODAL
 // =============================================
