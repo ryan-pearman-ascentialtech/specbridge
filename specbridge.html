@@ -98,6 +98,8 @@
     .project-row:hover .project-name { color: var(--accent); }
     .project-name { font-size: 12px; font-weight: 600; }
     .project-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .show-more-btn { text-align: center; font-size: 11px; color: var(--accent); padding: 7px 0 2px; cursor: pointer; border-top: 1px solid var(--border); margin-top: 2px; }
+    .show-more-btn:hover { color: var(--text); }
     .project-score { font-size: 12px; font-weight: 600; color: var(--warning); white-space: nowrap; }
 
     /* =============================================
@@ -717,19 +719,36 @@ async function loadDashboard() {
   ].forEach(({ key, countId, listId }) => {
     const list = byStatus[key] || [];
     document.getElementById(countId).textContent = list.length;
-    document.getElementById(listId).innerHTML = list.slice(0,3).map(p => `
+
+    const renderRow = p => `
       <div class="project-row" onclick="openProject('${p.id}')">
         <div>
           <div class="project-name">${escHtml(p.name)}</div>
           <div class="project-meta">${escHtml(p.customer)} · ${escHtml(p.project_type || '—')}</div>
         </div>
         <div class="project-score">${p.completeness_score ?? 0}%</div>
-      </div>`).join('') + (list.length > 3 ? `<div style="text-align:center;font-size:11px;color:var(--muted);padding:6px 0">+${list.length-3} more</div>` : '');
+      </div>`;
+
+    const preview = list.slice(0, 3);
+    const rest    = list.slice(3);
+
+    document.getElementById(listId).innerHTML =
+      preview.map(renderRow).join('') +
+      (rest.length ? `
+        <div id="extra-${listId}" style="display:none">${rest.map(renderRow).join('')}</div>
+        <div class="show-more-btn" id="btn-${listId}" onclick="toggleBucket('${listId}', ${rest.length})">
+          ＋ ${rest.length} more
+        </div>` : '');
   });
 }
 
-function filterByStatus(status) {
-  // Future: filter view
+function toggleBucket(listId, restCount) {
+  const extra = document.getElementById(`extra-${listId}`);
+  const btn   = document.getElementById(`btn-${listId}`);
+  if (!extra) return;
+  const expanding = extra.style.display === 'none';
+  extra.style.display = expanding ? 'block' : 'none';
+  btn.textContent = expanding ? '− Show less' : `＋ ${restCount} more`;
 }
 
 async function openProject(id) {
