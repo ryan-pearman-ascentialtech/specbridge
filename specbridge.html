@@ -984,6 +984,14 @@ async function runShouldCost() {
     <div class="cost-total"><span>Total Estimate (${result.confidence||'—'} confidence)</span><span>${fmtUSD(result.total_estimate)}</span></div>
     <div style="font-size:11px;color:var(--muted);margin-top:6px">${escHtml(result.notes||'')}</div>`;
 
+  // Save total estimate back to project so dashboard + review queue show it
+  if (result.total_estimate && currentProject?.id) {
+    await dbQuery('projects', 'update', {
+      data: { quoted_value: result.total_estimate },
+      eq: ['id', currentProject.id],
+    });
+  }
+
   showToast('Should-cost estimate ready', 'success');
 }
 
@@ -1162,7 +1170,7 @@ async function loadReviewQueue() {
   list.innerHTML = items.map(p => {
     const score = p.completeness_score ?? 0;
     const scoreColor = score >= 70 ? 'var(--success)' : score >= 40 ? 'var(--warning)' : 'var(--danger)';
-    const val = p.quoted_value ? fmtUSD(p.quoted_value) : '—';
+    const val = p.quoted_value ? fmtUSD(p.quoted_value) : '<span style="color:var(--muted);font-size:11px">Run Should Cost first</span>';
     return `
     <div class="review-card">
       <div class="review-card-header">
