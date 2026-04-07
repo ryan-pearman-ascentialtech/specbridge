@@ -638,7 +638,8 @@ function showPage(pageId) {
   const map = { dashboard: 0, 'new-project': 1, review: 2, savings: 3 };
   if (map[pageId] !== undefined) document.querySelectorAll('.nav-link')[map[pageId]]?.classList.add('active');
   if (pageId === 'dashboard') loadDashboard();
-  if (pageId === 'review') loadReviewQueue();
+  if (pageId === 'review')   loadReviewQueue();
+  if (pageId === 'savings')  reloadSavings();
   window.scrollTo(0, 0);
 }
 
@@ -1095,7 +1096,42 @@ const HISTORICAL_POS = [
   { date:'2026-01-05', customer:'Ford MI Proving Grounds', po:'OR26250',            desc:'2026 Software and preventative maintenance package',  ae:'Jeremy Gutierrez',  pm:'Brian Parker',    value:120500,  margin:63.0,  ecn:false },
 ];
 
-let poFilteredData = [...HISTORICAL_POS];
+// liveHistoricalPOS starts with the hardcoded data as fallback,
+// then gets replaced with live Supabase data on load
+let liveHistoricalPOS = [...HISTORICAL_POS];
+let poFilteredData    = [...HISTORICAL_POS];
+
+async function loadHistoricalPOs() {
+  const rows = await dbQuery('historical_pos', 'select', {
+    select: 'po_date,customer,po_number,description,ae_name,pm_name,total_value,quoted_margin_pct,is_ecn',
+    order: ['po_date', false],
+  });
+  if (!rows?.length) return; // keep hardcoded fallback
+
+  // Normalize DB field names to match render function expectations
+  liveHistoricalPOS = rows.map(r => ({
+    date:     r.po_date,
+    customer: r.customer,
+    po:       r.po_number,
+    desc:     r.description,
+    ae:       r.ae_name  || '',
+    pm:       r.pm_name  || '',
+    value:    Number(r.total_value),
+    margin:   r.quoted_margin_pct != null ? Number(r.quoted_margin_pct) : null,
+    ecn:      r.is_ecn,
+  }));
+  poFilteredData = [...liveHistoricalPOS];
+}
+
+async function reloadSavings() {
+  await loadHistoricalPOs();
+  renderSavingsMetrics();
+  renderECNRiskChart();
+  renderAETable();
+  renderPOTable(liveHistoricalPOS);
+  const ecnEl = document.getElementById('metric-ecn');
+  if (ecnEl) ecnEl.textContent = ((liveHistoricalPOS.filter(p => p.ecn).length / liveHistoricalPOS.length) * 100).toFixed(1) + '%';
+}
 
 function renderPOTable(data) {
   const tbody = document.getElementById('po-tbody');
@@ -1118,7 +1154,7 @@ function filterPOs() {
   const search = document.getElementById('po-search')?.value.toLowerCase() || '';
   const ecnF   = document.getElementById('po-filter-ecn')?.value || '';
   const aeF    = document.getElementById('po-filter-ae')?.value || '';
-  poFilteredData = HISTORICAL_POS.filter(p => {
+  poFilteredData = liveHistoricalPOS.filter(p => {
     const matchSearch = !search || [p.customer, p.desc, p.ae, p.pm, p.po].some(v => v?.toLowerCase().includes(search));
     const matchEcn    = !ecnF || (ecnF === 'ecn' ? p.ecn : !p.ecn);
     const matchAe     = !aeF  || p.ae === aeF;
@@ -1306,11 +1342,11 @@ async function updateReviewBadge() {
 // SAVINGS METRICS — calculated live from HISTORICAL_POS
 // =============================================
 function renderSavingsMetrics() {
-  const total = HISTORICAL_POS.length;
-  const ecns  = HISTORICAL_POS.filter(p => p.ecn).length;
+  const total = liveHistoricalPOS.length;
+  const ecns  = liveHistoricalPOS.filter(p => p.ecn).length;
   const ecnRate = ((ecns / total) * 100).toFixed(1);
-  const avgValue = Math.round(HISTORICAL_POS.reduce((s, p) => s + p.value, 0) / total);
-  const margins = HISTORICAL_POS.filter(p => p.margin !== null && p.margin > 0).map(p => p.margin);
+  const avgValue = Math.round(liveHistoricalPOS.reduce((s, p) => s + p.value, 0) / total);
+  const margins = liveHistoricalPOS.filter(p => p.margin !== null && p.margin > 0).map(p => p.margin);
   const avgMargin = (margins.reduce((a, b) => a + b, 0) / margins.length).toFixed(1);
 
   const fmtVal = v => v >= 1000000 ? `$${(v/1000000).toFixed(2)}M` : `$${Math.round(v/1000)}K`;
@@ -1354,7 +1390,7 @@ function renderECNRiskChart() {
   ];
 
   const rows = GROUPS.map(g => {
-    const pos  = HISTORICAL_POS.filter(g.fn);
+    const pos  = liveHistoricalPOS.filter(g.fn);
     if (!pos.length) return null;
     const ecns = pos.filter(p => p.ecn).length;
     const rate = ecns / pos.length;
@@ -1395,7 +1431,7 @@ function renderAETable() {
   const stats = {};
   AES.forEach(ae => { stats[ae] = { pos: 0, ecns: 0, totalValue: 0, margins: [] }; });
 
-  HISTORICAL_POS.forEach(po => {
+  liveHistoricalPOS.forEach(po => {
     if (!stats[po.ae]) return;
     const s = stats[po.ae];
     s.pos++;
@@ -1458,15 +1494,8 @@ loadDashboard();
 // Update review badge on load
 updateReviewBadge();
 
-// Pre-render all savings page content + dashboard ECN metric
-setTimeout(() => {
-  renderSavingsMetrics();
-  renderECNRiskChart();
-  renderAETable();
-  renderPOTable(HISTORICAL_POS);
-  const ecnEl = document.getElementById('metric-ecn');
-  if (ecnEl) ecnEl.textContent = ((HISTORICAL_POS.filter(p => p.ecn).length / HISTORICAL_POS.length) * 100).toFixed(1) + '%';
-}, 100);
+// Load live PO data from Supabase and render all savings content
+reloadSavings();
 </script>
 </body>
 </html>
