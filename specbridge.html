@@ -39,8 +39,13 @@
     .btn-primary:hover { background: var(--accent-hover); }
     .btn-secondary { background: var(--border); color: var(--text); }
     .btn-secondary:hover { background: #363946; }
+    .btn-success { background: #16a34a; color: #fff; }
+    .btn-success:hover { background: #15803d; }
+    .btn-warning { background: #b45309; color: #fff; }
+    .btn-warning:hover { background: #92400e; }
     .btn-sm { padding: 5px 12px; font-size: 12px; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .row-action { font-size: 11px !important; padding: 3px 9px !important; border-radius: 4px; white-space: nowrap; line-height: 1.4; }
 
     /* FORMS */
     .form-group { display: flex; flex-direction: column; gap: 5px; }
@@ -509,6 +514,56 @@
   </div>
 </div>
 
+<!-- =============================================
+     CLOSE AS WON MODAL
+============================================= -->
+<div id="close-won-modal" class="modal-overlay" onclick="if(event.target===this)closeCloseWonModal()">
+  <div class="modal-box" style="width:520px">
+    <div class="modal-title">🎉 Close as Won</div>
+    <div class="modal-sub" id="close-won-subtitle">Enter the final PO details to record this win and update the Savings dashboard.</div>
+
+    <input type="hidden" id="close-won-project-id" value="" />
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div class="form-group" style="grid-column:1/-1">
+        <label for="close-won-po">PO Number <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="close-won-po" placeholder="e.g. GM-2026-004481" />
+      </div>
+      <div class="form-group">
+        <label for="close-won-value">Final PO Value ($) <span style="color:var(--danger)">*</span></label>
+        <input type="number" id="close-won-value" placeholder="0" step="1000" min="0" />
+      </div>
+      <div class="form-group">
+        <label for="close-won-margin">Quoted Margin (%)</label>
+        <input type="number" id="close-won-margin" placeholder="e.g. 32" step="0.1" min="0" max="100" />
+      </div>
+      <div class="form-group">
+        <label for="close-won-ae">AE Name</label>
+        <select id="close-won-ae">
+          <option value="">— Select AE —</option>
+          <option>Jennifer Willbrandt</option>
+          <option>Paul Kitchen</option>
+          <option>Darin Levander</option>
+          <option>Jeremy Gutierrez</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="close-won-pm">PM Name</label>
+        <input type="text" id="close-won-pm" placeholder="Optional" />
+      </div>
+      <div class="form-group" style="grid-column:1/-1;flex-direction:row;align-items:center;gap:10px;margin-top:4px">
+        <input type="checkbox" id="close-won-ecn" style="width:16px;height:16px;cursor:pointer" />
+        <label for="close-won-ecn" style="cursor:pointer;font-size:13px;color:var(--text)">This is an ECN (Engineering Change Notice)</label>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-success" onclick="submitCloseWon()">✓ Record Win &amp; Close PO</button>
+      <button class="btn btn-secondary" onclick="closeCloseWonModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // =============================================
 // CONFIG
@@ -720,13 +775,14 @@ async function loadDashboard() {
   if (!projects) return;
 
   const active = projects.filter(p => !['on_hold','lost'].includes(p.status));
+  const lostCount = projects.filter(p => p.status === 'lost').length;
   const avgScore = active.length ? Math.round(active.reduce((s,p) => s+(p.completeness_score||0), 0) / active.length) : 0;
   const pipeline = active.reduce((s,p) => s+(p.quoted_value||0), 0);
 
-  document.getElementById('metric-total').textContent    = active.length;
+  document.getElementById('metric-total').textContent     = active.length;
   document.getElementById('metric-avg-score').textContent = `${avgScore}%`;
   document.getElementById('metric-pipeline').textContent  = pipeline ? `$${(pipeline/1e6).toFixed(1)}M` : '—';
-  document.getElementById('dash-subtitle').textContent    = `BEP GR · ${projects.length} projects · updated just now`;
+  document.getElementById('dash-subtitle').textContent    = `BEP GR · ${active.length} active · ${lostCount} lost · updated just now`;
 
   const byStatus = {
     in_process_rfq:    projects.filter(p => p.status === 'in_process_rfq'),
@@ -735,22 +791,34 @@ async function loadDashboard() {
     new_po_received:   projects.filter(p => p.status === 'new_po_received'),
   };
 
+  // Per-bucket action button generators (return HTML string or '')
+  const bucketActions = {
+    in_process_rfq:    () => '',
+    nopo_authorization: p => `<button class="btn btn-warning row-action" onclick="event.stopPropagation();advanceToAnticipated('${p.id}','${escHtml(p.name).replace(/'/g,"\\'")}')">→ Anticipated</button>`,
+    anticipated_order: p => `<button class="btn btn-success row-action" onclick="event.stopPropagation();openCloseWonModal('${p.id}','${escHtml(p.name).replace(/'/g,"\\'")}',${p.quoted_value||0})">✓ Close Won</button>`,
+    new_po_received:   () => '',
+  };
+
   [
     { key: 'in_process_rfq',    countId: 'count-in-process', listId: 'list-in-process' },
     { key: 'nopo_authorization', countId: 'count-nopo',       listId: 'list-nopo' },
     { key: 'anticipated_order', countId: 'count-anticipated', listId: 'list-anticipated' },
     { key: 'new_po_received',   countId: 'count-po',          listId: 'list-po' },
   ].forEach(({ key, countId, listId }) => {
-    const list = byStatus[key] || [];
+    const list       = byStatus[key] || [];
+    const getActions = bucketActions[key] || (() => '');
     document.getElementById(countId).textContent = list.length;
 
     const renderRow = p => `
       <div class="project-row" onclick="openProject('${p.id}')">
-        <div>
+        <div style="flex:1;min-width:0">
           <div class="project-name">${escHtml(p.name)}</div>
           <div class="project-meta">${escHtml(p.customer)} · ${escHtml(p.project_type || '—')}</div>
         </div>
-        <div class="project-score">${p.completeness_score ?? 0}%</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          ${getActions(p)}
+          <div class="project-score">${p.completeness_score ?? 0}%</div>
+        </div>
       </div>`;
 
     const preview = list.slice(0, 3);
@@ -1321,6 +1389,96 @@ async function killProposal(projectId, projectName) {
   showToast(`"${projectName}" marked as dead`, 'error');
   loadReviewQueue();
   updateReviewBadge();
+}
+
+// =============================================
+// STATUS PROGRESSION (Dashboard)
+// =============================================
+
+async function advanceToAnticipated(projectId, projectName) {
+  if (!window.confirm(`Move "${projectName}" to Anticipated Order?`)) return;
+  await dbQuery('projects', 'update', {
+    data: { status: 'anticipated_order' },
+    eq: ['id', projectId],
+  });
+  showToast(`"${projectName}" moved to Anticipated Order`, 'success');
+  loadDashboard();
+}
+
+function openCloseWonModal(projectId, projectName, quotedValue) {
+  document.getElementById('close-won-project-id').value = projectId;
+  document.getElementById('close-won-subtitle').textContent =
+    `"${projectName}" — enter the final PO details to record this win and update the Savings dashboard.`;
+  document.getElementById('close-won-po').value      = '';
+  document.getElementById('close-won-value').value   = quotedValue || '';
+  document.getElementById('close-won-margin').value  = '';
+  document.getElementById('close-won-ae').value      = '';
+  document.getElementById('close-won-pm').value      = '';
+  document.getElementById('close-won-ecn').checked   = false;
+  document.getElementById('close-won-modal').classList.add('open');
+}
+
+function closeCloseWonModal() {
+  document.getElementById('close-won-modal').classList.remove('open');
+}
+
+async function submitCloseWon() {
+  const projectId = document.getElementById('close-won-project-id').value;
+  const poNumber  = document.getElementById('close-won-po').value.trim();
+  const value     = parseFloat(document.getElementById('close-won-value').value);
+  const margin    = document.getElementById('close-won-margin').value;
+  const ae        = document.getElementById('close-won-ae').value.trim();
+  const pm        = document.getElementById('close-won-pm').value.trim();
+  const isEcn     = document.getElementById('close-won-ecn').checked;
+
+  if (!poNumber) { showToast('PO Number is required', 'error'); return; }
+  if (!value || isNaN(value)) { showToast('Final PO Value is required', 'error'); return; }
+
+  // Pull project info for customer + description
+  const rows = await dbQuery('projects', 'select', { eq: ['id', projectId] });
+  if (!rows?.length) { showToast('Project not found', 'error'); return; }
+  const proj = rows[0];
+
+  const btn = document.querySelector('#close-won-modal .btn-success');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    // 1. Insert into historical_pos
+    await dbQuery('historical_pos', 'insert', {
+      data: {
+        po_date:           new Date().toISOString().split('T')[0],
+        customer:          proj.customer || 'Unknown',
+        po_number:         poNumber,
+        description:       proj.name,
+        ae_name:           ae || null,
+        pm_name:           pm || null,
+        total_value:       value,
+        quoted_margin_pct: margin ? parseFloat(margin) : null,
+        is_ecn:            isEcn,
+        entity_id:         proj.entity_id || null,
+      },
+    });
+
+    // 2. Advance project to new_po_received
+    await dbQuery('projects', 'update', {
+      data: { status: 'new_po_received' },
+      eq: ['id', projectId],
+    });
+
+    closeCloseWonModal();
+    showToast(`PO closed! "${proj.name}" recorded on the Savings dashboard.`, 'success');
+
+    // Refresh both dashboard and savings live data
+    loadDashboard();
+    if (typeof reloadSavings === 'function') reloadSavings();
+
+  } catch (err) {
+    showToast('Error saving win: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✓ Record Win & Close PO';
+  }
 }
 
 async function updateReviewBadge() {
