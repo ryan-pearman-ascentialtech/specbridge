@@ -149,6 +149,42 @@
     .cost-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
     .cost-total { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; font-weight: 700; color: var(--accent); }
 
+    /* NAV BADGE */
+    .nav-badge { background: var(--danger); color: #fff; border-radius: 999px; font-size: 10px; font-weight: 700; padding: 1px 6px; margin-left: 4px; vertical-align: middle; }
+
+    /* ROUTE MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500; display: none; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; width: 480px; max-width: 92vw; }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .modal-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .modal-score { font-size: 36px; font-weight: 700; text-align: center; margin: 16px 0 4px; }
+    .modal-score-label { text-align: center; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
+    .modal-warning { background: #422006; border: 1px solid #f59e0b44; color: var(--warning); border-radius: 6px; padding: 10px 14px; font-size: 12px; margin-bottom: 16px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+
+    /* REVIEW QUEUE */
+    .review-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+    .review-header h1 { font-size: 22px; font-weight: 700; }
+    .review-empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .review-empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .review-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 14px; }
+    .review-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 16px; }
+    .review-card-title { font-size: 15px; font-weight: 700; }
+    .review-card-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .review-card-body { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }
+    .review-stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .review-stat-value { font-size: 14px; font-weight: 600; }
+    .review-notes { background: var(--bg); border-radius: 6px; padding: 10px 12px; font-size: 12px; color: var(--text); margin-bottom: 14px; line-height: 1.5; }
+    .review-notes-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .review-actions { display: flex; gap: 8px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .btn-approve  { background: #14532d; color: #86efac; }
+    .btn-approve:hover  { background: #166534; }
+    .btn-revise   { background: #1e3a5f; color: #93c5fd; }
+    .btn-revise:hover   { background: #1e40af; }
+    .btn-kill     { background: #3f0f0f; color: #fca5a5; }
+    .btn-kill:hover     { background: #7f1d1d; }
+
     /* SAVINGS */
     .savings-header { margin-bottom: 24px; }
     .savings-header h1 { font-size: 22px; font-weight: 700; }
@@ -178,6 +214,7 @@
   <div class="nav-logo">Spec<span>Bridge</span></div>
   <button class="nav-link active" onclick="showPage('dashboard')">Dashboard</button>
   <button class="nav-link" onclick="showPage('new-project')">New Project</button>
+  <button class="nav-link" onclick="showPage('review')">AE Review <span class="nav-badge" id="review-badge" style="display:none">0</span></button>
   <button class="nav-link" onclick="showPage('savings')">Savings</button>
   <div class="nav-right">
     <span class="nav-user">ryan.pearman — BEP GR</span>
@@ -405,6 +442,48 @@
   </div>
 </div>
 
+<!-- =============================================
+     AE REVIEW QUEUE
+============================================= -->
+<div id="page-review" class="page">
+  <div class="container">
+    <div class="review-header">
+      <div>
+        <h1>AE Review Queue</h1>
+        <p style="color:var(--muted);margin-top:4px" id="review-subtitle">Projects awaiting AE Manager approval</p>
+      </div>
+    </div>
+    <div id="review-list"></div>
+  </div>
+</div>
+
+<!-- =============================================
+     ROUTE MODAL (overlay on spec capture)
+============================================= -->
+<div id="route-modal" class="modal-overlay" onclick="if(event.target===this)closeRouteModal()">
+  <div class="modal-box">
+    <div class="modal-title">Submit for AE Review</div>
+    <div class="modal-sub">Based on the BEP GR proposal process (AE-1008p), this routes the project to the AE Manager for pre-review before producing a proposal.</div>
+
+    <div id="route-score" class="modal-score" style="color:var(--success)">—</div>
+    <div class="modal-score-label">Spec Completeness</div>
+
+    <div id="route-warning" class="modal-warning" style="display:none">
+      ⚠ Spec completeness is below 70%. Consider filling in more fields before routing — the AE Manager will likely send it back.
+    </div>
+
+    <div class="form-group">
+      <label for="route-notes">Notes for AE Manager</label>
+      <textarea id="route-notes" rows="3" placeholder="e.g. Install scope is TBD — waiting on customer. Should-cost attached. Need direction on pricing strategy before quoting."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="submitForReview()">Submit for Review →</button>
+      <button class="btn btn-secondary" onclick="closeRouteModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // =============================================
 // CONFIG
@@ -531,9 +610,10 @@ function showPage(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(`page-${pageId}`)?.classList.add('active');
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-  const map = { dashboard: 0, 'new-project': 1, savings: 2 };
+  const map = { dashboard: 0, 'new-project': 1, review: 2, savings: 3 };
   if (map[pageId] !== undefined) document.querySelectorAll('.nav-link')[map[pageId]]?.classList.add('active');
   if (pageId === 'dashboard') loadDashboard();
+  if (pageId === 'review') loadReviewQueue();
   window.scrollTo(0, 0);
 }
 
@@ -914,7 +994,7 @@ async function runGenerateRFQ() {
 }
 
 async function runReview() {
-  showToast('Routing to AE review queue… (Day 2 feature)', 'info');
+  openRouteModal();
 }
 
 // =============================================
@@ -986,6 +1066,160 @@ function filterPOs() {
 }
 
 // =============================================
+// =============================================
+// ROUTE MODAL
+// =============================================
+function openRouteModal() {
+  const pct = parseInt(document.getElementById('bar-pct')?.textContent) || 0;
+  const scoreEl = document.getElementById('route-score');
+  const warnEl  = document.getElementById('route-warning');
+  scoreEl.textContent = pct + '%';
+  scoreEl.style.color = pct >= 70 ? 'var(--success)' : pct >= 40 ? 'var(--warning)' : 'var(--danger)';
+  warnEl.style.display = pct < 70 ? 'block' : 'none';
+  document.getElementById('route-notes').value = '';
+  document.getElementById('route-modal').classList.add('open');
+}
+
+function closeRouteModal() {
+  document.getElementById('route-modal').classList.remove('open');
+}
+
+async function submitForReview() {
+  const notes = document.getElementById('route-notes').value.trim();
+  if (!currentProject) return;
+
+  const btn = document.querySelector('#route-modal .btn-primary');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Submitting…';
+
+  await dbQuery('projects', 'update', {
+    data: { status: 'under_review', notes: notes || null },
+    eq: ['id', currentProject.id],
+  });
+
+  btn.disabled = false;
+  btn.innerHTML = 'Submit for Review →';
+  closeRouteModal();
+
+  // Update badge on spec capture page
+  const badge = document.getElementById('spec-status-badge');
+  badge.textContent = 'UNDER REVIEW';
+  badge.className = 'badge badge-yellow';
+
+  showToast(`"${currentProject.name}" submitted for AE review`, 'success');
+  updateReviewBadge();
+}
+
+// =============================================
+// AE REVIEW QUEUE
+// =============================================
+async function loadReviewQueue() {
+  const list = document.getElementById('review-list');
+  if (!list) return;
+  list.innerHTML = '<div style="color:var(--muted);padding:20px">Loading…</div>';
+
+  const projects = await dbQuery('projects', 'select', {
+    select: 'id,name,customer,status,completeness_score,notes,project_type,quoted_value',
+    eq: ['status', 'under_review'],
+    order: ['created_at', false],
+  });
+
+  const items = projects || [];
+  const sub = document.getElementById('review-subtitle');
+  if (sub) sub.textContent = items.length
+    ? `${items.length} project${items.length > 1 ? 's' : ''} awaiting AE Manager approval`
+    : 'No projects awaiting review';
+
+  if (!items.length) {
+    list.innerHTML = `
+      <div class="review-empty">
+        <div class="review-empty-icon">✅</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:8px">Queue is clear</div>
+        <div style="font-size:13px">No projects are currently awaiting AE review.<br>When an AE submits a spec for review, it will appear here.</div>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(p => {
+    const score = p.completeness_score ?? 0;
+    const scoreColor = score >= 70 ? 'var(--success)' : score >= 40 ? 'var(--warning)' : 'var(--danger)';
+    const val = p.quoted_value ? fmtUSD(p.quoted_value) : '—';
+    return `
+    <div class="review-card">
+      <div class="review-card-header">
+        <div>
+          <div class="review-card-title">${escHtml(p.name)}</div>
+          <div class="review-card-meta">${escHtml(p.customer)} · ${escHtml(p.project_type || 'T&M Services')}</div>
+        </div>
+        <span class="badge badge-yellow">AWAITING REVIEW</span>
+      </div>
+      <div class="review-card-body">
+        <div>
+          <div class="review-stat-label">Spec Completeness</div>
+          <div class="review-stat-value" style="color:${scoreColor}">${score}%</div>
+        </div>
+        <div>
+          <div class="review-stat-label">Quoted Value</div>
+          <div class="review-stat-value">${val}</div>
+        </div>
+      </div>
+      ${p.notes ? `
+      <div>
+        <div class="review-notes-label">Submission Notes</div>
+        <div class="review-notes">${escHtml(p.notes)}</div>
+      </div>` : ''}
+      <div class="review-actions">
+        <button class="btn btn-approve btn-sm" onclick="approveReview('${p.id}', '${escHtml(p.name)}')">✅ Approve — Move to NOPO Auth</button>
+        <button class="btn btn-revise btn-sm" onclick="requestRevisions('${p.id}', '${escHtml(p.name)}')">🔁 Request Revisions</button>
+        <button class="btn btn-kill btn-sm" onclick="killProposal('${p.id}', '${escHtml(p.name)}')">❌ Kill</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function approveReview(projectId, projectName) {
+  await dbQuery('projects', 'update', { data: { status: 'nopo_authorization' }, eq: ['id', projectId] });
+  showToast(`"${projectName}" approved — moved to NOPO Authorization`, 'success');
+  loadReviewQueue();
+  updateReviewBadge();
+}
+
+async function requestRevisions(projectId, projectName) {
+  const notes = window.prompt(`Revision notes for the AE on "${projectName}":`);
+  if (notes === null) return; // cancelled
+  await dbQuery('projects', 'update', {
+    data: { status: 'in_process_rfq', notes: notes || null },
+    eq: ['id', projectId],
+  });
+  showToast(`"${projectName}" sent back for revisions`, 'info');
+  loadReviewQueue();
+  updateReviewBadge();
+}
+
+async function killProposal(projectId, projectName) {
+  if (!window.confirm(`Mark "${projectName}" as dead? This cannot be undone from the review queue.`)) return;
+  await dbQuery('projects', 'update', { data: { status: 'lost' }, eq: ['id', projectId] });
+  showToast(`"${projectName}" marked as dead`, 'error');
+  loadReviewQueue();
+  updateReviewBadge();
+}
+
+async function updateReviewBadge() {
+  const badge = document.getElementById('review-badge');
+  if (!badge) return;
+  const projects = await dbQuery('projects', 'select', {
+    select: 'id',
+    eq: ['status', 'under_review'],
+  });
+  const count = projects?.length || 0;
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = 'inline';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
 // SAVINGS METRICS — calculated live from HISTORICAL_POS
 // =============================================
 function renderSavingsMetrics() {
@@ -1138,6 +1372,9 @@ function renderAETable() {
 // BOOT
 // =============================================
 loadDashboard();
+// Update review badge on load
+updateReviewBadge();
+
 // Pre-render all savings page content + dashboard ECN metric
 setTimeout(() => {
   renderSavingsMetrics();
