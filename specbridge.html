@@ -322,9 +322,36 @@
             <label for="np-description">Project Description — paste everything you know *</label>
             <textarea id="np-description" rows="5" placeholder="Describe the project scope, customer needs, machine type, key requirements…" oninput="onDescriptionInput()"></textarea>
           </div>
-          <div class="form-group">
-            <label for="np-due">Due Date</label>
-            <input id="np-due" type="date" />
+          <div class="grid-2">
+            <div class="form-group">
+              <label for="np-due">Due Date</label>
+              <input id="np-due" type="date" />
+            </div>
+            <div class="form-group">
+              <label for="np-ae">Assign to AE</label>
+              <select id="np-ae">
+                <option value="">— Assign later —</option>
+                <option>Jennifer Willbrandt</option>
+                <option>Paul Kitchen</option>
+                <option>Darin Levander</option>
+                <option>Jeremy Gutierrez</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="flex-direction:row;align-items:flex-start;gap:12px;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                <input type="checkbox" id="np-is-ecn" style="width:16px;height:16px;cursor:pointer" onchange="toggleEcnFields()" />
+                <label for="np-is-ecn" style="cursor:pointer;font-size:13px;color:var(--text);font-weight:600">This is an ECN (Engineering Change Notice / Change in Scope)</label>
+              </div>
+              <div id="np-ecn-fields" style="display:none;margin-top:8px">
+                <div class="form-group">
+                  <label for="np-original-jo">Original Project / JO Reference *</label>
+                  <input id="np-original-jo" type="text" placeholder="e.g. JO-512281 or Project 18489P2b" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -353,6 +380,8 @@
       <button class="btn btn-secondary btn-sm" onclick="showPage('dashboard')">← Back</button>
       <h2 id="spec-project-name">Project</h2>
       <span class="badge badge-blue" id="spec-status-badge">IN PROCESS</span>
+      <span id="spec-ecn-badge" style="display:none;font-size:10px;font-weight:700;background:#b45309;color:#fff;padding:2px 8px;border-radius:3px;letter-spacing:0.04em">ECN</span>
+      <span id="spec-ae-badge" style="font-size:11px;color:var(--muted)"></span>
       <button class="btn btn-primary btn-sm" id="review-btn" onclick="runReview()" style="margin-left:auto">Review &amp; Route →</button>
     </div>
 
@@ -692,9 +721,18 @@ function showPage(pageId) {
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
   const map = { dashboard: 0, 'new-project': 1, review: 2, savings: 3 };
   if (map[pageId] !== undefined) document.querySelectorAll('.nav-link')[map[pageId]]?.classList.add('active');
-  if (pageId === 'dashboard') loadDashboard();
-  if (pageId === 'review')   loadReviewQueue();
-  if (pageId === 'savings')  reloadSavings();
+  if (pageId === 'dashboard')    loadDashboard();
+  if (pageId === 'review')       loadReviewQueue();
+  if (pageId === 'savings')      reloadSavings();
+  if (pageId === 'new-project') {
+    ['np-name','np-customer','np-rfq','np-description','np-due','np-ae','np-original-jo'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    const ecn = document.getElementById('np-is-ecn'); if (ecn) ecn.checked = false;
+    const fields = document.getElementById('np-ecn-fields'); if (fields) fields.style.display = 'none';
+    document.getElementById('classify-results').innerHTML = '';
+    window._classified = null;
+  }
   window.scrollTo(0, 0);
 }
 
@@ -769,7 +807,7 @@ async function callClaude(action, payload) {
 // =============================================
 async function loadDashboard() {
   const projects = await dbQuery('projects', 'select', {
-    select: 'id,name,customer,status,quoted_value,completeness_score,project_type',
+    select: 'id,name,customer,status,quoted_value,completeness_score,project_type,assigned_ae,is_ecn',
     order: ['created_at', false],
   });
   if (!projects) return;
@@ -812,8 +850,11 @@ async function loadDashboard() {
     const renderRow = p => `
       <div class="project-row" onclick="openProject('${p.id}')">
         <div style="flex:1;min-width:0">
-          <div class="project-name">${escHtml(p.name)}</div>
-          <div class="project-meta">${escHtml(p.customer)} · ${escHtml(p.project_type || '—')}</div>
+          <div class="project-name" style="display:flex;align-items:center;gap:6px">
+            ${escHtml(p.name)}
+            ${p.is_ecn ? '<span style="font-size:10px;font-weight:700;background:#b45309;color:#fff;padding:1px 6px;border-radius:3px;letter-spacing:0.04em">ECN</span>' : ''}
+          </div>
+          <div class="project-meta">${escHtml(p.customer)} · ${escHtml(p.project_type || '—')}${p.assigned_ae ? ' · <span style="color:var(--accent)">' + escHtml(p.assigned_ae) + '</span>' : ' · <span style="color:var(--muted);font-style:italic">Unassigned</span>'}</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
           ${getActions(p)}
@@ -885,14 +926,23 @@ async function runClassify(desc) {
     </div>`;
 }
 
+function toggleEcnFields() {
+  const isEcn = document.getElementById('np-is-ecn').checked;
+  document.getElementById('np-ecn-fields').style.display = isEcn ? 'block' : 'none';
+}
+
 async function createProject() {
-  const name = document.getElementById('np-name').value.trim();
-  const cust = document.getElementById('np-customer').value.trim();
-  const rfq  = document.getElementById('np-rfq').value.trim();
-  const desc = document.getElementById('np-description').value.trim();
-  const due  = document.getElementById('np-due').value;
+  const name      = document.getElementById('np-name').value.trim();
+  const cust      = document.getElementById('np-customer').value.trim();
+  const rfq       = document.getElementById('np-rfq').value.trim();
+  const desc      = document.getElementById('np-description').value.trim();
+  const due       = document.getElementById('np-due').value;
+  const assignedAe = document.getElementById('np-ae').value.trim();
+  const isEcn     = document.getElementById('np-is-ecn').checked;
+  const originalJo = document.getElementById('np-original-jo').value.trim();
 
   if (!name || !cust || !desc) { showToast('Project name, customer, and description are required', 'error'); return; }
+  if (isEcn && !originalJo) { showToast('Original Project / JO Reference is required for ECNs', 'error'); return; }
 
   const btn = document.getElementById('create-btn');
   btn.disabled = true;
@@ -906,6 +956,9 @@ async function createProject() {
       name, customer: cust, rfq_number: rfq||null, notes: desc||null,
       project_type: window._classified?.project_type || null,
       due_date: due||null, entity_id: entityId, created_by: null, status: 'in_process_rfq',
+      assigned_ae: assignedAe || null,
+      is_ecn: isEcn,
+      original_jo: (isEcn && originalJo) ? originalJo : null,
     }
   });
 
@@ -934,6 +987,22 @@ async function createProject() {
 async function loadSpecCapture(project) {
   document.getElementById('spec-project-name').textContent = project.name;
   document.getElementById('spec-status-badge').textContent = (project.status||'in_process_rfq').replace(/_/g,' ').toUpperCase();
+
+  // ECN badge
+  const ecnBadge = document.getElementById('spec-ecn-badge');
+  if (ecnBadge) ecnBadge.style.display = project.is_ecn ? 'inline-block' : 'none';
+
+  // AE badge
+  const aeBadge = document.getElementById('spec-ae-badge');
+  if (aeBadge) {
+    if (project.assigned_ae) {
+      aeBadge.textContent = `AE: ${project.assigned_ae}`;
+      aeBadge.style.color = 'var(--accent)';
+    } else {
+      aeBadge.textContent = 'Unassigned';
+      aeBadge.style.color = 'var(--muted)';
+    }
+  }
 
   // Load saved entries
   const entries = await dbQuery('spec_entries', 'select', { eq: ['project_id', project.id] });
@@ -1306,7 +1375,7 @@ async function loadReviewQueue() {
   list.innerHTML = '<div style="color:var(--muted);padding:20px">Loading…</div>';
 
   const projects = await dbQuery('projects', 'select', {
-    select: 'id,name,customer,status,completeness_score,notes,project_type,quoted_value',
+    select: 'id,name,customer,status,completeness_score,notes,project_type,quoted_value,assigned_ae,is_ecn,original_jo',
     eq: ['status', 'under_review'],
     order: ['created_at', false],
   });
@@ -1327,16 +1396,30 @@ async function loadReviewQueue() {
     return;
   }
 
+  const AE_OPTIONS = ['Jennifer Willbrandt','Paul Kitchen','Darin Levander','Jeremy Gutierrez'];
+
   list.innerHTML = items.map(p => {
     const score = p.completeness_score ?? 0;
     const scoreColor = score >= 70 ? 'var(--success)' : score >= 40 ? 'var(--warning)' : 'var(--danger)';
     const val = p.quoted_value ? fmtUSD(p.quoted_value) : '<span style="color:var(--muted);font-size:11px">Run Should Cost first</span>';
+    const aeOptions = AE_OPTIONS.map(ae =>
+      `<option value="${ae}" ${p.assigned_ae === ae ? 'selected' : ''}>${ae}</option>`
+    ).join('');
+    const ecnBadge = p.is_ecn
+      ? `<span style="font-size:10px;font-weight:700;background:#b45309;color:#fff;padding:2px 7px;border-radius:3px;letter-spacing:0.04em">ECN</span>`
+      : '';
+    const ecnRef = p.is_ecn && p.original_jo
+      ? `<div style="font-size:11px;color:var(--warning);margin-top:4px">⚡ Change in scope on: <strong>${escHtml(p.original_jo)}</strong></div>`
+      : '';
     return `
     <div class="review-card">
       <div class="review-card-header">
-        <div>
-          <div class="review-card-title">${escHtml(p.name)}</div>
+        <div style="flex:1">
+          <div class="review-card-title" style="display:flex;align-items:center;gap:8px">
+            ${escHtml(p.name)} ${ecnBadge}
+          </div>
           <div class="review-card-meta">${escHtml(p.customer)} · ${escHtml(p.project_type || 'T&M Services')}</div>
+          ${ecnRef}
         </div>
         <span class="badge badge-yellow">AWAITING REVIEW</span>
       </div>
@@ -1349,6 +1432,15 @@ async function loadReviewQueue() {
           <div class="review-stat-label">Quoted Value</div>
           <div class="review-stat-value">${val}</div>
         </div>
+        <div>
+          <div class="review-stat-label">Assigned AE</div>
+          <div class="review-stat-value" style="font-size:13px">
+            <select onchange="reassignAE('${p.id}', this.value)" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;cursor:pointer">
+              <option value="">— Assign AE —</option>
+              ${aeOptions}
+            </select>
+          </div>
+        </div>
       </div>
       ${p.notes ? `
       <div>
@@ -1356,12 +1448,18 @@ async function loadReviewQueue() {
         <div class="review-notes">${escHtml(p.notes)}</div>
       </div>` : ''}
       <div class="review-actions">
-        <button class="btn btn-approve btn-sm" onclick="approveReview('${p.id}', '${escHtml(p.name)}')">✅ Approve — Move to NOPO Auth</button>
-        <button class="btn btn-revise btn-sm" onclick="requestRevisions('${p.id}', '${escHtml(p.name)}')">🔁 Request Revisions</button>
-        <button class="btn btn-kill btn-sm" onclick="killProposal('${p.id}', '${escHtml(p.name)}')">❌ Kill</button>
+        <button class="btn btn-approve btn-sm" onclick="approveReview('${p.id}', '${escHtml(p.name).replace(/'/g,"\\'")}')">✅ Approve — Move to NOPO Auth</button>
+        <button class="btn btn-revise btn-sm" onclick="requestRevisions('${p.id}', '${escHtml(p.name).replace(/'/g,"\\'")}')">🔁 Request Revisions</button>
+        <button class="btn btn-kill btn-sm" onclick="killProposal('${p.id}', '${escHtml(p.name).replace(/'/g,"\\'")}')">❌ Kill</button>
       </div>
     </div>`;
   }).join('');
+}
+
+async function reassignAE(projectId, aeName) {
+  if (!aeName) return;
+  await dbQuery('projects', 'update', { data: { assigned_ae: aeName }, eq: ['id', projectId] });
+  showToast(`Assigned to ${aeName}`, 'success');
 }
 
 async function approveReview(projectId, projectName) {
