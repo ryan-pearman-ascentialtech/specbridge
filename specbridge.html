@@ -152,7 +152,23 @@
     /* SAVINGS */
     .savings-header { margin-bottom: 24px; }
     .savings-header h1 { font-size: 22px; font-weight: 700; }
-    .savings-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+    .savings-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+    .savings-grid { display: grid; grid-template-columns: 340px 1fr; gap: 20px; margin-bottom: 20px; }
+    .risk-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .risk-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+    .risk-bar { height: 100%; border-radius: 999px; }
+    .risk-label { font-size: 12px; font-weight: 600; min-width: 110px; }
+    .risk-pct { font-size: 12px; font-weight: 700; min-width: 38px; text-align: right; }
+    .po-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .po-table th { text-align: left; padding: 8px 10px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .po-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .po-table tr:hover td { background: var(--border); }
+    .ecn-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+    .ecn-yes { background: #7f1d1d; color: #fca5a5; }
+    .ecn-no  { background: #14532d; color: #86efac; }
+    .search-bar { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
+    .search-bar input { flex: 1; }
+    .search-bar select { width: 160px; }
   </style>
 </head>
 <body>
@@ -325,25 +341,175 @@
   <div class="container">
     <div class="savings-header">
       <h1>Savings & Intelligence</h1>
-      <p style="color:var(--muted);margin-top:4px">Historical PO analysis · ECN tracking · Should-cost benchmarks</p>
+      <p style="color:var(--muted);margin-top:4px">30 historical POs · ECN risk by customer · AE performance · Should-cost benchmarks</p>
     </div>
+
     <div class="savings-metrics">
       <div class="card metric-card">
-        <div class="metric-value" style="color:var(--danger)">34.3%</div>
-        <div class="metric-label">ECN Rate (24/70 POs)</div>
+        <div class="metric-value" style="color:var(--danger)">36.7%</div>
+        <div class="metric-label">ECN Rate (11/30 POs)</div>
       </div>
       <div class="card metric-card">
-        <div class="metric-value" style="color:var(--warning)">$847K</div>
-        <div class="metric-label">Avg Project Value</div>
+        <div class="metric-value" style="color:var(--warning)">$398K</div>
+        <div class="metric-label">Avg PO Value</div>
       </div>
       <div class="card metric-card">
-        <div class="metric-value" style="color:var(--success)">$1M+</div>
-        <div class="metric-label">Estimated Miss (Slate)</div>
+        <div class="metric-value" style="color:var(--success)">35.2%</div>
+        <div class="metric-label">Avg Quoted Margin</div>
+      </div>
+      <div class="card metric-card">
+        <div class="metric-value" style="color:var(--danger)">$1M+</div>
+        <div class="metric-label">Slate Install Miss</div>
       </div>
     </div>
-    <div class="card" style="padding:24px;text-align:center;color:var(--muted)">
-      <p style="font-size:15px;margin-bottom:8px">Historical PO Intelligence</p>
-      <p style="font-size:13px">30 historical POs loaded · AI benchmarking coming Day 2</p>
+
+    <!-- ECN Risk + AE Summary -->
+    <div class="savings-grid">
+      <div class="card">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:14px">
+          ⚠ ECN Risk by Customer
+        </div>
+        <div class="risk-row">
+          <div class="risk-label" style="color:var(--danger)">GM Orion</div>
+          <div class="risk-bar-wrap"><div class="risk-bar" style="width:75%;background:var(--danger)"></div></div>
+          <div class="risk-pct" style="color:var(--danger)">75%</div>
+          <div style="font-size:11px;color:var(--muted)">3/4</div>
+        </div>
+        <div class="risk-row">
+          <div class="risk-label" style="color:var(--danger)">GM Arlington</div>
+          <div class="risk-bar-wrap"><div class="risk-bar" style="width:62.5%;background:var(--danger)"></div></div>
+          <div class="risk-pct" style="color:var(--danger)">62.5%</div>
+          <div style="font-size:11px;color:var(--muted)">5/8</div>
+        </div>
+        <div class="risk-row">
+          <div class="risk-label" style="color:var(--warning)">Blue Bird</div>
+          <div class="risk-bar-wrap"><div class="risk-bar" style="width:100%;background:var(--warning)"></div></div>
+          <div class="risk-pct" style="color:var(--warning)">100%</div>
+          <div style="font-size:11px;color:var(--muted)">1/1</div>
+        </div>
+        <div class="risk-row">
+          <div class="risk-label" style="color:var(--warning)">Lucid</div>
+          <div class="risk-bar-wrap"><div class="risk-bar" style="width:100%;background:var(--warning)"></div></div>
+          <div class="risk-pct" style="color:var(--warning)">100%</div>
+          <div style="font-size:11px;color:var(--muted)">1/1</div>
+        </div>
+        <div class="risk-row">
+          <div class="risk-label" style="color:var(--warning)">GM Flint</div>
+          <div class="risk-bar-wrap"><div class="risk-bar" style="width:33%;background:var(--warning)"></div></div>
+          <div class="risk-pct" style="color:var(--warning)">33%</div>
+          <div style="font-size:11px;color:var(--muted)">1/3</div>
+        </div>
+        <div class="risk-row">
+          <div class="risk-label" style="color:var(--success)">Ford Plants</div>
+          <div class="risk-bar-wrap"><div class="risk-bar" style="width:0%;background:var(--success)"></div></div>
+          <div class="risk-pct" style="color:var(--success)">0%</div>
+          <div style="font-size:11px;color:var(--muted)">0/2</div>
+        </div>
+        <div class="risk-row">
+          <div class="risk-label" style="color:var(--success)">Kia / Rivian</div>
+          <div class="risk-bar-wrap"><div class="risk-bar" style="width:0%;background:var(--success)"></div></div>
+          <div class="risk-pct" style="color:var(--success)">0%</div>
+          <div style="font-size:11px;color:var(--muted)">0/2</div>
+        </div>
+        <div style="margin-top:14px;padding:10px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--warning);line-height:1.5">
+          ⚠ <strong>GM Arlington alert:</strong> 62.5% ECN rate on 8 POs. When quoting GM Arlington, SpecBridge flags installation scope as highest-risk missing field.
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:14px">
+          AE Performance — YTD 2026
+        </div>
+        <table class="po-table">
+          <thead>
+            <tr>
+              <th>AE</th>
+              <th>POs</th>
+              <th>ECNs</th>
+              <th>ECN Rate</th>
+              <th>Avg Margin</th>
+              <th>Total Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Jennifer Willbrandt</strong></td>
+              <td>9</td>
+              <td><span class="ecn-pill ecn-yes">5</span></td>
+              <td style="color:var(--danger)">55.6%</td>
+              <td>30.2%</td>
+              <td>$2.89M</td>
+            </tr>
+            <tr>
+              <td><strong>Paul Kitchen</strong></td>
+              <td>6</td>
+              <td><span class="ecn-pill ecn-yes">2</span></td>
+              <td style="color:var(--warning)">33.3%</td>
+              <td>32.6%</td>
+              <td>$3.56M</td>
+            </tr>
+            <tr>
+              <td><strong>Darin Levander</strong></td>
+              <td>8</td>
+              <td><span class="ecn-pill ecn-yes">2</span></td>
+              <td style="color:var(--warning)">25.0%</td>
+              <td>39.3%</td>
+              <td>$1.27M</td>
+            </tr>
+            <tr>
+              <td><strong>Jeremy Gutierrez</strong></td>
+              <td>2</td>
+              <td><span class="ecn-pill ecn-no">0</span></td>
+              <td style="color:var(--success)">0%</td>
+              <td>55.8%</td>
+              <td>$323K</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:14px;padding:10px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--muted);line-height:1.5">
+          💡 <strong>Insight:</strong> Jennifer's ECN rate is 55.6% — concentrated in GM Arlington. SpecBridge captures installation scope on every quote to reduce this.
+        </div>
+      </div>
+    </div>
+
+    <!-- PO History Table -->
+    <div class="card">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:14px">
+        Historical PO Log — 30 POs · YTD 2026
+      </div>
+      <div class="search-bar">
+        <input type="text" id="po-search" placeholder="Search customer, description, AE…" oninput="filterPOs()" />
+        <select id="po-filter-ecn" onchange="filterPOs()">
+          <option value="">All POs</option>
+          <option value="ecn">ECNs Only</option>
+          <option value="clean">No ECN</option>
+        </select>
+        <select id="po-filter-ae" onchange="filterPOs()">
+          <option value="">All AEs</option>
+          <option value="Paul Kitchen">Paul Kitchen</option>
+          <option value="Jennifer Willbrandt">Jennifer Willbrandt</option>
+          <option value="Darin Levander">Darin Levander</option>
+          <option value="Jeremy Gutierrez">Jeremy Gutierrez</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="po-table" id="po-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Customer</th>
+              <th>PO Number</th>
+              <th>Description</th>
+              <th>AE</th>
+              <th>PM</th>
+              <th>Value</th>
+              <th>Margin</th>
+              <th>ECN</th>
+            </tr>
+          </thead>
+          <tbody id="po-tbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -861,9 +1027,79 @@ async function runReview() {
 }
 
 // =============================================
+// SAVINGS — Historical PO Data
+// =============================================
+const HISTORICAL_POS = [
+  { date:'2026-03-31', customer:'Ford APTL',           po:'OR2625476',              desc:'Ford APTL — Major System Upgrade',                    ae:'',                  pm:'',                value:3171060, margin:null,  ecn:false },
+  { date:'2026-03-25', customer:'BEP Korea',           po:'BKPOF-26-004',           desc:'Froude DYNO Takeover Upgrade',                        ae:'Jeremy Gutierrez',  pm:'Chang Lu',        value:203000,  margin:48.5,  ecn:false },
+  { date:'2026-03-23', customer:'Lucid',               po:'CP00013903',             desc:'Lucid — Major System',                                ae:'',                  pm:'',                value:537200,  margin:null,  ecn:true  },
+  { date:'2026-03-17', customer:'Kia Georgia',         po:'P260330872',             desc:'NCA Steering Wheel Leveler Upgrade',                  ae:'Darin Levander',    pm:'Karen Rouch',     value:281750,  margin:35.8,  ecn:false },
+  { date:'2026-03-16', customer:'FCA Warren Truck',    po:'81122072',               desc:'ADAS Systems Cycle Time Study',                       ae:'Darin Levander',    pm:'Dave Blissett',   value:32028,   margin:41.2,  ecn:false },
+  { date:'2026-03-12', customer:'Rivian',              po:'567133',                 desc:'NCA Master Gauge Re-certification',                   ae:'Darin Levander',    pm:'Thomas Wendeln',  value:27990,   margin:49.4,  ecn:false },
+  { date:'2026-03-11', customer:'GM Orion',            po:'ORI_CAMD_DBRF_01',       desc:'CD Zone Switch',                                     ae:'Paul Kitchen',      pm:'Chuck Elliston',  value:18852,   margin:30.0,  ecn:true  },
+  { date:'2026-03-10', customer:'GM Arlington',        po:'7100566283',             desc:'Night Vision Upgrades',                               ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:525688,  margin:36.0,  ecn:false },
+  { date:'2026-03-10', customer:'GM Orion',            po:'ORI_T1_ALGN_DBRF_04',    desc:'SWA Tools',                                          ae:'Paul Kitchen',      pm:'Chuck Elliston',  value:211934,  margin:33.2,  ecn:true  },
+  { date:'2026-03-04', customer:'GM Flint',            po:'7100561657',             desc:'3-Way Combo Boxes & RASC Take Over',                  ae:'Paul Kitchen',      pm:'Bryce Kircheis',  value:328935,  margin:30.7,  ecn:false },
+  { date:'2026-03-04', customer:'GM Arlington',        po:'7100560851',             desc:'NCA Process Enhancements',                            ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:325162,  margin:42.0,  ecn:false },
+  { date:'2026-03-04', customer:'FCA Toledo S',        po:'81118062',               desc:'CTS Software / Trips',                                ae:'Jennifer Willbrandt',pm:'',               value:91760,   margin:null,  ecn:false },
+  { date:'2026-02-23', customer:'Blue Bird',           po:'FPB064258',              desc:'Upgraded ret rolls & 3rd stop post',                  ae:'Darin Levander',    pm:'Chang Lu',        value:42627,   margin:22.2,  ecn:true  },
+  { date:'2026-02-18', customer:'GM Flint',            po:'7100549627',             desc:'Build for (2) cam drill machines',                    ae:'Darin Levander',    pm:'Karen Rouch',     value:713383,  margin:35.8,  ecn:true  },
+  { date:'2026-02-18', customer:'GM Flint',            po:'7100551396',             desc:'New Caster Audit Tools',                              ae:'Paul Kitchen',      pm:'Karen Rouch',     value:39330,   margin:31.9,  ecn:false },
+  { date:'2026-02-17', customer:'Ford Sterling',       po:'OR2569968',              desc:'EPIC PASS THROUGH PO 878425',                         ae:'Jamie Christie',    pm:'Jamie Christie',  value:1362151, margin:0,     ecn:false },
+  { date:'2026-02-13', customer:'GM Arlington',        po:'7100525334',             desc:'RATS Upgrade',                                        ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:1850399, margin:31.3,  ecn:false },
+  { date:'2026-02-12', customer:'GM Oshawa',           po:'7100547635',             desc:'NEW CASTER AUDIT TOOL',                               ae:'Paul Kitchen',      pm:'Karen Rouch',     value:47015,   margin:32.0,  ecn:false },
+  { date:'2026-02-03', customer:'Harley-Davidson',     po:'4505925250',             desc:'NCA Master Gauge Re-certification',                   ae:'Darin Levander',    pm:'Dave Blissett',   value:18938,   margin:50.5,  ecn:false },
+  { date:'2026-01-30', customer:'GM Arlington',        po:'ARL7th_ALGN_DBRF_06',    desc:'Remote PC Monitor',                                   ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:13217,   margin:29.8,  ecn:true  },
+  { date:'2026-01-26', customer:'GM Fairfax',          po:'7100533987',             desc:'Alignment Machine Diagnostics and AVT Updates',       ae:'Darin Levander',    pm:'Bryce Kercheis',  value:99690,   margin:44.9,  ecn:false },
+  { date:'2026-01-23', customer:'GM Arlington',        po:'ARL7th_ALGN_DBRF_05a',   desc:'Several Upgrades for T1 mods',                        ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:69857,   margin:26.3,  ecn:true  },
+  { date:'2026-01-21', customer:'GM Arlington',        po:'ARL7th_DBRF_03',         desc:'Convert Blockpoint on Orion Machine for Arlington',   ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:6430,    margin:29.4,  ecn:true  },
+  { date:'2026-01-21', customer:'GM Arlington',        po:'ARL7th_ALGN_DBRF_04',    desc:'System Zone Switch',                                  ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:9643,    margin:29.5,  ecn:true  },
+  { date:'2026-01-20', customer:'GM Orion',            po:'ORI_ALGN_DBRF_22a',      desc:'Decontent BT1',                                       ae:'Darin Levander',    pm:'Chuck Elliston',  value:67296,   margin:30.0,  ecn:true  },
+  { date:'2026-01-16', customer:'Dana - Columbia MO',  po:'7100150065',             desc:'(3) Clutch Tester PC Upgrade',                        ae:'Darin Levander',    pm:'Jamie Boyd',      value:108380,  margin:30.7,  ecn:false },
+  { date:'2026-01-09', customer:'Morgan Olson',        po:'11443643 ON',            desc:'ADAS Ford Security Key SW Update',                    ae:'Darin Levander',    pm:'Bill Black',       value:3815,    margin:49.3,  ecn:false },
+  { date:'2026-01-06', customer:'GM Orion',            po:'7100475667',             desc:'NCA, RATS, FATS, RASC',                               ae:'Paul Kitchen',      pm:'Chuck Elliston',  value:3158370, margin:36.0,  ecn:false },
+  { date:'2026-01-06', customer:'GM Arlington',        po:'ARL7th_DBRF_02',         desc:'CRX replacement batteries',                           ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:1312,    margin:10.9,  ecn:true  },
+  { date:'2026-01-05', customer:'Ford MI Proving Grounds', po:'OR26250',            desc:'2026 Software and preventative maintenance package',  ae:'Jeremy Gutierrez',  pm:'Brian Parker',    value:120500,  margin:63.0,  ecn:false },
+];
+
+let poFilteredData = [...HISTORICAL_POS];
+
+function renderPOTable(data) {
+  const tbody = document.getElementById('po-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = data.map(p => `
+    <tr>
+      <td style="white-space:nowrap;color:var(--muted)">${p.date}</td>
+      <td><strong>${escHtml(p.customer)}</strong></td>
+      <td style="color:var(--muted);font-size:11px">${escHtml(p.po)}</td>
+      <td style="max-width:220px">${escHtml(p.desc)}</td>
+      <td style="white-space:nowrap">${escHtml(p.ae||'—')}</td>
+      <td style="white-space:nowrap;color:var(--muted)">${escHtml(p.pm||'—')}</td>
+      <td style="white-space:nowrap;font-weight:600">${fmtUSD(p.value)}</td>
+      <td style="color:var(--success)">${p.margin != null ? p.margin+'%' : '—'}</td>
+      <td><span class="ecn-pill ${p.ecn ? 'ecn-yes' : 'ecn-no'}">${p.ecn ? 'ECN' : 'Clean'}</span></td>
+    </tr>`).join('');
+}
+
+function filterPOs() {
+  const search = document.getElementById('po-search')?.value.toLowerCase() || '';
+  const ecnF   = document.getElementById('po-filter-ecn')?.value || '';
+  const aeF    = document.getElementById('po-filter-ae')?.value || '';
+  poFilteredData = HISTORICAL_POS.filter(p => {
+    const matchSearch = !search || [p.customer, p.desc, p.ae, p.pm, p.po].some(v => v?.toLowerCase().includes(search));
+    const matchEcn    = !ecnF || (ecnF === 'ecn' ? p.ecn : !p.ecn);
+    const matchAe     = !aeF  || p.ae === aeF;
+    return matchSearch && matchEcn && matchAe;
+  });
+  renderPOTable(poFilteredData);
+}
+
+// =============================================
 // BOOT
 // =============================================
 loadDashboard();
+// Pre-render PO table for when savings page opens
+setTimeout(() => renderPOTable(HISTORICAL_POS), 100);
 </script>
 </body>
 </html>
