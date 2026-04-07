@@ -213,28 +213,28 @@
         <div class="metric-label">Pipeline Value</div>
       </div>
       <div class="card metric-card">
-        <div class="metric-value" id="metric-ecn" style="color:var(--danger)">34.3%</div>
+        <div class="metric-value" id="metric-ecn" style="color:var(--danger)">—</div>
         <div class="metric-label">ECN Rate (YTD)</div>
       </div>
     </div>
 
     <div class="buckets-grid">
-      <div class="card bucket-card" onclick="filterByStatus('in_process_rfq')">
+      <div class="card bucket-card">
         <div class="bucket-title">🔵 In Process — RFQ</div>
         <div class="bucket-count" id="count-in-process">—</div>
         <div id="list-in-process"></div>
       </div>
-      <div class="card bucket-card" onclick="filterByStatus('nopo_authorization')">
+      <div class="card bucket-card">
         <div class="bucket-title">🟡 NOPO Authorization</div>
         <div class="bucket-count" id="count-nopo">—</div>
         <div id="list-nopo"></div>
       </div>
-      <div class="card bucket-card" onclick="filterByStatus('anticipated_order')">
+      <div class="card bucket-card">
         <div class="bucket-title">🟢 Anticipated Order</div>
         <div class="bucket-count" id="count-anticipated">—</div>
         <div id="list-anticipated"></div>
       </div>
-      <div class="card bucket-card" onclick="filterByStatus('new_po_received')">
+      <div class="card bucket-card">
         <div class="bucket-title">✅ New PO Received</div>
         <div class="bucket-count" id="count-po">—</div>
         <div id="list-po"></div>
@@ -1138,8 +1138,15 @@ function renderAETable() {
 // BOOT
 // =============================================
 loadDashboard();
-// Pre-render all savings page content
-setTimeout(() => { renderSavingsMetrics(); renderECNRiskChart(); renderAETable(); renderPOTable(HISTORICAL_POS); }, 100);
+// Pre-render all savings page content + dashboard ECN metric
+setTimeout(() => {
+  renderSavingsMetrics();
+  renderECNRiskChart();
+  renderAETable();
+  renderPOTable(HISTORICAL_POS);
+  const ecnEl = document.getElementById('metric-ecn');
+  if (ecnEl) ecnEl.textContent = ((HISTORICAL_POS.filter(p => p.ecn).length / HISTORICAL_POS.length) * 100).toFixed(1) + '%';
+}, 100);
 </script>
 </body>
 </html>
