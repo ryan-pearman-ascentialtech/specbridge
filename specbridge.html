@@ -1183,6 +1183,7 @@ async function runGenerateRFQ() {
     project_name: currentProject.name,
     customer: currentProject.customer,
     specs,
+    labor_rates: { pm: 79.69, me: 89.73, ee: 99.93, se: 102.51, fab: 86.80, machine_build: 86.22, panel_build: 91.94, field_service: 80.28 },
   });
 
   btn.disabled = false; btn.innerHTML = '📄 Generate RFQ';
