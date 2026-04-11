@@ -848,6 +848,13 @@ async function loadProjectDetail(projectId) {
         ? `<div style="font-size:11px;color:var(--muted);margin-top:6px">Budget guidance: <strong style="color:var(--warning)">${fmt$(scope.budget_guidance)}</strong></div>`
         : '';
 
+      const quotesWithAmt = sq.filter(x=>x.total_amount>0);
+      const compSourcingBadge = quotesWithAmt.length >= 2
+        ? `<span style="font-size:10px;font-weight:700;background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.3);border-radius:4px;padding:2px 7px;letter-spacing:0.04em">COMPETED ✓</span>`
+        : quotesWithAmt.length === 1
+          ? `<span style="font-size:10px;font-weight:700;background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);border-radius:4px;padding:2px 7px;letter-spacing:0.04em">SINGLE SOURCE ⚠</span>`
+          : '';
+
       const scopeIdSafe = scope ? scope.id : '';
       return `
         <div class="card scope-card" onclick="openScope('${scopeIdSafe}','${st}','${safeJs(proj.name)}')">
@@ -857,6 +864,7 @@ async function loadProjectDetail(projectId) {
           </div>
           <div class="quote-pills">${pillHtml}</div>
           ${budgetHtml}
+          ${compSourcingBadge ? `<div style="margin-top:8px">${compSourcingBadge}</div>` : ''}
           <div class="scope-card-footer">
             <div style="font-size:13px;font-weight:700;color:var(--success)">${awardedQ?'Awarded: '+fmt$(awardedQ.total_amount):''}</div>
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openScope('${scopeIdSafe}','${st}','${safeJs(proj.name)}')">${sq.length?'View Quotes →':'Enter Quotes →'}</button>
@@ -1316,9 +1324,9 @@ function buildComparison(scope, culverQ, carnQ) {
         <div class="market-rate-item-val" style="color:var(--success)">${fmt$(marketLow)}</div>
       </div>
       <div class="market-rate-item">
-        <div class="market-rate-item-label">Market Average</div>
+        <div class="market-rate-item-label">Market Defensible Position</div>
         <div class="market-rate-item-val" style="color:var(--warning)">${fmt$(marketAvg)}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:3px">Blended market rate</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">Blended avg — use for customer pricing</div>
       </div>
       <div class="market-rate-item">
         <div class="market-rate-item-label">Market High</div>
@@ -1331,7 +1339,27 @@ function buildComparison(scope, culverQ, carnQ) {
       </div>`:''}
     </div>` : '';
 
+  const bothQuoted = ct > 0 && nct > 0;
+  const compSourcingBanner = bothQuoted
+    ? `<div style="display:flex;align-items:center;gap:10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 16px;margin-bottom:14px">
+        <span style="font-size:16px">✅</span>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:0.06em">Competed — 2 Quotes Received</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Scope is competitively sourced. Pricing reflects market defensible position.</div>
+        </div>
+      </div>`
+    : ct > 0 || nct > 0
+      ? `<div style="display:flex;align-items:center;gap:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 16px;margin-bottom:14px">
+          <span style="font-size:16px">⚠️</span>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.06em">Single Source — 1 Quote Only</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">Scope is not competed. Obtain a second quote to establish a market defensible position.</div>
+          </div>
+        </div>`
+      : '';
+
   return `
+    ${compSourcingBanner}
     <table class="comp-table">
       <thead>
         <tr>
@@ -1365,7 +1393,31 @@ function buildComparison(scope, culverQ, carnQ) {
       </div>
       <div class="savings-box-amt">${fmt$(savings)}</div>
     </div>`:''}
-    ${marketRateHtml}`;
+    ${marketRateHtml}
+    ${(()=>{
+      const lowestQ = marketLow;
+      const headroom = marketAvg && lowestQ ? marketAvg - lowestQ : null;
+      const headroomPct = headroom && marketAvg ? ((headroom/marketAvg)*100).toFixed(1) : null;
+      const awardedAmt  = awarded ? (awarded.total_amount||0) : 0;
+      const profitProtect = awardedAmt > 0 ? awardedAmt * 0.02 : null;
+
+      if (!headroom && !profitProtect) return '';
+      return `
+    <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
+      ${headroom ? `
+      <div style="flex:1;min-width:200px;background:#0d1117;border:1px solid #1e2535;border-radius:8px;padding:14px 18px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:6px">Negotiation Headroom</div>
+        <div style="font-size:22px;font-weight:700;color:#38bdf8">${fmt$(headroom)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">${headroomPct}% gap — room to push market defensible position down to low bid</div>
+      </div>` : ''}
+      ${profitProtect ? `
+      <div style="flex:1;min-width:200px;background:#0d1117;border:1px solid rgba(168,85,247,0.35);border-radius:8px;padding:14px 18px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:6px">Profit Protection (2% BEP Policy)</div>
+        <div style="font-size:22px;font-weight:700;color:#a855f7">${fmt$(profitProtect)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Push supplier ${fmt$(profitProtect)} below awarded total to protect BEP margin</div>
+      </div>` : ''}
+    </div>`;
+    })()}`;
 }
 
 async function awardQuote(quoteId, scopeId) {
