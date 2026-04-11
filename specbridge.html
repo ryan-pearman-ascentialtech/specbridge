@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SpecBridge — BEP GR Procurement Intelligence</title>
+  <title>SpecBridge — BEP Installation Procurement</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -16,1743 +16,1160 @@
     }
     body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
 
-    /* NAV */
-    nav { display: flex; align-items: center; gap: 24px; padding: 0 24px; height: 52px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
-    .nav-logo { font-size: 18px; font-weight: 700; margin-right: 16px; }
+    /* ── NAV ── */
+    nav { display: flex; align-items: center; gap: 8px; padding: 0 24px; height: 52px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .nav-logo { font-size: 17px; font-weight: 700; margin-right: 12px; letter-spacing: -0.3px; }
     .nav-logo span { color: var(--accent); }
-    .nav-link { color: var(--muted); text-decoration: none; font-size: 13px; padding: 4px 8px; border-radius: 4px; cursor: pointer; background: none; border: none; }
+    .nav-divider { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+    .nav-link { color: var(--muted); text-decoration: none; font-size: 13px; padding: 5px 10px; border-radius: 5px; cursor: pointer; background: none; border: none; font-family: var(--font); transition: all 0.15s; }
     .nav-link:hover, .nav-link.active { color: var(--text); background: var(--border); }
-    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
-    .nav-user { font-size: 12px; color: var(--muted); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .breadcrumb { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .breadcrumb-sep { color: var(--border); }
+    .breadcrumb-link { color: var(--accent); cursor: pointer; }
+    .breadcrumb-link:hover { text-decoration: underline; }
 
-    /* PAGES */
+    /* ── LAYOUT ── */
     .page { display: none; }
     .page.active { display: block; }
-    .container { max-width: 1100px; margin: 0 auto; padding: 28px 24px; }
-
-    /* CARDS */
+    .container { max-width: 1140px; margin: 0 auto; padding: 28px 24px; }
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
 
-    /* BUTTONS */
-    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: background 0.15s; }
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-primary:hover { background: var(--accent-hover); }
+    /* ── BUTTONS ── */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: background 0.15s; font-family: var(--font); }
+    .btn-primary   { background: var(--accent); color: #fff; }
+    .btn-primary:hover   { background: var(--accent-hover); }
     .btn-secondary { background: var(--border); color: var(--text); }
     .btn-secondary:hover { background: #363946; }
-    .btn-success { background: #16a34a; color: #fff; }
-    .btn-success:hover { background: #15803d; }
-    .btn-warning { background: #b45309; color: #fff; }
-    .btn-warning:hover { background: #92400e; }
-    .btn-sm { padding: 5px 12px; font-size: 12px; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .row-action { font-size: 11px !important; padding: 3px 9px !important; border-radius: 4px; white-space: nowrap; line-height: 1.4; }
+    .btn-success   { background: #16a34a; color: #fff; }
+    .btn-success:hover   { background: #15803d; }
+    .btn-warning   { background: #b45309; color: #fff; }
+    .btn-warning:hover   { background: #92400e; }
+    .btn-ghost     { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+    .btn-ghost:hover     { background: var(--border); }
+    .btn-sm  { padding: 5px 12px; font-size: 12px; }
+    .btn-xs  { padding: 3px 9px; font-size: 11px; border-radius: 5px; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-    /* FORMS */
+    /* ── FORMS ── */
     .form-group { display: flex; flex-direction: column; gap: 5px; }
     label { font-size: 12px; color: var(--muted); font-weight: 500; }
-    label.required::after { content: ' *'; color: var(--danger); }
-    input, textarea, select {
-      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-      color: var(--text); font-size: 13px; padding: 8px 10px; width: 100%;
-      font-family: var(--font); transition: border-color 0.15s;
-    }
+    label.req::after { content: ' *'; color: var(--danger); }
+    input, textarea, select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; padding: 8px 10px; width: 100%; font-family: var(--font); transition: border-color 0.15s; }
     input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
-    textarea { resize: vertical; min-height: 72px; }
+    textarea { resize: vertical; min-height: 60px; }
+    input[type="number"] { -moz-appearance: textfield; }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
-    /* GRID */
+    /* ── GRID ── */
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .col-span-2 { grid-column: span 2; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+    .span-2 { grid-column: span 2; }
 
-    /* TOAST */
+    /* ── TOAST ── */
     #toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 9999; }
-    .toast { padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; animation: slideIn 0.2s ease; max-width: 320px; }
+    .toast { padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; animation: slideIn 0.2s ease; max-width: 340px; }
     .toast-success { background: #166534; color: #86efac; border: 1px solid #22c55e33; }
     .toast-error   { background: #7f1d1d; color: #fca5a5; border: 1px solid #ef444433; }
     .toast-info    { background: #1e3a5f; color: #93c5fd; border: 1px solid #3b82f633; }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-    /* SPINNER */
-    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+    /* ── BADGE ── */
+    .badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; border: 1px solid transparent; }
+    .badge-gray   { background: #1e2433; color: #94a3b8; border-color: #2a2d3a; }
+    .badge-blue   { background: #1e3a5f; color: #93c5fd; border-color: #3b82f633; }
+    .badge-yellow { background: #422006; color: #fcd34d; border-color: #f59e0b33; }
+    .badge-green  { background: #14532d; color: #86efac; border-color: #22c55e33; }
+    .badge-red    { background: #7f1d1d; color: #fca5a5; border-color: #ef444433; }
+    .badge-purple { background: #2e1065; color: #c4b5fd; border-color: #7c3aed33; }
+
+    /* ── SPINNER ── */
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.25); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; flex-shrink: 0; }
+    .spinner-lg { width: 28px; height: 28px; border-width: 3px; border-color: rgba(255,255,255,0.15); border-top-color: var(--accent); }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* BADGE */
-    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-    .badge-blue    { background: #1e3a5f; color: #93c5fd; }
-    .badge-green   { background: #14532d; color: #86efac; }
-    .badge-yellow  { background: #422006; color: #fcd34d; }
-    .badge-red     { background: #7f1d1d; color: #fca5a5; }
+    /* ── PAGE HEADER ── */
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+    .page-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+    .page-subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; }
 
-    /* =============================================
-       DASHBOARD
-    ============================================= */
-    .dash-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-    .dash-header h1 { font-size: 22px; font-weight: 700; }
-    .dash-subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; }
-
-    .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
-    .metric-card { text-align: center; padding: 16px; }
-    .metric-value { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+    /* ── METRICS ROW ── */
+    .metrics-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
+    .metric-card { text-align: center; padding: 18px 12px; }
+    .metric-value { font-size: 26px; font-weight: 700; line-height: 1; margin-bottom: 5px; }
     .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
-    .buckets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-    .bucket-card { cursor: pointer; transition: border-color 0.15s; }
-    .bucket-card:hover { border-color: var(--accent); }
-    .bucket-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 12px; }
-    .bucket-count { font-size: 32px; font-weight: 700; margin-bottom: 12px; }
-    .project-row { padding: 8px 0; border-top: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .project-row:hover .project-name { color: var(--accent); }
-    .project-name { font-size: 12px; font-weight: 600; }
-    .project-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .show-more-btn { text-align: center; font-size: 11px; color: var(--accent); padding: 7px 0 2px; cursor: pointer; border-top: 1px solid var(--border); margin-top: 2px; }
-    .show-more-btn:hover { color: var(--text); }
-    .project-score { font-size: 12px; font-weight: 600; color: var(--warning); white-space: nowrap; }
+    /* ── EMPTY STATE ── */
+    .empty-state { text-align: center; padding: 64px 24px; color: var(--muted); }
+    .empty-icon  { font-size: 44px; margin-bottom: 14px; }
+    .empty-text  { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .empty-sub   { font-size: 13px; margin-bottom: 22px; }
 
-    /* =============================================
+    /* ══════════════════════════════════════════
+       DASHBOARD
+    ══════════════════════════════════════════ */
+    .projects-list { display: flex; flex-direction: column; gap: 12px; }
+    .project-card { cursor: pointer; transition: border-color 0.15s; }
+    .project-card:hover { border-color: var(--accent); }
+    .project-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+    .project-card-name { font-size: 15px; font-weight: 700; }
+    .project-card-meta { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.6; }
+    .project-card-meta span { margin-right: 14px; }
+    .scope-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+    .scope-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; border: 1px solid rgba(255,255,255,0.06); }
+
+    /* ══════════════════════════════════════════
        NEW PROJECT
-    ============================================= */
-    .np-form { display: flex; flex-direction: column; gap: 16px; max-width: 760px; }
-    .classify-panel { display: none; }
-    .classify-panel.visible { display: block; }
-    .classify-result { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 13px; line-height: 1.6; }
-    .classify-tag { display: inline-block; background: #1e3a5f; color: #93c5fd; border-radius: 4px; padding: 2px 7px; font-size: 11px; margin: 2px; }
+    ══════════════════════════════════════════ */
+    .np-form { display: flex; flex-direction: column; gap: 22px; max-width: 740px; }
+    .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 
-    /* =============================================
-       SPEC CAPTURE
-    ============================================= */
-    .spec-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-    .spec-header h2 { font-size: 18px; font-weight: 700; }
+    /* ══════════════════════════════════════════
+       PROJECT DETAIL
+    ══════════════════════════════════════════ */
+    .info-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px 20px; margin-bottom: 24px; }
+    .info-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+    .info-value { font-size: 13px; font-weight: 500; line-height: 1.4; }
+    .scopes-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; }
+    .scope-card { transition: border-color 0.15s; cursor: pointer; }
+    .scope-card:hover:not(.scope-pending) { border-color: var(--accent); }
+    .scope-pending { opacity: 0.6; cursor: default; }
+    .scope-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .scope-card-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .scope-icon { font-size: 20px; line-height: 1; }
+    .quote-pills { display: flex; gap: 7px; flex-wrap: wrap; margin: 10px 0; }
+    .quote-pill { font-size: 11px; padding: 4px 10px; border-radius: 5px; border: 1px solid var(--border); color: var(--muted); }
+    .quote-pill.filled  { color: var(--text); background: #1c2236; }
+    .quote-pill.awarded { color: #86efac; background: #14532d40; border-color: #22c55e44; font-weight: 700; }
+    .scope-card-footer { margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .pending-msg { font-size: 12px; color: var(--warning); margin-top: 10px; line-height: 1.5; }
 
-    .completeness-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-    .bar-track { flex: 1; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
-    .bar-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.4s ease; }
-    .bar-pct { font-size: 13px; font-weight: 700; min-width: 36px; }
+    /* ══════════════════════════════════════════
+       SCOPE DETAIL
+    ══════════════════════════════════════════ */
+    .stepper { display: flex; align-items: center; margin-bottom: 22px; }
+    .step-node { display: flex; align-items: center; gap: 7px; }
+    .step-dot { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 2px solid var(--border); background: var(--bg); color: var(--muted); flex-shrink: 0; }
+    .step-dot.done    { background: var(--success); border-color: var(--success); color: #fff; }
+    .step-dot.current { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .step-text { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .step-text.done    { color: var(--text); }
+    .step-text.current { color: var(--accent); font-weight: 600; }
+    .step-line { flex: 1; height: 1px; background: var(--border); min-width: 16px; max-width: 56px; margin: 0 5px; }
+    .step-line.done { background: var(--success); }
 
-    .spec-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; }
-    .spec-main {}
+    .context-box { background: #111420; border: 1px solid var(--border); border-radius: 7px; padding: 14px 16px; margin-bottom: 22px; }
+    .context-box-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 10px; }
+    .context-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .ctx-item strong { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 2px; }
+    .ctx-item { font-size: 12px; }
 
-    .tab-bar { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
-    .tab-btn { padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); transition: all 0.15s; white-space: nowrap; }
-    .tab-btn:hover { border-color: var(--accent); color: var(--text); }
-    .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-    .tab-btn.install { border-color: var(--danger); color: var(--danger); }
-    .tab-btn.install.active { background: var(--danger); color: #fff; }
+    .supplier-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+    .sup-tab { padding: 8px 18px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; background: transparent; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; font-family: var(--font); }
+    .sup-tab:hover { color: var(--text); }
+    .sup-tab.active { color: var(--text); border-bottom-color: var(--accent); }
 
-    .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .fields-grid .wide { grid-column: span 2; }
+    .line-table { width: 100%; border-collapse: collapse; }
+    .line-table th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+    .line-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .line-table tr:last-child td { border-bottom: none; }
+    .li-label { font-size: 12px; line-height: 1.5; }
+    .li-optional { color: var(--muted); }
+    .li-amt-cell { width: 150px; }
+    .li-notes-cell { width: 190px; }
+    .amt-input { width: 134px !important; text-align: right; padding: 6px 8px !important; font-size: 13px !important; }
+    .notes-input { font-size: 11px !important; padding: 5px 8px !important; }
+    .opt-header td { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 14px 10px 5px !important; border-bottom: none !important; background: transparent; }
+    .total-row td { background: #111420; font-weight: 700; font-size: 14px; }
+    .quote-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 0; }
+    .running-total-label { font-size: 13px; color: var(--muted); }
+    .running-total-value { font-size: 18px; font-weight: 700; color: var(--accent); }
+    .awarded-banner { background: #14532d; border: 1px solid #22c55e44; border-radius: 6px; padding: 9px 14px; font-size: 12px; color: #86efac; margin-bottom: 14px; }
 
-    /* GAP FLAGS */
-    .gap-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; position: sticky; top: 72px; max-height: calc(100vh - 120px); overflow-y: auto; }
-    .gap-panel-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .gap-count { background: var(--danger); color: #fff; border-radius: 999px; padding: 1px 7px; font-size: 11px; }
-    .gap-item { border-left: 3px solid var(--warning); padding: 8px 10px; margin-bottom: 8px; background: var(--bg); border-radius: 0 4px 4px 0; font-size: 12px; line-height: 1.5; }
-    .gap-item.critical { border-color: var(--danger); }
-    .gap-category { font-weight: 700; color: var(--warning); font-size: 11px; text-transform: uppercase; margin-bottom: 2px; }
-    .gap-item.critical .gap-category { color: var(--danger); }
+    /* comparison */
+    .comp-table { width: 100%; border-collapse: collapse; }
+    .comp-table th { font-size: 12px; font-weight: 700; padding: 11px 14px; background: #111420; border: 1px solid var(--border); }
+    .comp-table td { padding: 8px 14px; border: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+    .comp-item-col { font-size: 12px; color: var(--muted); width: 40%; }
+    .comp-amt { text-align: right; font-weight: 500; }
+    .comp-lower { color: #86efac !important; font-weight: 700 !important; }
+    .comp-total-row td { font-weight: 700; font-size: 15px; background: #111420; }
+    .award-cell { text-align: center; vertical-align: middle; }
+    .savings-box { display: flex; justify-content: space-between; align-items: center; background: #0c1e14; border: 1px solid #22c55e44; border-radius: 7px; padding: 14px 18px; margin-top: 16px; }
+    .savings-box-label { font-size: 13px; color: var(--muted); }
+    .savings-box-pct   { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .savings-box-amt   { font-size: 22px; font-weight: 700; color: var(--success); }
 
-    /* AI ACTIONS */
-    .ai-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
-    .cost-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-    .cost-total { display: flex; justify-content: space-between; padding: 10px 0 4px; font-size: 16px; font-weight: 700; color: var(--accent); }
-
-    /* RESULTS MODAL */
-    .results-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500; display: none; align-items: center; justify-content: center; }
-    .results-modal-overlay.open { display: flex; }
-    .results-modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; width: 740px; max-width: 94vw; max-height: 85vh; display: flex; flex-direction: column; }
-    .results-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .results-modal-title { font-size: 17px; font-weight: 700; }
-    .results-modal-body { flex: 1; overflow-y: auto; }
-    .results-modal-footer { display: flex; gap: 10px; padding-top: 16px; border-top: 1px solid var(--border); margin-top: 16px; }
-    .rfq-text { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 16px 20px; font-size: 13px; line-height: 1.9; white-space: pre-wrap; font-family: var(--font); }
-
-    /* NAV BADGE */
-    .nav-badge { background: var(--danger); color: #fff; border-radius: 999px; font-size: 10px; font-weight: 700; padding: 1px 6px; margin-left: 4px; vertical-align: middle; }
-
-    /* ROUTE MODAL */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500; display: none; align-items: center; justify-content: center; }
-    .modal-overlay.open { display: flex; }
-    .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; width: 480px; max-width: 92vw; }
-    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
-    .modal-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
-    .modal-score { font-size: 36px; font-weight: 700; text-align: center; margin: 16px 0 4px; }
-    .modal-score-label { text-align: center; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
-    .modal-warning { background: #422006; border: 1px solid #f59e0b44; color: var(--warning); border-radius: 6px; padding: 10px 14px; font-size: 12px; margin-bottom: 16px; }
-    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
-
-    /* REVIEW QUEUE */
-    .review-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-    .review-header h1 { font-size: 22px; font-weight: 700; }
-    .review-empty { text-align: center; padding: 60px 20px; color: var(--muted); }
-    .review-empty-icon { font-size: 48px; margin-bottom: 16px; }
-    .review-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 14px; }
-    .review-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 16px; }
-    .review-card-title { font-size: 15px; font-weight: 700; }
-    .review-card-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
-    .review-card-body { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }
-    .review-stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
-    .review-stat-value { font-size: 14px; font-weight: 600; }
-    .review-notes { background: var(--bg); border-radius: 6px; padding: 10px 12px; font-size: 12px; color: var(--text); margin-bottom: 14px; line-height: 1.5; }
-    .review-notes-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
-    .review-actions { display: flex; gap: 8px; padding-top: 14px; border-top: 1px solid var(--border); }
-    .btn-approve  { background: #14532d; color: #86efac; }
-    .btn-approve:hover  { background: #166534; }
-    .btn-revise   { background: #1e3a5f; color: #93c5fd; }
-    .btn-revise:hover   { background: #1e40af; }
-    .btn-kill     { background: #3f0f0f; color: #fca5a5; }
-    .btn-kill:hover     { background: #7f1d1d; }
-
-    /* SAVINGS */
-    .savings-header { margin-bottom: 24px; }
-    .savings-header h1 { font-size: 22px; font-weight: 700; }
-    .savings-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
-    .savings-grid { display: grid; grid-template-columns: 340px 1fr; gap: 20px; margin-bottom: 20px; }
-    .risk-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
-    .risk-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
-    .risk-bar { height: 100%; border-radius: 999px; }
-    .risk-label { font-size: 12px; font-weight: 600; min-width: 110px; }
-    .risk-pct { font-size: 12px; font-weight: 700; min-width: 38px; text-align: right; }
-    .po-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .po-table th { text-align: left; padding: 8px 10px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); white-space: nowrap; }
-    .po-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-    .po-table tr:hover td { background: var(--border); }
-    .ecn-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
-    .ecn-yes { background: #7f1d1d; color: #fca5a5; }
-    .ecn-no  { background: #14532d; color: #86efac; }
-    .search-bar { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
-    .search-bar input { flex: 1; }
-    .search-bar select { width: 160px; }
+    /* ══════════════════════════════════════════
+       SAVINGS DASHBOARD
+    ══════════════════════════════════════════ */
+    .sv-table { width: 100%; border-collapse: collapse; }
+    .sv-table th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: left; }
+    .sv-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .sv-table tr:last-child td { border-bottom: none; }
+    .sv-right { text-align: right; }
+    .sv-green { color: var(--success); font-weight: 700; }
+    .sv-muted { color: var(--muted); }
   </style>
 </head>
 <body>
 
-<!-- NAV -->
+<!-- ═══════════════════════════════ NAV ═══════════════════════════════ -->
 <nav>
   <div class="nav-logo">Spec<span>Bridge</span></div>
-  <button class="nav-link active" onclick="showPage('dashboard')">Dashboard</button>
-  <button class="nav-link" onclick="showPage('new-project')">New Project</button>
-  <button class="nav-link" onclick="showPage('review')">AE Review <span class="nav-badge" id="review-badge" style="display:none">0</span></button>
-  <button class="nav-link" onclick="showPage('savings')">Savings</button>
+  <div class="nav-divider"></div>
+  <button class="nav-link" id="nav-dashboard" onclick="showPage('dashboard')">Projects</button>
+  <button class="nav-link" id="nav-savings"   onclick="showPage('savings')">Savings</button>
   <div class="nav-right">
-    <span class="nav-user">ryan.pearman — BEP GR</span>
+    <div id="breadcrumb-area" class="breadcrumb" style="display:none"></div>
   </div>
 </nav>
 
-<div id="toast-container"></div>
-
-<!-- =============================================
-     DASHBOARD
-============================================= -->
+<!-- ══════════════════════════════ DASHBOARD ══════════════════════════════ -->
 <div id="page-dashboard" class="page active">
   <div class="container">
-    <div class="dash-header">
+    <div class="page-header">
       <div>
-        <h1>Dashboard</h1>
-        <p class="dash-subtitle" id="dash-subtitle">BEP GR · Loading projects…</p>
+        <h1>Projects</h1>
+        <div class="page-subtitle" id="dash-subtitle">Loading…</div>
       </div>
       <button class="btn btn-primary" onclick="showPage('new-project')">+ New Project</button>
     </div>
-
-    <div class="metrics-row">
-      <div class="card metric-card">
-        <div class="metric-value" id="metric-total">—</div>
-        <div class="metric-label">Active Projects</div>
-      </div>
-      <div class="card metric-card">
-        <div class="metric-value" id="metric-avg-score" style="color:var(--warning)">—</div>
-        <div class="metric-label">Avg Completeness</div>
-      </div>
-      <div class="card metric-card">
-        <div class="metric-value" id="metric-pipeline" style="color:var(--success)">—</div>
-        <div class="metric-label">Pipeline Value</div>
-      </div>
-      <div class="card metric-card">
-        <div class="metric-value" id="metric-ecn" style="color:var(--danger)">—</div>
-        <div class="metric-label">ECN Rate (YTD)</div>
-      </div>
+    <div class="metrics-row" id="dash-metrics">
+      <div class="card metric-card"><div class="spinner spinner-lg" style="margin:0 auto"></div></div>
+      <div class="card metric-card"></div><div class="card metric-card"></div><div class="card metric-card"></div>
     </div>
-
-    <div class="buckets-grid">
-      <div class="card bucket-card">
-        <div class="bucket-title">🔵 In Process — RFQ</div>
-        <div class="bucket-count" id="count-in-process">—</div>
-        <div id="list-in-process"></div>
-      </div>
-      <div class="card bucket-card">
-        <div class="bucket-title">🟡 NOPO Authorization</div>
-        <div class="bucket-count" id="count-nopo">—</div>
-        <div id="list-nopo"></div>
-      </div>
-      <div class="card bucket-card">
-        <div class="bucket-title">🟢 Anticipated Order</div>
-        <div class="bucket-count" id="count-anticipated">—</div>
-        <div id="list-anticipated"></div>
-      </div>
-      <div class="card bucket-card">
-        <div class="bucket-title">✅ New PO Received</div>
-        <div class="bucket-count" id="count-po">—</div>
-        <div id="list-po"></div>
-      </div>
+    <div class="projects-list" id="projects-list">
+      <div class="card empty-state"><div class="spinner spinner-lg" style="margin:0 auto 14px"></div></div>
     </div>
   </div>
 </div>
 
-<!-- =============================================
-     NEW PROJECT
-============================================= -->
+<!-- ══════════════════════════════ NEW PROJECT ══════════════════════════════ -->
 <div id="page-new-project" class="page">
   <div class="container">
-    <h1 style="margin-bottom:20px">New Project</h1>
-    <div class="np-form">
-      <div class="card">
-        <div style="display:flex;flex-direction:column;gap:14px">
-          <div class="form-group">
-            <label for="np-name">Project Name *</label>
-            <input id="np-name" type="text" placeholder="e.g. Ford VOME Line 4 — Conveyor Upgrade" />
-          </div>
+    <div class="page-header">
+      <div>
+        <h1>New Project</h1>
+        <div class="page-subtitle">All four trade scopes are created automatically</div>
+      </div>
+      <button class="btn btn-secondary" onclick="showPage('dashboard')">← Back</button>
+    </div>
+    <div class="card">
+      <div class="np-form">
+        <div>
+          <div class="section-title">Project Identity</div>
           <div class="grid-2">
             <div class="form-group">
-              <label for="np-customer">Customer *</label>
-              <input id="np-customer" type="text" placeholder="e.g. Ford, GM, Stellantis" />
+              <label class="req" for="np-name">Project Name</label>
+              <input id="np-name" type="text" placeholder="e.g. Scout Motors EOL Systems" />
             </div>
             <div class="form-group">
-              <label for="np-rfq">RFQ Number</label>
-              <input id="np-rfq" type="text" placeholder="e.g. RFQ-2026-041" />
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="np-description">Project Description — paste everything you know *</label>
-            <textarea id="np-description" rows="5" placeholder="Describe the project scope, customer needs, machine type, key requirements…" oninput="onDescriptionInput()"></textarea>
-          </div>
-          <div class="grid-2">
-            <div class="form-group">
-              <label for="np-due">Due Date</label>
-              <input id="np-due" type="date" />
+              <label class="req" for="np-customer">Customer</label>
+              <input id="np-customer" type="text" placeholder="e.g. Scout Motors Inc" />
             </div>
             <div class="form-group">
-              <label for="np-ae">Assign to AE</label>
-              <select id="np-ae">
-                <option value="">— Assign later —</option>
-                <option>Jennifer Willbrandt</option>
-                <option>Paul Kitchen</option>
-                <option>Darin Levander</option>
-                <option>Jeremy Gutierrez</option>
-              </select>
+              <label for="np-jo">JO Number(s)</label>
+              <input id="np-jo" type="text" placeholder="e.g. 522723 / 522724" />
             </div>
-          </div>
-
-          <div class="form-group" style="flex-direction:row;align-items:flex-start;gap:12px;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px">
-            <div style="flex:1">
-              <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-                <input type="checkbox" id="np-is-ecn" style="width:16px;height:16px;cursor:pointer" onchange="toggleEcnFields()" />
-                <label for="np-is-ecn" style="cursor:pointer;font-size:13px;color:var(--text);font-weight:600">This is an ECN (Engineering Change Notice / Change in Scope)</label>
-              </div>
-              <div id="np-ecn-fields" style="display:none;margin-top:8px">
-                <div class="form-group">
-                  <label for="np-original-jo">Original Project / JO Reference *</label>
-                  <input id="np-original-jo" type="text" placeholder="e.g. JO-512281 or Project 18489P2b" />
-                </div>
-              </div>
+            <div class="form-group">
+              <label for="np-date">Target Install Date</label>
+              <input id="np-date" type="date" />
             </div>
           </div>
         </div>
-      </div>
-
-      <div class="card classify-panel" id="classify-panel">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:10px">
-          AI Classification <span id="classify-spinner" style="display:none"><span class="spinner"></span></span>
+        <div>
+          <div class="section-title">Site &amp; Contacts</div>
+          <div class="grid-2">
+            <div class="form-group span-2">
+              <label for="np-site">Site Address</label>
+              <input id="np-site" type="text" placeholder="e.g. 501 Blythewood Rd, Blythewood, SC 29016, United States" />
+            </div>
+            <div class="form-group">
+              <label for="np-pm">BEP Project Manager</label>
+              <input id="np-pm" type="text" placeholder="e.g. Pieter Vancraeynest" />
+            </div>
+            <div class="form-group">
+              <label for="np-buyer">BEP Buyer / Strategic Procurement</label>
+              <input id="np-buyer" type="text" placeholder="e.g. Rik Dierckens" />
+            </div>
+          </div>
         </div>
-        <div id="classify-results"></div>
-      </div>
-
-      <div style="display:flex;gap:10px">
-        <button class="btn btn-primary" id="create-btn" onclick="createProject()">Create Project &amp; Capture Spec →</button>
-        <button class="btn btn-secondary" onclick="showPage('dashboard')">Cancel</button>
+        <div>
+          <div class="section-title">Machine &amp; Scope Context</div>
+          <div class="form-group">
+            <label for="np-machines">Machine Description</label>
+            <textarea id="np-machines" rows="3" placeholder="e.g. 4× Wheel Alignment stations (WAHA, ~12.5T each) + 1× Roller Test Bench (~16T). EOL area, Assembly Shop, new plant."></textarea>
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <label for="np-notes">Notes</label>
+            <textarea id="np-notes" rows="2" placeholder="Additional context for procurement team…"></textarea>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;padding-top:4px">
+          <button class="btn btn-primary" onclick="createProject()" id="np-btn">Create Project + Auto-generate 4 Scopes</button>
+          <button class="btn btn-secondary" onclick="showPage('dashboard')">Cancel</button>
+        </div>
+        <div id="np-err" style="color:var(--danger);font-size:12px;display:none"></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- =============================================
-     SPEC CAPTURE
-============================================= -->
-<div id="page-spec-capture" class="page">
+<!-- ══════════════════════════════ PROJECT DETAIL ══════════════════════════════ -->
+<div id="page-project-detail" class="page">
   <div class="container">
-    <div class="spec-header">
-      <button class="btn btn-secondary btn-sm" onclick="showPage('dashboard')">← Back</button>
-      <h2 id="spec-project-name">Project</h2>
-      <span class="badge badge-blue" id="spec-status-badge">IN PROCESS</span>
-      <span id="spec-ecn-badge" style="display:none;font-size:10px;font-weight:700;background:#b45309;color:#fff;padding:2px 8px;border-radius:3px;letter-spacing:0.04em">ECN</span>
-      <span id="spec-ae-badge" style="font-size:11px;color:var(--muted)"></span>
-      <button class="btn btn-primary btn-sm" id="review-btn" onclick="runReview()" style="margin-left:auto">Review &amp; Route →</button>
-    </div>
-
-    <div class="completeness-bar">
-      <div class="bar-track"><div class="bar-fill" id="bar-fill" style="width:0%"></div></div>
-      <div class="bar-pct" id="bar-pct">0%</div>
-    </div>
-
-    <div class="spec-layout">
-      <div class="spec-main">
-        <div class="tab-bar" id="tab-bar"></div>
-        <div class="card">
-          <div class="fields-grid" id="fields-container"></div>
-        </div>
-      </div>
-
-      <div class="gap-panel">
-        <div class="gap-panel-title">
-          Gap Flags <span class="gap-count" id="gap-count">0</span>
-        </div>
-        <div id="gap-list" style="margin-bottom:12px;font-size:12px;color:var(--muted)">Run gap check to see flags</div>
-        <div class="ai-actions">
-          <button class="btn btn-secondary btn-sm" onclick="runGapCheck()">🔍 Check Gaps with AI</button>
-          <button class="btn btn-secondary btn-sm" onclick="runShouldCost()">💰 Should Cost</button>
-          <button class="btn btn-secondary btn-sm" onclick="runGenerateRFQ()">📄 Generate RFQ</button>
-        </div>
-      </div>
+    <div id="project-detail-content">
+      <div class="card empty-state"><div class="spinner spinner-lg" style="margin:0 auto 14px"></div></div>
     </div>
   </div>
 </div>
 
-<!-- =============================================
-     SAVINGS
-============================================= -->
+<!-- ══════════════════════════════ SCOPE DETAIL ══════════════════════════════ -->
+<div id="page-scope-detail" class="page">
+  <div class="container">
+    <div id="scope-detail-content">
+      <div class="card empty-state"><div class="spinner spinner-lg" style="margin:0 auto 14px"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════ SAVINGS ══════════════════════════════ -->
 <div id="page-savings" class="page">
   <div class="container">
-    <div class="savings-header">
-      <h1>Savings & Intelligence</h1>
-      <p style="color:var(--muted);margin-top:4px" id="savings-subtitle">Loading…</p>
-    </div>
-
-    <div class="savings-metrics" id="savings-metrics-container"></div>
-
-    <!-- ECN Risk + AE Summary -->
-    <div class="savings-grid">
-      <div class="card">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:14px">
-          ⚠ ECN Risk by Customer
-        </div>
-        <div id="ecn-risk-container"></div>
-      </div>
-
-      <div class="card">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:14px">
-          AE Performance — YTD 2026
-        </div>
-        <div id="ae-table-container"></div>
-      </div>
-    </div>
-
-    <!-- PO History Table -->
-    <div class="card">
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:14px">
-        Historical PO Log — 30 POs · YTD 2026
-      </div>
-      <div class="search-bar">
-        <input type="text" id="po-search" placeholder="Search customer, description, AE…" oninput="filterPOs()" />
-        <select id="po-filter-ecn" onchange="filterPOs()">
-          <option value="">All POs</option>
-          <option value="ecn">ECNs Only</option>
-          <option value="clean">No ECN</option>
-        </select>
-        <select id="po-filter-ae" onchange="filterPOs()">
-          <option value="">All AEs</option>
-          <option value="Paul Kitchen">Paul Kitchen</option>
-          <option value="Jennifer Willbrandt">Jennifer Willbrandt</option>
-          <option value="Darin Levander">Darin Levander</option>
-          <option value="Jeremy Gutierrez">Jeremy Gutierrez</option>
-        </select>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="po-table" id="po-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Customer</th>
-              <th>PO Number</th>
-              <th>Description</th>
-              <th>AE</th>
-              <th>PM</th>
-              <th>Value</th>
-              <th>Margin</th>
-              <th>ECN</th>
-            </tr>
-          </thead>
-          <tbody id="po-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- =============================================
-     AE REVIEW QUEUE
-============================================= -->
-<div id="page-review" class="page">
-  <div class="container">
-    <div class="review-header">
+    <div class="page-header">
       <div>
-        <h1>AE Review Queue</h1>
-        <p style="color:var(--muted);margin-top:4px" id="review-subtitle">Projects awaiting AE Manager approval</p>
+        <h1>Savings Dashboard</h1>
+        <div class="page-subtitle">Competitive bidding results across all projects</div>
       </div>
     </div>
-    <div id="review-list"></div>
-  </div>
-</div>
-
-<!-- =============================================
-     RESULTS MODAL (Should Cost + RFQ)
-============================================= -->
-<div id="results-modal" class="results-modal-overlay" onclick="if(event.target===this)closeResultsModal()">
-  <div class="results-modal-box">
-    <div class="results-modal-header">
-      <div class="results-modal-title" id="results-modal-title">Results</div>
-      <button class="btn btn-secondary btn-sm" onclick="closeResultsModal()">✕ Close</button>
+    <div class="metrics-row" id="savings-metrics">
+      <div class="card metric-card"><div class="spinner spinner-lg" style="margin:0 auto"></div></div>
+      <div class="card metric-card"></div><div class="card metric-card"></div><div class="card metric-card"></div>
     </div>
-    <div class="results-modal-body" id="results-modal-body"></div>
-    <div class="results-modal-footer">
-      <button class="btn btn-secondary" onclick="copyResults()">📋 Copy to Clipboard</button>
-      <button class="btn btn-secondary" onclick="closeResultsModal()">Close</button>
+    <div id="savings-content">
+      <div class="card empty-state"><div class="spinner spinner-lg" style="margin:0 auto 14px"></div></div>
     </div>
   </div>
 </div>
 
-<!-- =============================================
-     ROUTE MODAL (overlay on spec capture)
-============================================= -->
-<div id="route-modal" class="modal-overlay" onclick="if(event.target===this)closeRouteModal()">
-  <div class="modal-box">
-    <div class="modal-title">Submit for AE Review</div>
-    <div class="modal-sub">Based on the BEP GR proposal process (AE-1008p), this routes the project to the AE Manager for pre-review before producing a proposal.</div>
-
-    <div id="route-score" class="modal-score" style="color:var(--success)">—</div>
-    <div class="modal-score-label">Spec Completeness</div>
-
-    <div id="route-warning" class="modal-warning" style="display:none">
-      ⚠ Spec completeness is below 70%. Consider filling in more fields before routing — the AE Manager will likely send it back.
-    </div>
-
-    <div class="form-group">
-      <label for="route-notes">Notes for AE Manager</label>
-      <textarea id="route-notes" rows="3" placeholder="e.g. Install scope is TBD — waiting on customer. Should-cost attached. Need direction on pricing strategy before quoting."></textarea>
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn btn-primary" onclick="submitForReview()">Submit for Review →</button>
-      <button class="btn btn-secondary" onclick="closeRouteModal()">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- =============================================
-     CLOSE AS WON MODAL
-============================================= -->
-<div id="close-won-modal" class="modal-overlay" onclick="if(event.target===this)closeCloseWonModal()">
-  <div class="modal-box" style="width:520px">
-    <div class="modal-title">🎉 Close as Won</div>
-    <div class="modal-sub" id="close-won-subtitle">Enter the final PO details to record this win and update the Savings dashboard.</div>
-
-    <input type="hidden" id="close-won-project-id" value="" />
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-      <div class="form-group" style="grid-column:1/-1">
-        <label for="close-won-po">PO Number <span style="color:var(--danger)">*</span></label>
-        <input type="text" id="close-won-po" placeholder="e.g. GM-2026-004481" />
-      </div>
-      <div class="form-group">
-        <label for="close-won-value">Final PO Value ($) <span style="color:var(--danger)">*</span></label>
-        <input type="number" id="close-won-value" placeholder="0" step="1000" min="0" />
-      </div>
-      <div class="form-group">
-        <label for="close-won-margin">Quoted Margin (%)</label>
-        <input type="number" id="close-won-margin" placeholder="e.g. 32" step="0.1" min="0" max="100" />
-      </div>
-      <div class="form-group">
-        <label for="close-won-ae">AE Name</label>
-        <select id="close-won-ae">
-          <option value="">— Select AE —</option>
-          <option>Jennifer Willbrandt</option>
-          <option>Paul Kitchen</option>
-          <option>Darin Levander</option>
-          <option>Jeremy Gutierrez</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="close-won-pm">PM Name</label>
-        <input type="text" id="close-won-pm" placeholder="Optional" />
-      </div>
-      <div class="form-group" style="grid-column:1/-1;flex-direction:row;align-items:center;gap:10px;margin-top:4px">
-        <input type="checkbox" id="close-won-ecn" style="width:16px;height:16px;cursor:pointer" />
-        <label for="close-won-ecn" style="cursor:pointer;font-size:13px;color:var(--text)">This is an ECN (Engineering Change Notice)</label>
-      </div>
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn btn-success" onclick="submitCloseWon()">✓ Record Win &amp; Close PO</button>
-      <button class="btn btn-secondary" onclick="closeCloseWonModal()">Cancel</button>
-    </div>
-  </div>
-</div>
+<div id="toast-container"></div>
 
 <script>
-// =============================================
-// CONFIG
-// =============================================
+// ══════════════════════════════════════════════════
+// SUPABASE
+// ══════════════════════════════════════════════════
 const SUPABASE_URL  = 'https://vvukjjuxjhlpuczcxirp.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2dWtqanV4amhscHVjemN4aXJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzOTY0NzYsImV4cCI6MjA5MDk3MjQ3Nn0.w3QFp8OOvZh5_c3olFU6MropqNq1jlJh8uxS7-a8IGY';
-const EDGE_URL      = `${SUPABASE_URL}/functions/v1/claude-proxy`;
-
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-let currentProject = null;
-let activeTab      = null;
-let classifyTimer  = null;
-let savedEntries   = {};
+// ══════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════
+let _projectId   = null;
+let _projectName = null;
+let _scopeId     = null;
+let _scopeType   = null;
+let _activeTab   = 'culver'; // 'culver' | 'carnaghi'
 
-// =============================================
-// SPEC TABS — BEP GR T&M Engineering Services
-// =============================================
-const SPEC_TABS = {
-  project_overview: {
-    label: 'Project Overview',
-    fields: [
-      { key: 'project_description',  label: 'Project Description',                          required: true,  wide: true },
-      { key: 'customer_plant',       label: 'Customer / Plant',                             required: true },
-      { key: 'project_type',         label: 'Project Type (Conveyor, Test Stand, Weld Cell…)', required: true },
-      { key: 'quantity',             label: 'Number of Machines / Units',                   required: true },
-      { key: 'target_budget',        label: 'Customer Target Budget (USD)',                 required: false },
-      { key: 'baan_order_number',    label: 'BaaN Order / PO Number',                      required: false },
-    ]
+// ══════════════════════════════════════════════════
+// STATIC CONFIG
+// ══════════════════════════════════════════════════
+const SUPPLIERS = [
+  { id: 'culver',   name: 'Culver Development', contact: 'Scott Culver'  },
+  { id: 'carnaghi', name: 'Carnaghi SC',         contact: 'Greg Carnaghi' },
+];
+
+const STATUS = {
+  draft:           { label: 'Draft',       badge: 'badge-gray'   },
+  rfq_sent:        { label: 'RFQ Sent',    badge: 'badge-blue'   },
+  quotes_received: { label: 'Quotes In',   badge: 'badge-yellow' },
+  awarded:         { label: 'Awarded',     badge: 'badge-green'  },
+  on_hold:         { label: 'On Hold',     badge: 'badge-red'    },
+};
+
+const SCOPE_ORDER = ['steel_cover_plates','crane_rigging','mechanical_compressed_air','electrical'];
+
+const SCOPES = {
+  steel_cover_plates: {
+    label: 'Steel Structures & Cover Plates',
+    icon:  '🏗️',
+    context: [
+      { l:'WAHA Pit Dimensions',   v:'9,000 × 35,000 × 2,850 mm' },
+      { l:'R&B Pit Dimensions',    v:'9,000 × 6,000 × 2,200 mm'  },
+      { l:'Cover Plates (WAHA)',   v:'~190 m²'  },
+      { l:'Cover Plates (R&B)',    v:'~56 m²'   },
+      { l:'Steel Structure (WAHA)',v:'~4,200 kg' },
+      { l:'Hoist Structure',       v:'~13,500 kg'},
+      { l:'Stairs',                v:'4 pcs'    },
+      { l:'Fencing Required',      v:'~100m WAHA + 2× R&B pits' },
+      { l:'Target Start',          v:'Mid-August 2026' },
+    ],
+    items: [
+      { key:'mobilization',           label:'Mobilization',                                                         req:true  },
+      { key:'design_study',           label:'Design & Study — lump sum (incl. PE stamp)',                           req:true  },
+      { key:'stairs',                 label:'Stairs — 4 pcs (price per stair)',                                     req:true  },
+      { key:'cover_plates_prod',      label:'Cover Plates Production per m² (materials, cutting, drilling, painting) — 190 m² WAHA + 56 m² R&B', req:true },
+      { key:'cover_plates_install',   label:'Cover Plates Installation per m² or kg',                               req:true  },
+      { key:'steel_prod',             label:'Steel Structure Production per kg/ton (materials, sawing, welding, painting) — ~4,200 kg + ~13,500 kg hoist', req:true },
+      { key:'steel_install',          label:'Steel Structure Installation per kg/ton',                               req:true  },
+      { key:'fencing',                label:'Fencing — 6 weeks',                                                    req:true  },
+      { key:'demobilization',         label:'Demobilization',                                                       req:true  },
+      { key:'administration',         label:'Administration (insurance, quality certs, paint TDS, standards list)',  req:true  },
+      { key:'opt_pm_safety',          label:'Optional: PM / Safety Advisor ($/hr)',                                 req:false },
+      { key:'opt_electrician',        label:'Optional: Industrial Electrician incl. tools ($/hr — est. 3 ppl × 20 days)', req:false },
+      { key:'opt_mechanic',           label:'Optional: Mechanic incl. tools ($/hr — est. 3 ppl × 20 days)',        req:false },
+      { key:'opt_forklift',           label:'Optional: 2× Forklifts ($/day — 20 days)',                            req:false },
+    ],
   },
-  system_specs: {
-    label: 'System & Machine Specs',
-    fields: [
-      { key: 'function_description', label: 'What does it do? (plain English)',             required: true,  wide: true },
-      { key: 'throughput_rate',      label: 'Throughput / Cycle Rate (JPH, PPM, etc.)',    required: true },
-      { key: 'machine_configuration',label: 'Machine Type / Configuration',                required: true },
-      { key: 'physical_envelope',    label: 'Physical Envelope — L × W × H (ft)',          required: true },
-      { key: 'machine_weight',       label: 'Estimated Machine Weight (lbs)',               required: true },
-      { key: 'environmental_rating', label: 'Environment (NEMA rating, washdown, etc.)',   required: false },
-      { key: 'special_requirements', label: 'Special / Unique Requirements',               required: false, wide: true },
-    ]
+  crane_rigging: {
+    label: 'Crane & Rigging Operation',
+    icon:  '🏗️',
+    context: [
+      { l:'WAHA Machines',     v:'4× @ ~12.5T each'             },
+      { l:'Roller Machine',    v:'1× @ ~16T'                    },
+      { l:'WAHA Containers',   v:"5× HC40' + 4× Flatracks"      },
+      { l:'Roller Containers', v:"1× HC40' + 1× Flatrack"       },
+      { l:'Expected Duration', v:'7–8 days'                     },
+      { l:'Floor Load Max',    v:'5.7 ton/m²'                   },
+      { l:'Forklift Spec',     v:'White wheel, electric/propane' },
+      { l:'Pre-docs Required', v:'Risk assessment + lift plan 1 month prior' },
+      { l:'Target Start',      v:'Early September 2026'          },
+    ],
+    items: [
+      { key:'mobilization',     label:'Mobilization',                                                         req:true  },
+      { key:'unloading',        label:'Unloading containers/flatracks (wooden crates)',                        req:true  },
+      { key:'waste_removal',    label:'Removal of packing waste',                                             req:true  },
+      { key:'transport',        label:'Transport to installation area',                                       req:true  },
+      { key:'lifting_waha',     label:'Lifting WAHA stations into pit — 4× machines (~12.5T each)',           req:true  },
+      { key:'lifting_roller',   label:'Lifting Roller Test station into pit — 1× machine (~16T)',             req:true  },
+      { key:'demobilization',   label:'Demobilization',                                                       req:true  },
+      { key:'administration',   label:'Administration (OSHA 29 CFR 1910 & 1926 compliance, certifications)',  req:true  },
+      { key:'rental_equipment', label:'Rental equipment for transport/lifting (crane, spreader beams, etc.)', req:true  },
+      { key:'labor',            label:'Labor for transport/lifting',                                          req:true  },
+      { key:'opt_pm_safety',    label:'Optional: PM / Safety Advisor ($/hr)',                                 req:false },
+      { key:'opt_electrician',  label:'Optional: Electrician incl. tools ($/hr — est. 3 ppl × 20 days)',    req:false },
+      { key:'opt_mechanic',     label:'Optional: Mechanic incl. tools ($/hr — est. 3 ppl × 20 days)',       req:false },
+      { key:'opt_forklift',     label:'Optional: 2× Forklifts ($/day — 20 days)',                           req:false },
+    ],
   },
-  controls_electrical: {
-    label: 'Controls & Electrical',
-    fields: [
-      { key: 'plc_platform',         label: 'PLC Platform (Allen Bradley, Siemens, etc.)', required: true },
-      { key: 'hmi_required',         label: 'HMI Required? Type / Screen Size',            required: true },
-      { key: 'safety_rating',        label: 'Safety Rating (PLe / Cat 4, SIL 2/3, etc.)', required: true },
-      { key: 'network_protocol',     label: 'Network Protocol (EtherNet/IP, Profibus)',    required: false },
-      { key: 'panel_enclosure',      label: 'Panel Enclosure Type (NEMA 12, 4X)',          required: false },
-      { key: 'vision_system',        label: 'Vision / Inspection System Required?',        required: false },
-      { key: 'ce_marking',           label: 'CE Marking Required?',                        required: true },
-    ]
+  mechanical_compressed_air: {
+    label: 'Mechanical Assistance & Compressed Air',
+    icon:  '🔧',
+    context: [
+      { l:'Total Machines',         v:'5 (4× WAHA + 1× Roller)'           },
+      { l:'WAHA Connections',       v:'4 machines + 1 reserve'             },
+      { l:'Working Pressure',       v:'6 bar'                              },
+      { l:'Pipe Material',          v:'Galvanized steel'                   },
+      { l:'WAHA Vertical Pipe',     v:'~15m size 2"'                       },
+      { l:'WAHA Horizontal Pipe',   v:'~32m size 2"'                       },
+      { l:'Roller Vertical Pipe',   v:'~15m size 2"'                       },
+      { l:'Roller Horizontal Pipe', v:'~5m size 2"'                        },
+      { l:'Target Start',           v:'Early September 2026'               },
+    ],
+    items: [
+      { key:'mobilization',    label:'Mobilization',                                                        req:true  },
+      { key:'ca_waha_mat',     label:'Compressed Air System (WAHA) — Materials',                            req:true  },
+      { key:'ca_waha_labor',   label:'Compressed Air System (WAHA) — Labor (incl. hours indication)',       req:true  },
+      { key:'ca_roller_mat',   label:'Compressed Air System (Roller) — Materials',                          req:true  },
+      { key:'ca_roller_labor', label:'Compressed Air System (Roller) — Labor (incl. hours indication)',     req:true  },
+      { key:'equipment',       label:'Equipment (cherry picker, etc.)',                                     req:true  },
+      { key:'administration',  label:'Administration (certifications, tests, US compressed air regulations)', req:true },
+      { key:'unit_pipe_2in',   label:'Unit Rate: Price per m installed pipe 2"',                            req:true  },
+      { key:'unit_pipe_1in',   label:'Unit Rate: Price per m installed pipe 1"',                            req:true  },
+      { key:'unit_elbow_2in',  label:'Unit Rate: Price per installed elbow 2"',                             req:true  },
+      { key:'unit_elbow_1in',  label:'Unit Rate: Price per installed elbow 1"',                             req:true  },
+      { key:'opt_pm_safety',   label:'Optional: PM / Safety Advisor ($/hr)',                                req:false },
+      { key:'opt_electrician', label:'Optional: Electrician incl. tools ($/hr — est. 3 ppl × 20 days)',   req:false },
+      { key:'opt_mechanic',    label:'Optional: Mechanic incl. tools ($/hr — est. 3 ppl × 20 days)',      req:false },
+      { key:'opt_forklift',    label:'Optional: 2× Forklifts ($/day — 20 days)',                          req:false },
+    ],
   },
-  testing_commissioning: {
-    label: 'Testing & Commissioning',
-    fields: [
-      { key: 'fat_required',         label: 'FAT Required? (Factory Acceptance Test at BEP GR)', required: true },
-      { key: 'sat_required',         label: 'SAT Required? (Site Acceptance Test at customer)',  required: true },
-      { key: 'runoff_duration',      label: 'Run-Off Duration (hours at full production rate)',  required: false },
-      { key: 'acceptance_criteria',  label: 'Acceptance Criteria (uptime %, defect rate, etc.)', required: true, wide: true },
-      { key: 'debug_hours',          label: 'Estimated Debug / Commissioning Hours',             required: false },
-      { key: 'customer_witness',     label: 'Customer Witness Required at FAT?',                required: false },
-    ]
-  },
-  delivery_logistics: {
-    label: 'Delivery & Logistics',
-    fields: [
-      { key: 'required_by_date',     label: 'Required-By Date',                            required: true },
-      { key: 'delivery_location',    label: 'Ship-To Location / Plant Address',            required: true },
-      { key: 'lead_time_weeks',      label: 'Agreed Lead Time (weeks)',                    required: true },
-      { key: 'shipping_method',      label: 'Shipping Method (flatbed, container, etc.)', required: false },
-      { key: 'incoterms',            label: 'Incoterms (DAP, FCA, EXW, etc.)',            required: false },
-      { key: 'export_compliance',    label: 'Export Control / ITAR Applicable?',          required: false },
-    ]
-  },
-  commercial_terms: {
-    label: 'Commercial Terms',
-    fields: [
-      { key: 'contract_type',        label: 'Contract Type (T&M, Fixed Price, NTE)',      required: true },
-      { key: 'payment_terms',        label: 'Payment Terms (Net 30, milestone, etc.)',    required: true },
-      { key: 'warranty_months',      label: 'Warranty Period (months)',                   required: true },
-      { key: 'liquidated_damages',   label: 'Liquidated Damages Clause? (Y/N + amount)', required: true },
-      { key: 'change_order_process', label: 'Change Order / ECN Process',                required: false, wide: true },
-      { key: 'nda_required',         label: 'NDA / IP Agreement Required?',              required: false },
-    ]
-  },
-  customer_requirements: {
-    label: 'Customer Requirements',
-    fields: [
-      { key: 'customer_std',         label: 'Customer Engineering Standards / Spec Doc',  required: false },
-      { key: 'iatf_required',        label: 'IATF 16949 / TS Compliance Required?',      required: false },
-      { key: 'ppap_required',        label: 'PPAP / First Article Required?',            required: false },
-      { key: 'cybersecurity_req',    label: 'Cybersecurity / Network Access Requirements', required: false },
-      { key: 'spare_parts_list',     label: 'Spare Parts List Required?',               required: false },
-      { key: 'training_required',    label: 'Operator / Maintenance Training Required?', required: true },
-      { key: 'documentation_req',    label: 'Documentation Package Required (manuals, drawings, BOM)', required: true, wide: true },
-    ]
-  },
-  // The Slate $1M lesson — never skip this tab
-  installation_scope: {
-    label: '⚠ Install Scope',
-    install: true,
-    fields: [
-      { key: 'installation_required',    label: 'Installation Required? (Y/N)',                required: true },
-      { key: 'site_location',            label: 'Site Location / Plant',                      required: true },
-      { key: 'incoming_power_spec',      label: 'Incoming Power (V / Phase / Hz)',            required: true },
-      { key: 'machine_weight_lbs',       label: 'Machine Weight for Install (lbs)',           required: true },
-      { key: 'crane_required',           label: 'Crane Required? (>5,000 lbs = yes)',         required: false },
-      { key: 'routing_distance',         label: 'Cable / Conduit Routing Distance',           required: false },
-      { key: 'preferred_installer',      label: 'Preferred Installer',                        required: false },
-      { key: 'site_visit_required',      label: 'Site Visit Required Before Quote?',          required: true },
-      { key: 'installation_budget_type', label: 'Installation Budget: Firm or Estimate?',    required: true, wide: true },
-      { key: 'culver_in_scope',          label: 'Sub-Installer / Culver in Scope?',          required: false, wide: true },
-    ]
+  electrical: {
+    label:   'Electrical',
+    icon:    '⚡',
+    pending: true,
+    pendingNote: 'RFQ document pending from Mark Mensonides. Line items will be configured once the document is received.',
+    context: [],
+    items:   [],
   },
 };
 
-// =============================================
+// ══════════════════════════════════════════════════
 // UTILITIES
-// =============================================
-function showPage(pageId) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById(`page-${pageId}`)?.classList.add('active');
-  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-  const map = { dashboard: 0, 'new-project': 1, review: 2, savings: 3 };
-  if (map[pageId] !== undefined) document.querySelectorAll('.nav-link')[map[pageId]]?.classList.add('active');
-  if (pageId === 'dashboard')    loadDashboard();
-  if (pageId === 'review')       loadReviewQueue();
-  if (pageId === 'savings')      reloadSavings();
-  if (pageId === 'new-project') {
-    ['np-name','np-customer','np-rfq','np-description','np-due','np-ae','np-original-jo'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.value = '';
-    });
-    const ecn = document.getElementById('np-is-ecn'); if (ecn) ecn.checked = false;
-    const fields = document.getElementById('np-ecn-fields'); if (fields) fields.style.display = 'none';
-    document.getElementById('classify-results').innerHTML = '';
-    window._classified = null;
-  }
-  window.scrollTo(0, 0);
-}
+// ══════════════════════════════════════════════════
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const safeJs = s => String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+const fmt$ = n => !n && n !== 0 ? '—' : '$' + Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+const fmtDate = d => d ? new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}) : '—';
 
-function showToast(message, type = 'info') {
-  const c = document.getElementById('toast-container');
+function toast(msg, type='success') {
   const t = document.createElement('div');
   t.className = `toast toast-${type}`;
-  t.textContent = message;
-  c.appendChild(t);
-  setTimeout(() => t.remove(), 3500);
+  t.textContent = msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3600);
 }
 
-function escHtml(str) {
-  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function setBreadcrumb(parts) {
+  const el = document.getElementById('breadcrumb-area');
+  if (!parts || !parts.length) { el.style.display='none'; return; }
+  el.style.display = 'flex';
+  el.innerHTML = parts.map((p,i) =>
+    i < parts.length-1
+      ? `<span class="breadcrumb-link" onclick="${esc(p.fn)}">${esc(p.label)}</span><span class="breadcrumb-sep">›</span>`
+      : `<span>${esc(p.label)}</span>`
+  ).join('');
 }
 
-function fmtUSD(n) {
-  return n ? `$${Number(n).toLocaleString()}` : '—';
+function setNav(id) {
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  const el = document.getElementById('nav-'+id);
+  if (el) el.classList.add('active');
 }
 
-// =============================================
-// DB
-// =============================================
-async function dbQuery(table, op, options = {}) {
-  try {
-    let q = db.from(table);
-    if (op === 'select') {
-      q = q.select(options.select || '*');
-      if (options.eq)    { const [c,v] = options.eq;  q = q.eq(c,v); }
-      if (options.in)    { const [c,a] = options.in;  q = q.in(c,a); }
-      if (options.order) q = q.order(options.order[0], { ascending: options.order[1] ?? false });
-      if (options.limit) q = q.limit(options.limit);
-    }
-    if (op === 'insert') q = q.insert(options.data).select();
-    if (op === 'upsert') q = q.upsert(options.data, { onConflict: options.onConflict }).select();
-    if (op === 'update') {
-      q = q.update(options.data);
-      if (options.eq) { const [c,v] = options.eq; q = q.eq(c,v); }
-      q = q.select();
-    }
-    const { data, error } = await q;
-    if (error) throw error;
-    return data;
-  } catch (err) {
-    console.error(`dbQuery [${table}.${op}]:`, err);
-    showToast(`Database error: ${err.message}`, 'error');
-    return null;
+// ══════════════════════════════════════════════════
+// DB HELPER
+// ══════════════════════════════════════════════════
+async function q(table, op, opts={}) {
+  let query = db.from(table);
+  if (op === 'select') {
+    query = query.select(opts.select||'*');
+    if (opts.eq)    query = query.eq(opts.eq[0], opts.eq[1]);
+    if (opts.in)    query = query.in(opts.in[0], opts.in[1]);
+    if (opts.order) query = query.order(opts.order[0], {ascending: opts.order[1]!==false});
+  } else if (op === 'insert') {
+    query = query.insert(opts.data);
+    if (opts.sel) query = query.select(opts.sel);
+  } else if (op === 'update') {
+    query = query.update(opts.data).eq(opts.eq[0], opts.eq[1]);
+    if (opts.sel) query = query.select(opts.sel);
+  } else if (op === 'delete') {
+    query = query.delete().eq(opts.eq[0], opts.eq[1]);
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+}
+
+// ══════════════════════════════════════════════════
+// ROUTING
+// ══════════════════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if (id==='dashboard') { setNav('dashboard'); setBreadcrumb(null); loadDashboard(); }
+  else if (id==='savings')  { setNav('savings');   setBreadcrumb(null); loadSavings(); }
+  else if (id==='new-project') {
+    setBreadcrumb([{label:'Projects',fn:"showPage('dashboard')"},{label:'New Project'}]);
+    resetNewProjectForm();
   }
 }
 
-// =============================================
-// CLAUDE
-// =============================================
-async function callClaude(action, payload) {
-  try {
-    const res = await fetch(EDGE_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
-      body: JSON.stringify({ action, payload }),
-    });
-    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `HTTP ${res.status}`); }
-    return (await res.json()).result;
-  } catch (err) {
-    console.error(`callClaude [${action}]:`, err);
-    showToast(`AI error: ${err.message}`, 'error');
-    return null;
-  }
+function resetNewProjectForm() {
+  ['np-name','np-customer','np-jo','np-date','np-site','np-pm','np-buyer','np-machines','np-notes']
+    .forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
+  document.getElementById('np-err').style.display='none';
+  document.getElementById('np-btn').textContent='Create Project + Auto-generate 4 Scopes';
 }
 
-// =============================================
+// ══════════════════════════════════════════════════
 // DASHBOARD
-// =============================================
+// ══════════════════════════════════════════════════
 async function loadDashboard() {
-  const projects = await dbQuery('projects', 'select', {
-    select: 'id,name,customer,status,quoted_value,completeness_score,project_type,assigned_ae,is_ecn',
-    order: ['created_at', false],
-  });
-  if (!projects) return;
+  try {
+    const projects = await q('rfq_projects','select',{order:['created_at',false]});
+    const allScopes = projects.length ? await q('rfq_scopes','select',{select:'id,project_id,scope_type,status'}) : [];
+    const allQuotes = allScopes.length ? await q('rfq_quotes','select',{select:'id,scope_id,supplier_name,total_amount,is_awarded'}) : [];
 
-  const active = projects.filter(p => !['on_hold','lost'].includes(p.status));
-  const lostCount = projects.filter(p => p.status === 'lost').length;
-  const avgScore = active.length ? Math.round(active.reduce((s,p) => s+(p.completeness_score||0), 0) / active.length) : 0;
-  const pipeline = active.reduce((s,p) => s+(p.quoted_value||0), 0);
+    const awardedQs    = allQuotes.filter(x=>x.is_awarded);
+    const totalAwarded = awardedQs.reduce((s,x)=>s+(x.total_amount||0),0);
+    const inFlight     = allScopes.filter(s=>s.status!=='draft'&&s.status!=='awarded').length;
+    const awardedCount = allScopes.filter(s=>s.status==='awarded').length;
 
-  document.getElementById('metric-total').textContent     = active.length;
-  document.getElementById('metric-avg-score').textContent = `${avgScore}%`;
-  document.getElementById('metric-pipeline').textContent  = pipeline ? `$${(pipeline/1e6).toFixed(1)}M` : '—';
-  document.getElementById('dash-subtitle').textContent    = `BEP GR · ${active.length} active · ${lostCount} lost · updated just now`;
+    document.getElementById('dash-metrics').innerHTML = `
+      <div class="card metric-card"><div class="metric-value" style="color:var(--accent)">${projects.length}</div><div class="metric-label">Projects</div></div>
+      <div class="card metric-card"><div class="metric-value" style="color:var(--warning)">${inFlight}</div><div class="metric-label">Scopes In Flight</div></div>
+      <div class="card metric-card"><div class="metric-value" style="color:var(--success)">${awardedCount}</div><div class="metric-label">Scopes Awarded</div></div>
+      <div class="card metric-card"><div class="metric-value" style="color:var(--success);font-size:${totalAwarded>0?'18':'26'}px">${fmt$(totalAwarded)}</div><div class="metric-label">Total Awarded</div></div>
+    `;
+    document.getElementById('dash-subtitle').textContent = `${projects.length} project${projects.length!==1?'s':''} · ${allScopes.length} scopes`;
 
-  const byStatus = {
-    in_process_rfq:    projects.filter(p => p.status === 'in_process_rfq'),
-    nopo_authorization: projects.filter(p => p.status === 'nopo_authorization'),
-    anticipated_order: projects.filter(p => p.status === 'anticipated_order'),
-    new_po_received:   projects.filter(p => p.status === 'new_po_received'),
-  };
+    if (!projects.length) {
+      document.getElementById('projects-list').innerHTML = `
+        <div class="card empty-state">
+          <div class="empty-icon">📋</div>
+          <div class="empty-text">No projects yet</div>
+          <div class="empty-sub">Create your first RFQ project to get started</div>
+          <button class="btn btn-primary" onclick="showPage('new-project')">+ New Project</button>
+        </div>`;
+      return;
+    }
 
-  // Per-bucket action button generators (return HTML string or '')
-  const bucketActions = {
-    in_process_rfq:    () => '',
-    nopo_authorization: p => `<button class="btn btn-warning row-action" onclick="event.stopPropagation();advanceToAnticipated('${p.id}','${escHtml(p.name).replace(/'/g,"\\'")}')">→ Anticipated</button>`,
-    anticipated_order: p => `<button class="btn btn-success row-action" onclick="event.stopPropagation();openCloseWonModal('${p.id}','${escHtml(p.name).replace(/'/g,"\\'")}',${p.quoted_value||0})">✓ Close Won</button>`,
-    new_po_received:   () => '',
-  };
+    const scopeByProject = {};
+    allScopes.forEach(s => { (scopeByProject[s.project_id]||=([])).push(s); });
 
-  [
-    { key: 'in_process_rfq',    countId: 'count-in-process', listId: 'list-in-process' },
-    { key: 'nopo_authorization', countId: 'count-nopo',       listId: 'list-nopo' },
-    { key: 'anticipated_order', countId: 'count-anticipated', listId: 'list-anticipated' },
-    { key: 'new_po_received',   countId: 'count-po',          listId: 'list-po' },
-  ].forEach(({ key, countId, listId }) => {
-    const list       = byStatus[key] || [];
-    const getActions = bucketActions[key] || (() => '');
-    document.getElementById(countId).textContent = list.length;
+    const CHIP_BG = { 'badge-gray':'#1e2433','badge-blue':'#1e3a5f','badge-yellow':'#422006','badge-green':'#14532d','badge-red':'#7f1d1d','badge-purple':'#2e1065' };
 
-    const renderRow = p => `
-      <div class="project-row" onclick="openProject('${p.id}')">
-        <div style="flex:1;min-width:0">
-          <div class="project-name" style="display:flex;align-items:center;gap:6px">
-            ${escHtml(p.name)}
-            ${p.is_ecn ? '<span style="font-size:10px;font-weight:700;background:#b45309;color:#fff;padding:1px 6px;border-radius:3px;letter-spacing:0.04em">ECN</span>' : ''}
+    document.getElementById('projects-list').innerHTML = projects.map(p => {
+      const ps = scopeByProject[p.id]||[];
+      const chips = SCOPE_ORDER.map(st => {
+        const scope = ps.find(s=>s.scope_type===st);
+        if (!scope) return '';
+        const sc = SCOPES[st]; const ss = STATUS[scope.status]||STATUS.draft;
+        return `<span class="scope-chip" style="background:${CHIP_BG[ss.badge]||'#1e2433'}">${sc.icon} ${esc(ss.label)}</span>`;
+      }).join('');
+      return `
+        <div class="card project-card" onclick="openProject('${p.id}','${safeJs(p.name)}')">
+          <div class="project-card-header">
+            <div>
+              <div class="project-card-name">${esc(p.name)}</div>
+              <div class="project-card-meta">
+                <span>📍 ${esc(p.customer)}</span>
+                ${p.jo_numbers?`<span>JO: ${esc(p.jo_numbers)}</span>`:''}
+                ${p.pm_name?`<span>PM: ${esc(p.pm_name)}</span>`:''}
+                ${p.target_install_date?`<span>🗓 ${fmtDate(p.target_install_date)}</span>`:''}
+              </div>
+            </div>
           </div>
-          <div class="project-meta">${escHtml(p.customer)} · ${escHtml(p.project_type || '—')}${p.assigned_ae ? ' · <span style="color:var(--accent)">' + escHtml(p.assigned_ae) + '</span>' : ' · <span style="color:var(--muted);font-style:italic">Unassigned</span>'}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-          ${getActions(p)}
-          <div class="project-score">${p.completeness_score ?? 0}%</div>
-        </div>
-      </div>`;
+          <div class="scope-chips">${chips}</div>
+        </div>`;
+    }).join('');
 
-    const preview = list.slice(0, 3);
-    const rest    = list.slice(3);
-
-    document.getElementById(listId).innerHTML =
-      preview.map(renderRow).join('') +
-      (rest.length ? `
-        <div id="extra-${listId}" style="display:none">${rest.map(renderRow).join('')}</div>
-        <div class="show-more-btn" id="btn-${listId}" onclick="toggleBucket('${listId}', ${rest.length})">
-          ＋ ${rest.length} more
-        </div>` : '');
-  });
+  } catch(e) {
+    document.getElementById('projects-list').innerHTML = `<div class="card" style="color:var(--danger)">Error: ${esc(e.message)}</div>`;
+  }
 }
 
-function toggleBucket(listId, restCount) {
-  const extra = document.getElementById(`extra-${listId}`);
-  const btn   = document.getElementById(`btn-${listId}`);
-  if (!extra) return;
-  const expanding = extra.style.display === 'none';
-  extra.style.display = expanding ? 'block' : 'none';
-  btn.textContent = expanding ? '− Show less' : `＋ ${restCount} more`;
-}
-
-async function openProject(id) {
-  const rows = await dbQuery('projects', 'select', { eq: ['id', id] });
-  if (!rows?.length) return;
-  currentProject = rows[0];
-  await loadSpecCapture(currentProject);
-  showPage('spec-capture');
-}
-
-// =============================================
-// NEW PROJECT
-// =============================================
-let descTimer = null;
-function onDescriptionInput() {
-  clearTimeout(descTimer);
-  const desc = document.getElementById('np-description').value.trim();
-  if (desc.length < 30) return;
-  descTimer = setTimeout(() => runClassify(desc), 900);
-}
-
-async function runClassify(desc) {
-  const panel   = document.getElementById('classify-panel');
-  const spinner = document.getElementById('classify-spinner');
-  const results = document.getElementById('classify-results');
-  panel.classList.add('visible');
-  spinner.style.display = 'inline';
-  results.innerHTML = '';
-
-  const result = await callClaude('classify', { description: desc });
-  spinner.style.display = 'none';
-  if (!result) return;
-
-  window._classified = result;
-  results.innerHTML = `
-    <div class="classify-result">
-      <strong>Type:</strong> ${escHtml(result.project_type||'—')} &nbsp;
-      <strong>Complexity:</strong> ${escHtml(result.complexity||'—')} &nbsp;
-      <strong>Est. Hours:</strong> ${result.estimated_hours||'—'}<br>
-      <div style="margin-top:8px">${(result.tags||[]).map(t=>`<span class="classify-tag">${escHtml(t)}</span>`).join('')}</div>
-      ${result.key_risks?.length ? `<div style="margin-top:8px;font-size:12px;color:var(--warning)">⚠ ${result.key_risks.join(' · ')}</div>` : ''}
-    </div>`;
-}
-
-function toggleEcnFields() {
-  const isEcn = document.getElementById('np-is-ecn').checked;
-  document.getElementById('np-ecn-fields').style.display = isEcn ? 'block' : 'none';
-}
-
+// ══════════════════════════════════════════════════
+// CREATE PROJECT
+// ══════════════════════════════════════════════════
 async function createProject() {
-  const name      = document.getElementById('np-name').value.trim();
-  const cust      = document.getElementById('np-customer').value.trim();
-  const rfq       = document.getElementById('np-rfq').value.trim();
-  const desc      = document.getElementById('np-description').value.trim();
-  const due       = document.getElementById('np-due').value;
-  const assignedAe = document.getElementById('np-ae').value.trim();
-  const isEcn     = document.getElementById('np-is-ecn').checked;
-  const originalJo = document.getElementById('np-original-jo').value.trim();
-
-  if (!name || !cust || !desc) { showToast('Project name, customer, and description are required', 'error'); return; }
-  if (isEcn && !originalJo) { showToast('Original Project / JO Reference is required for ECNs', 'error'); return; }
-
-  const btn = document.getElementById('create-btn');
+  const name     = document.getElementById('np-name').value.trim();
+  const customer = document.getElementById('np-customer').value.trim();
+  const errEl    = document.getElementById('np-err');
+  if (!name || !customer) {
+    errEl.textContent = 'Project name and customer are required.';
+    errEl.style.display = 'block'; return;
+  }
+  errEl.style.display = 'none';
+  const btn = document.getElementById('np-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Creating…';
-
-  const entities = await dbQuery('entities', 'select', { eq: ['short_name', 'BEP GR'] });
-  const entityId = entities?.[0]?.id || null;
-
-  const rows = await dbQuery('projects', 'insert', {
-    data: {
-      name, customer: cust, rfq_number: rfq||null, notes: desc||null,
-      project_type: window._classified?.project_type || null,
-      due_date: due||null, entity_id: entityId, created_by: null, status: 'in_process_rfq',
-      assigned_ae: assignedAe || null,
-      is_ecn: isEcn,
-      original_jo: (isEcn && originalJo) ? originalJo : null,
-    }
-  });
-
-  btn.disabled = false;
-  btn.innerHTML = 'Create Project &amp; Capture Spec →';
-
-  if (!rows?.length) return;
-  currentProject = rows[0];
-  window._classified = null;
-
-  // Pre-fill description into spec entries
-  await saveField(currentProject.id, 'project_overview', 'project_description', desc);
-  await saveField(currentProject.id, 'project_overview', 'customer_plant', cust);
-  if (window._classified?.project_type) {
-    await saveField(currentProject.id, 'project_overview', 'project_type', window._classified.project_type);
-  }
-
-  showToast(`Project "${name}" created`, 'success');
-  await loadSpecCapture(currentProject);
-  showPage('spec-capture');
-}
-
-// =============================================
-// SPEC CAPTURE
-// =============================================
-async function loadSpecCapture(project) {
-  document.getElementById('spec-project-name').textContent = project.name;
-  document.getElementById('spec-status-badge').textContent = (project.status||'in_process_rfq').replace(/_/g,' ').toUpperCase();
-
-  // ECN badge
-  const ecnBadge = document.getElementById('spec-ecn-badge');
-  if (ecnBadge) ecnBadge.style.display = project.is_ecn ? 'inline-block' : 'none';
-
-  // AE badge
-  const aeBadge = document.getElementById('spec-ae-badge');
-  if (aeBadge) {
-    if (project.assigned_ae) {
-      aeBadge.textContent = `AE: ${project.assigned_ae}`;
-      aeBadge.style.color = 'var(--accent)';
-    } else {
-      aeBadge.textContent = 'Unassigned';
-      aeBadge.style.color = 'var(--muted)';
-    }
-  }
-
-  // Load saved entries
-  const entries = await dbQuery('spec_entries', 'select', { eq: ['project_id', project.id] });
-  savedEntries = {};
-  (entries||[]).forEach(e => { savedEntries[`${e.category}__${e.field_key}`] = e.field_value; });
-
-  // Build tabs
-  const tabBar = document.getElementById('tab-bar');
-  tabBar.innerHTML = '';
-  const tabKeys = Object.keys(SPEC_TABS);
-  tabKeys.forEach((key, i) => {
-    const tab = SPEC_TABS[key];
-    const btn = document.createElement('button');
-    btn.className = `tab-btn${tab.install ? ' install' : ''}`;
-    btn.textContent = tab.label;
-    btn.onclick = () => switchTab(key);
-    tabBar.appendChild(btn);
-  });
-
-  switchTab(tabKeys[0]);
-  refreshScore(project.id);
-}
-
-function switchTab(tabKey) {
-  activeTab = tabKey;
-  document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const key = Object.keys(SPEC_TABS)[i];
-    b.classList.toggle('active', key === tabKey);
-  });
-
-  const tab = SPEC_TABS[tabKey];
-  const container = document.getElementById('fields-container');
-  container.innerHTML = tab.fields.map(f => {
-    const val = escHtml(savedEntries[`${tabKey}__${f.key}`] || '');
-    const cls = f.wide ? 'form-group wide' : 'form-group';
-    const reqClass = f.required ? 'required' : '';
-    return `
-      <div class="${cls}">
-        <label class="${reqClass}" for="field-${f.key}">${escHtml(f.label)}</label>
-        <input type="text" id="field-${f.key}"
-          data-tab="${tabKey}" data-key="${f.key}"
-          value="${val}"
-          onblur="saveField('${currentProject.id}','${tabKey}','${f.key}',this.value)" />
-      </div>`;
-  }).join('');
-}
-
-async function saveField(projectId, category, fieldKey, value) {
-  if (!value?.trim()) return;
-  const label = SPEC_TABS[category]?.fields?.find(f => f.key === fieldKey)?.label || fieldKey;
-  savedEntries[`${category}__${fieldKey}`] = value;
-  await dbQuery('spec_entries', 'upsert', {
-    data: { project_id: projectId, category, field_key: fieldKey, field_label: label, field_value: value },
-    onConflict: 'project_id,category,field_key',
-  });
-  refreshScore(projectId);
-}
-
-async function refreshScore(projectId) {
-  const allRequired = [];
-  Object.entries(SPEC_TABS).forEach(([tabKey, tab]) => {
-    tab.fields.filter(f => f.required).forEach(f => allRequired.push(`${tabKey}__${f.key}`));
-  });
-  const filled = allRequired.filter(k => savedEntries[k]?.trim());
-  const pct = allRequired.length ? Math.round((filled.length / allRequired.length) * 100) : 0;
-
-  document.getElementById('bar-fill').style.width = `${pct}%`;
-  document.getElementById('bar-pct').textContent = `${pct}%`;
-
-  if (projectId) {
-    await dbQuery('projects', 'update', { data: { completeness_score: pct }, eq: ['id', projectId] });
-  }
-}
-
-// =============================================
-// AI ACTIONS
-// =============================================
-async function runGapCheck() {
-  const btn = document.querySelector('[onclick="runGapCheck()"]');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Checking…';
-
-  const specs = Object.entries(savedEntries).map(([k,v]) => {
-    const [cat, key] = k.split('__');
-    const label = SPEC_TABS[cat]?.fields?.find(f=>f.key===key)?.label || key;
-    return { category: cat, field: key, label, value: v };
-  });
-
-  const result = await callClaude('check_gaps', { project_name: currentProject.name, specs });
-  btn.disabled = false; btn.innerHTML = '🔍 Check Gaps with AI';
-  if (!result) return;
-
-  const gaps = result.gaps || [];
-  document.getElementById('gap-count').textContent = gaps.length;
-
-  if (!gaps.length) {
-    document.getElementById('gap-list').innerHTML = '<div style="color:var(--success)">✓ No critical gaps found</div>';
-  } else {
-    document.getElementById('gap-list').innerHTML = gaps.map(g => `
-      <div class="gap-item ${g.severity === 'critical' ? 'critical' : ''}">
-        <div class="gap-category">${escHtml(g.category)} — ${escHtml(g.field_key||'')}</div>
-        ${escHtml(g.message)}
-      </div>`).join('');
-  }
-
-  if (result.completeness_score) {
-    document.getElementById('bar-fill').style.width = `${result.completeness_score}%`;
-    document.getElementById('bar-pct').textContent  = `${result.completeness_score}%`;
-  }
-  showToast(`Gap check complete — ${gaps.length} flags`, gaps.length ? 'error' : 'success');
-}
-
-async function runShouldCost() {
-  const btn = document.querySelector('[onclick="runShouldCost()"]');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Estimating…';
-
-  const specs = Object.entries(savedEntries).map(([k,v]) => {
-    const [cat, key] = k.split('__');
-    return { category: cat, field: key, value: v };
-  });
-
-  const result = await callClaude('should_cost', {
-    project_name: currentProject.name,
-    specs,
-    estimated_hours: window._classified?.estimated_hours,
-  });
-
-  btn.disabled = false; btn.innerHTML = '💰 Should Cost';
-  if (!result) return;
-
-  const rows = (result.labor_breakdown||[]).map(r =>
-    `<div class="cost-row"><span>${escHtml(r.role)}</span><span>${r.hours}h @ $${r.rate}/hr = ${fmtUSD(r.subtotal)}</span></div>`
-  ).join('');
-
-  const html = `
-    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:14px">Labor Breakdown</div>
-    ${rows}
-    <div class="cost-row"><span>Materials &amp; Components</span><span>${fmtUSD(result.materials_estimate)}</span></div>
-    <div class="cost-total">
-      <span>Total Estimate <span style="font-size:12px;font-weight:400;color:var(--muted)">(${result.confidence||'—'} confidence)</span></span>
-      <span>${fmtUSD(result.total_estimate)}</span>
-    </div>
-    ${result.notes ? `<div style="margin-top:14px;padding:12px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--muted);line-height:1.6">${escHtml(result.notes)}</div>` : ''}`;
-
-  const copyText = [
-    'SHOULD-COST ESTIMATE — ' + currentProject.name,
-    '---',
-    ...(result.labor_breakdown||[]).map(r => `${r.role}: ${r.hours}h @ $${r.rate}/hr = $${r.subtotal?.toLocaleString()}`),
-    `Materials: $${result.materials_estimate?.toLocaleString()}`,
-    '---',
-    `TOTAL: $${result.total_estimate?.toLocaleString()} (${result.confidence} confidence)`,
-    result.notes || '',
-  ].join('\n');
-
-  openResultsModal('💰 Should-Cost Estimate', html, copyText);
-
-  // Save total estimate back to project so dashboard + review queue show it
-  if (result.total_estimate && currentProject?.id) {
-    await dbQuery('projects', 'update', {
-      data: { quoted_value: result.total_estimate },
-      eq: ['id', currentProject.id],
-    });
-  }
-
-  showToast('Should-cost estimate ready', 'success');
-}
-
-async function runGenerateRFQ() {
-  const btn = document.querySelector('[onclick="runGenerateRFQ()"]');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generating…';
-
-  const specs = Object.entries(savedEntries).map(([k,v]) => {
-    const [cat, key] = k.split('__');
-    const label = SPEC_TABS[cat]?.fields?.find(f=>f.key===key)?.label || key;
-    return { category: cat, field: key, label, value: v };
-  });
-
-  const result = await callClaude('generate_rfq', {
-    project_name: currentProject.name,
-    customer: currentProject.customer,
-    specs,
-    labor_rates: { pm: 79.69, me: 89.73, ee: 99.93, se: 102.51, fab: 86.80, machine_build: 86.22, panel_build: 91.94, field_service: 80.28 },
-  });
-
-  btn.disabled = false; btn.innerHTML = '📄 Generate RFQ';
-  if (!result) return;
-
-  const html = `<div class="rfq-text">${escHtml(result)}</div>`;
-  openResultsModal('📄 Generated RFQ Document', html, result);
-  showToast('RFQ document generated', 'success');
-}
-
-async function runReview() {
-  openRouteModal();
-}
-
-// =============================================
-// SAVINGS — Historical PO Data
-// =============================================
-const HISTORICAL_POS = [
-  { date:'2026-03-31', customer:'Ford APTL',           po:'OR2625476',              desc:'Ford APTL — Major System Upgrade',                    ae:'',                  pm:'',                value:3171060, margin:null,  ecn:false },
-  { date:'2026-03-25', customer:'BEP Korea',           po:'BKPOF-26-004',           desc:'Froude DYNO Takeover Upgrade',                        ae:'Jeremy Gutierrez',  pm:'Chang Lu',        value:203000,  margin:48.5,  ecn:false },
-  { date:'2026-03-23', customer:'Lucid',               po:'CP00013903',             desc:'Lucid — Major System',                                ae:'',                  pm:'',                value:537200,  margin:null,  ecn:true  },
-  { date:'2026-03-17', customer:'Kia Georgia',         po:'P260330872',             desc:'NCA Steering Wheel Leveler Upgrade',                  ae:'Darin Levander',    pm:'Karen Rouch',     value:281750,  margin:35.8,  ecn:false },
-  { date:'2026-03-16', customer:'FCA Warren Truck',    po:'81122072',               desc:'ADAS Systems Cycle Time Study',                       ae:'Darin Levander',    pm:'Dave Blissett',   value:32028,   margin:41.2,  ecn:false },
-  { date:'2026-03-12', customer:'Rivian',              po:'567133',                 desc:'NCA Master Gauge Re-certification',                   ae:'Darin Levander',    pm:'Thomas Wendeln',  value:27990,   margin:49.4,  ecn:false },
-  { date:'2026-03-11', customer:'GM Orion',            po:'ORI_CAMD_DBRF_01',       desc:'CD Zone Switch',                                     ae:'Paul Kitchen',      pm:'Chuck Elliston',  value:18852,   margin:30.0,  ecn:true  },
-  { date:'2026-03-10', customer:'GM Arlington',        po:'7100566283',             desc:'Night Vision Upgrades',                               ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:525688,  margin:36.0,  ecn:false },
-  { date:'2026-03-10', customer:'GM Orion',            po:'ORI_T1_ALGN_DBRF_04',    desc:'SWA Tools',                                          ae:'Paul Kitchen',      pm:'Chuck Elliston',  value:211934,  margin:33.2,  ecn:true  },
-  { date:'2026-03-04', customer:'GM Flint',            po:'7100561657',             desc:'3-Way Combo Boxes & RASC Take Over',                  ae:'Paul Kitchen',      pm:'Bryce Kircheis',  value:328935,  margin:30.7,  ecn:false },
-  { date:'2026-03-04', customer:'GM Arlington',        po:'7100560851',             desc:'NCA Process Enhancements',                            ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:325162,  margin:42.0,  ecn:false },
-  { date:'2026-03-04', customer:'FCA Toledo S',        po:'81118062',               desc:'CTS Software / Trips',                                ae:'Jennifer Willbrandt',pm:'',               value:91760,   margin:null,  ecn:false },
-  { date:'2026-02-23', customer:'Blue Bird',           po:'FPB064258',              desc:'Upgraded ret rolls & 3rd stop post',                  ae:'Darin Levander',    pm:'Chang Lu',        value:42627,   margin:22.2,  ecn:true  },
-  { date:'2026-02-18', customer:'GM Flint',            po:'7100549627',             desc:'Build for (2) cam drill machines',                    ae:'Darin Levander',    pm:'Karen Rouch',     value:713383,  margin:35.8,  ecn:true  },
-  { date:'2026-02-18', customer:'GM Flint',            po:'7100551396',             desc:'New Caster Audit Tools',                              ae:'Paul Kitchen',      pm:'Karen Rouch',     value:39330,   margin:31.9,  ecn:false },
-  { date:'2026-02-17', customer:'Ford Sterling',       po:'OR2569968',              desc:'EPIC PASS THROUGH PO 878425',                         ae:'Jamie Christie',    pm:'Jamie Christie',  value:1362151, margin:0,     ecn:false },
-  { date:'2026-02-13', customer:'GM Arlington',        po:'7100525334',             desc:'RATS Upgrade',                                        ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:1850399, margin:31.3,  ecn:false },
-  { date:'2026-02-12', customer:'GM Oshawa',           po:'7100547635',             desc:'NEW CASTER AUDIT TOOL',                               ae:'Paul Kitchen',      pm:'Karen Rouch',     value:47015,   margin:32.0,  ecn:false },
-  { date:'2026-02-03', customer:'Harley-Davidson',     po:'4505925250',             desc:'NCA Master Gauge Re-certification',                   ae:'Darin Levander',    pm:'Dave Blissett',   value:18938,   margin:50.5,  ecn:false },
-  { date:'2026-01-30', customer:'GM Arlington',        po:'ARL7th_ALGN_DBRF_06',    desc:'Remote PC Monitor',                                   ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:13217,   margin:29.8,  ecn:true  },
-  { date:'2026-01-26', customer:'GM Fairfax',          po:'7100533987',             desc:'Alignment Machine Diagnostics and AVT Updates',       ae:'Darin Levander',    pm:'Bryce Kercheis',  value:99690,   margin:44.9,  ecn:false },
-  { date:'2026-01-23', customer:'GM Arlington',        po:'ARL7th_ALGN_DBRF_05a',   desc:'Several Upgrades for T1 mods',                        ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:69857,   margin:26.3,  ecn:true  },
-  { date:'2026-01-21', customer:'GM Arlington',        po:'ARL7th_DBRF_03',         desc:'Convert Blockpoint on Orion Machine for Arlington',   ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:6430,    margin:29.4,  ecn:true  },
-  { date:'2026-01-21', customer:'GM Arlington',        po:'ARL7th_ALGN_DBRF_04',    desc:'System Zone Switch',                                  ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:9643,    margin:29.5,  ecn:true  },
-  { date:'2026-01-20', customer:'GM Orion',            po:'ORI_ALGN_DBRF_22a',      desc:'Decontent BT1',                                       ae:'Darin Levander',    pm:'Chuck Elliston',  value:67296,   margin:30.0,  ecn:true  },
-  { date:'2026-01-16', customer:'Dana - Columbia MO',  po:'7100150065',             desc:'(3) Clutch Tester PC Upgrade',                        ae:'Darin Levander',    pm:'Jamie Boyd',      value:108380,  margin:30.7,  ecn:false },
-  { date:'2026-01-09', customer:'Morgan Olson',        po:'11443643 ON',            desc:'ADAS Ford Security Key SW Update',                    ae:'Darin Levander',    pm:'Bill Black',       value:3815,    margin:49.3,  ecn:false },
-  { date:'2026-01-06', customer:'GM Orion',            po:'7100475667',             desc:'NCA, RATS, FATS, RASC',                               ae:'Paul Kitchen',      pm:'Chuck Elliston',  value:3158370, margin:36.0,  ecn:false },
-  { date:'2026-01-06', customer:'GM Arlington',        po:'ARL7th_DBRF_02',         desc:'CRX replacement batteries',                           ae:'Jennifer Willbrandt',pm:'Cameron Ross',   value:1312,    margin:10.9,  ecn:true  },
-  { date:'2026-01-05', customer:'Ford MI Proving Grounds', po:'OR26250',            desc:'2026 Software and preventative maintenance package',  ae:'Jeremy Gutierrez',  pm:'Brian Parker',    value:120500,  margin:63.0,  ecn:false },
-];
-
-// liveHistoricalPOS starts with the hardcoded data as fallback,
-// then gets replaced with live Supabase data on load
-let liveHistoricalPOS = [...HISTORICAL_POS];
-let poFilteredData    = [...HISTORICAL_POS];
-
-async function loadHistoricalPOs() {
-  const rows = await dbQuery('historical_pos', 'select', {
-    select: 'po_date,customer,po_number,description,ae_name,pm_name,total_value,quoted_margin_pct,is_ecn',
-    order: ['po_date', false],
-  });
-  if (!rows?.length) return; // keep hardcoded fallback
-
-  // Normalize DB field names to match render function expectations
-  liveHistoricalPOS = rows.map(r => ({
-    date:     r.po_date,
-    customer: r.customer,
-    po:       r.po_number,
-    desc:     r.description,
-    ae:       r.ae_name  || '',
-    pm:       r.pm_name  || '',
-    value:    Number(r.total_value),
-    margin:   r.quoted_margin_pct != null ? Number(r.quoted_margin_pct) : null,
-    ecn:      r.is_ecn,
-  }));
-  poFilteredData = [...liveHistoricalPOS];
-}
-
-async function reloadSavings() {
-  await loadHistoricalPOs();
-  renderSavingsMetrics();
-  renderECNRiskChart();
-  renderAETable();
-  renderPOTable(liveHistoricalPOS);
-  const ecnEl = document.getElementById('metric-ecn');
-  if (ecnEl) ecnEl.textContent = ((liveHistoricalPOS.filter(p => p.ecn).length / liveHistoricalPOS.length) * 100).toFixed(1) + '%';
-}
-
-function renderPOTable(data) {
-  const tbody = document.getElementById('po-tbody');
-  if (!tbody) return;
-  tbody.innerHTML = data.map(p => `
-    <tr>
-      <td style="white-space:nowrap;color:var(--muted)">${p.date}</td>
-      <td><strong>${escHtml(p.customer)}</strong></td>
-      <td style="color:var(--muted);font-size:11px">${escHtml(p.po)}</td>
-      <td style="max-width:220px">${escHtml(p.desc)}</td>
-      <td style="white-space:nowrap">${escHtml(p.ae||'—')}</td>
-      <td style="white-space:nowrap;color:var(--muted)">${escHtml(p.pm||'—')}</td>
-      <td style="white-space:nowrap;font-weight:600">${fmtUSD(p.value)}</td>
-      <td style="color:var(--success)">${p.margin != null ? p.margin+'%' : '—'}</td>
-      <td><span class="ecn-pill ${p.ecn ? 'ecn-yes' : 'ecn-no'}">${p.ecn ? 'ECN' : 'Clean'}</span></td>
-    </tr>`).join('');
-}
-
-function filterPOs() {
-  const search = document.getElementById('po-search')?.value.toLowerCase() || '';
-  const ecnF   = document.getElementById('po-filter-ecn')?.value || '';
-  const aeF    = document.getElementById('po-filter-ae')?.value || '';
-  poFilteredData = liveHistoricalPOS.filter(p => {
-    const matchSearch = !search || [p.customer, p.desc, p.ae, p.pm, p.po].some(v => v?.toLowerCase().includes(search));
-    const matchEcn    = !ecnF || (ecnF === 'ecn' ? p.ecn : !p.ecn);
-    const matchAe     = !aeF  || p.ae === aeF;
-    return matchSearch && matchEcn && matchAe;
-  });
-  renderPOTable(poFilteredData);
-}
-
-// =============================================
-// =============================================
-// RESULTS MODAL (Should Cost + RFQ)
-// =============================================
-function openResultsModal(title, html, copyText) {
-  document.getElementById('results-modal-title').textContent = title;
-  document.getElementById('results-modal-body').innerHTML = html;
-  window._resultsCopyText = copyText || '';
-  document.getElementById('results-modal').classList.add('open');
-}
-
-function closeResultsModal() {
-  document.getElementById('results-modal').classList.remove('open');
-}
-
-function copyResults() {
-  if (!window._resultsCopyText) return;
-  navigator.clipboard.writeText(window._resultsCopyText)
-    .then(() => showToast('Copied to clipboard', 'success'))
-    .catch(() => showToast('Copy failed — try selecting text manually', 'error'));
-}
-
-// =============================================
-// ROUTE MODAL
-// =============================================
-function openRouteModal() {
-  const pct = parseInt(document.getElementById('bar-pct')?.textContent) || 0;
-  const scoreEl = document.getElementById('route-score');
-  const warnEl  = document.getElementById('route-warning');
-  scoreEl.textContent = pct + '%';
-  scoreEl.style.color = pct >= 70 ? 'var(--success)' : pct >= 40 ? 'var(--warning)' : 'var(--danger)';
-  warnEl.style.display = pct < 70 ? 'block' : 'none';
-  document.getElementById('route-notes').value = '';
-  document.getElementById('route-modal').classList.add('open');
-}
-
-function closeRouteModal() {
-  document.getElementById('route-modal').classList.remove('open');
-}
-
-async function submitForReview() {
-  const notes = document.getElementById('route-notes').value.trim();
-  if (!currentProject) return;
-
-  const btn = document.querySelector('#route-modal .btn-primary');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Submitting…';
-
-  await dbQuery('projects', 'update', {
-    data: { status: 'under_review', notes: notes || null },
-    eq: ['id', currentProject.id],
-  });
-
-  btn.disabled = false;
-  btn.innerHTML = 'Submit for Review →';
-  closeRouteModal();
-
-  // Update badge on spec capture page
-  const badge = document.getElementById('spec-status-badge');
-  badge.textContent = 'UNDER REVIEW';
-  badge.className = 'badge badge-yellow';
-
-  showToast(`"${currentProject.name}" submitted for AE review`, 'success');
-  updateReviewBadge();
-}
-
-// =============================================
-// AE REVIEW QUEUE
-// =============================================
-async function loadReviewQueue() {
-  const list = document.getElementById('review-list');
-  if (!list) return;
-  list.innerHTML = '<div style="color:var(--muted);padding:20px">Loading…</div>';
-
-  const projects = await dbQuery('projects', 'select', {
-    select: 'id,name,customer,status,completeness_score,notes,project_type,quoted_value,assigned_ae,is_ecn,original_jo',
-    eq: ['status', 'under_review'],
-    order: ['created_at', false],
-  });
-
-  const items = projects || [];
-  const sub = document.getElementById('review-subtitle');
-  if (sub) sub.textContent = items.length
-    ? `${items.length} project${items.length > 1 ? 's' : ''} awaiting AE Manager approval`
-    : 'No projects awaiting review';
-
-  if (!items.length) {
-    list.innerHTML = `
-      <div class="review-empty">
-        <div class="review-empty-icon">✅</div>
-        <div style="font-size:15px;font-weight:600;margin-bottom:8px">Queue is clear</div>
-        <div style="font-size:13px">No projects are currently awaiting AE review.<br>When an AE submits a spec for review, it will appear here.</div>
-      </div>`;
-    return;
-  }
-
-  const AE_OPTIONS = ['Jennifer Willbrandt','Paul Kitchen','Darin Levander','Jeremy Gutierrez'];
-
-  list.innerHTML = items.map(p => {
-    const score = p.completeness_score ?? 0;
-    const scoreColor = score >= 70 ? 'var(--success)' : score >= 40 ? 'var(--warning)' : 'var(--danger)';
-    const val = p.quoted_value ? fmtUSD(p.quoted_value) : '<span style="color:var(--muted);font-size:11px">Run Should Cost first</span>';
-    const aeOptions = AE_OPTIONS.map(ae =>
-      `<option value="${ae}" ${p.assigned_ae === ae ? 'selected' : ''}>${ae}</option>`
-    ).join('');
-    const ecnBadge = p.is_ecn
-      ? `<span style="font-size:10px;font-weight:700;background:#b45309;color:#fff;padding:2px 7px;border-radius:3px;letter-spacing:0.04em">ECN</span>`
-      : '';
-    const ecnRef = p.is_ecn && p.original_jo
-      ? `<div style="font-size:11px;color:var(--warning);margin-top:4px">⚡ Change in scope on: <strong>${escHtml(p.original_jo)}</strong></div>`
-      : '';
-    return `
-    <div class="review-card">
-      <div class="review-card-header">
-        <div style="flex:1">
-          <div class="review-card-title" style="display:flex;align-items:center;gap:8px">
-            ${escHtml(p.name)} ${ecnBadge}
-          </div>
-          <div class="review-card-meta">${escHtml(p.customer)} · ${escHtml(p.project_type || 'T&M Services')}</div>
-          ${ecnRef}
-        </div>
-        <span class="badge badge-yellow">AWAITING REVIEW</span>
-      </div>
-      <div class="review-card-body">
-        <div>
-          <div class="review-stat-label">Spec Completeness</div>
-          <div class="review-stat-value" style="color:${scoreColor}">${score}%</div>
-        </div>
-        <div>
-          <div class="review-stat-label">Quoted Value</div>
-          <div class="review-stat-value">${val}</div>
-        </div>
-        <div>
-          <div class="review-stat-label">Assigned AE</div>
-          <div class="review-stat-value" style="font-size:13px">
-            <select onchange="reassignAE('${p.id}', this.value)" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;cursor:pointer">
-              <option value="">— Assign AE —</option>
-              ${aeOptions}
-            </select>
-          </div>
-        </div>
-      </div>
-      ${p.notes ? `
-      <div>
-        <div class="review-notes-label">Submission Notes</div>
-        <div class="review-notes">${escHtml(p.notes)}</div>
-      </div>` : ''}
-      <div class="review-actions">
-        <button class="btn btn-approve btn-sm" onclick="approveReview('${p.id}', '${escHtml(p.name).replace(/'/g,"\\'")}')">✅ Approve — Move to NOPO Auth</button>
-        <button class="btn btn-revise btn-sm" onclick="requestRevisions('${p.id}', '${escHtml(p.name).replace(/'/g,"\\'")}')">🔁 Request Revisions</button>
-        <button class="btn btn-kill btn-sm" onclick="killProposal('${p.id}', '${escHtml(p.name).replace(/'/g,"\\'")}')">❌ Kill</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-async function reassignAE(projectId, aeName) {
-  if (!aeName) return;
-  await dbQuery('projects', 'update', { data: { assigned_ae: aeName }, eq: ['id', projectId] });
-  showToast(`Assigned to ${aeName}`, 'success');
-}
-
-async function approveReview(projectId, projectName) {
-  await dbQuery('projects', 'update', { data: { status: 'nopo_authorization' }, eq: ['id', projectId] });
-  showToast(`"${projectName}" approved — moved to NOPO Authorization`, 'success');
-  loadReviewQueue();
-  updateReviewBadge();
-}
-
-async function requestRevisions(projectId, projectName) {
-  const notes = window.prompt(`Revision notes for the AE on "${projectName}":`);
-  if (notes === null) return; // cancelled
-  await dbQuery('projects', 'update', {
-    data: { status: 'in_process_rfq', notes: notes || null },
-    eq: ['id', projectId],
-  });
-  showToast(`"${projectName}" sent back for revisions`, 'info');
-  loadReviewQueue();
-  updateReviewBadge();
-}
-
-async function killProposal(projectId, projectName) {
-  if (!window.confirm(`Mark "${projectName}" as dead? This cannot be undone from the review queue.`)) return;
-  await dbQuery('projects', 'update', { data: { status: 'lost' }, eq: ['id', projectId] });
-  showToast(`"${projectName}" marked as dead`, 'error');
-  loadReviewQueue();
-  updateReviewBadge();
-}
-
-// =============================================
-// STATUS PROGRESSION (Dashboard)
-// =============================================
-
-async function advanceToAnticipated(projectId, projectName) {
-  if (!window.confirm(`Move "${projectName}" to Anticipated Order?`)) return;
-  await dbQuery('projects', 'update', {
-    data: { status: 'anticipated_order' },
-    eq: ['id', projectId],
-  });
-  showToast(`"${projectName}" moved to Anticipated Order`, 'success');
-  loadDashboard();
-}
-
-function openCloseWonModal(projectId, projectName, quotedValue) {
-  document.getElementById('close-won-project-id').value = projectId;
-  document.getElementById('close-won-subtitle').textContent =
-    `"${projectName}" — enter the final PO details to record this win and update the Savings dashboard.`;
-  document.getElementById('close-won-po').value      = '';
-  document.getElementById('close-won-value').value   = quotedValue || '';
-  document.getElementById('close-won-margin').value  = '';
-  document.getElementById('close-won-ae').value      = '';
-  document.getElementById('close-won-pm').value      = '';
-  document.getElementById('close-won-ecn').checked   = false;
-  document.getElementById('close-won-modal').classList.add('open');
-}
-
-function closeCloseWonModal() {
-  document.getElementById('close-won-modal').classList.remove('open');
-}
-
-async function submitCloseWon() {
-  const projectId = document.getElementById('close-won-project-id').value;
-  const poNumber  = document.getElementById('close-won-po').value.trim();
-  const value     = parseFloat(document.getElementById('close-won-value').value);
-  const margin    = document.getElementById('close-won-margin').value;
-  const ae        = document.getElementById('close-won-ae').value.trim();
-  const pm        = document.getElementById('close-won-pm').value.trim();
-  const isEcn     = document.getElementById('close-won-ecn').checked;
-
-  if (!poNumber) { showToast('PO Number is required', 'error'); return; }
-  if (!value || isNaN(value)) { showToast('Final PO Value is required', 'error'); return; }
-
-  // Pull project info for customer + description
-  const rows = await dbQuery('projects', 'select', { eq: ['id', projectId] });
-  if (!rows?.length) { showToast('Project not found', 'error'); return; }
-  const proj = rows[0];
-
-  const btn = document.querySelector('#close-won-modal .btn-success');
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-
   try {
-    // 1. Insert into historical_pos
-    await dbQuery('historical_pos', 'insert', {
+    const [proj] = await q('rfq_projects','insert',{
       data: {
-        po_date:           new Date().toISOString().split('T')[0],
-        customer:          proj.customer || 'Unknown',
-        po_number:         poNumber,
-        description:       proj.name,
-        ae_name:           ae || null,
-        pm_name:           pm || null,
-        total_value:       value,
-        quoted_margin_pct: margin ? parseFloat(margin) : null,
-        is_ecn:            isEcn,
-        entity_id:         proj.entity_id || null,
-      },
+        name, customer,
+        jo_numbers:          document.getElementById('np-jo').value.trim()||null,
+        target_install_date: document.getElementById('np-date').value||null,
+        site_address:        document.getElementById('np-site').value.trim()||null,
+        pm_name:             document.getElementById('np-pm').value.trim()||null,
+        buyer_name:          document.getElementById('np-buyer').value.trim()||null,
+        machine_description: document.getElementById('np-machines').value.trim()||null,
+        notes:               document.getElementById('np-notes').value.trim()||null,
+      }, sel:'*'
     });
-
-    // 2. Advance project to new_po_received
-    await dbQuery('projects', 'update', {
-      data: { status: 'new_po_received' },
-      eq: ['id', projectId],
+    await q('rfq_scopes','insert',{
+      data: SCOPE_ORDER.map(st=>({project_id:proj.id, scope_type:st, status:'draft'}))
     });
-
-    closeCloseWonModal();
-    showToast(`PO closed! "${proj.name}" recorded on the Savings dashboard.`, 'success');
-
-    // Refresh both dashboard and savings live data
-    loadDashboard();
-    if (typeof reloadSavings === 'function') reloadSavings();
-
-  } catch (err) {
-    showToast('Error saving win: ' + err.message, 'error');
-  } finally {
+    toast(`"${name}" created with 4 scopes`,'success');
+    openProject(proj.id, name);
+  } catch(e) {
+    toast('Error: '+e.message,'error');
     btn.disabled = false;
-    btn.textContent = '✓ Record Win & Close PO';
+    btn.textContent = 'Create Project + Auto-generate 4 Scopes';
   }
 }
 
-async function updateReviewBadge() {
-  const badge = document.getElementById('review-badge');
-  if (!badge) return;
-  const projects = await dbQuery('projects', 'select', {
-    select: 'id',
-    eq: ['status', 'under_review'],
-  });
-  const count = projects?.length || 0;
-  if (count > 0) {
-    badge.textContent = count;
-    badge.style.display = 'inline';
-  } else {
-    badge.style.display = 'none';
+// ══════════════════════════════════════════════════
+// PROJECT DETAIL
+// ══════════════════════════════════════════════════
+async function openProject(projectId, projectName) {
+  _projectId   = projectId;
+  _projectName = projectName;
+  document.getElementById('page-project-detail').classList.remove('active');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-project-detail').classList.add('active');
+  setBreadcrumb([{label:'Projects',fn:"showPage('dashboard')"},{label:projectName}]);
+  await loadProjectDetail(projectId);
+}
+
+async function loadProjectDetail(projectId) {
+  const el = document.getElementById('project-detail-content');
+  el.innerHTML = `<div class="card empty-state"><div class="spinner spinner-lg" style="margin:0 auto 14px"></div></div>`;
+  try {
+    const [proj] = await q('rfq_projects','select',{eq:['id',projectId]});
+    const scopes = await q('rfq_scopes','select',{eq:['project_id',projectId]});
+    const scopeIds = scopes.map(s=>s.id);
+    const quotes = scopeIds.length ? await q('rfq_quotes','select',{in:['scope_id',scopeIds]}) : [];
+    const qByScope = {};
+    quotes.forEach(x => (qByScope[x.scope_id]||=[]).push(x));
+
+    const infoHtml = [
+      {l:'Customer',     v:proj.customer},
+      {l:'JO Number(s)', v:proj.jo_numbers||'—'},
+      {l:'Site Address', v:proj.site_address||'—'},
+      {l:'BEP PM',       v:proj.pm_name||'—'},
+      {l:'Buyer',        v:proj.buyer_name||'—'},
+      {l:'Target Install',v:fmtDate(proj.target_install_date)},
+    ].map(i=>`<div><div class="info-label">${esc(i.l)}</div><div class="info-value">${esc(i.v)}</div></div>`).join('');
+
+    const scopeCards = SCOPE_ORDER.map(st => {
+      const scope   = scopes.find(s=>s.scope_type===st);
+      const sc      = SCOPES[st];
+      const ss      = scope ? (STATUS[scope.status]||STATUS.draft) : STATUS.draft;
+      const sq      = scope ? (qByScope[scope.id]||[]) : [];
+      const culverQ = sq.find(x=>x.supplier_name==='Culver Development');
+      const carnQ   = sq.find(x=>x.supplier_name==='Carnaghi SC');
+      const awardedQ= sq.find(x=>x.is_awarded);
+
+      if (sc.pending) return `
+        <div class="card scope-card scope-pending">
+          <div class="scope-card-header">
+            <div class="scope-card-title"><span class="scope-icon">${sc.icon}</span> ${esc(sc.label)}</div>
+            <span class="badge badge-purple">Pending</span>
+          </div>
+          <div class="pending-msg">⏳ ${esc(sc.pendingNote)}</div>
+        </div>`;
+
+      const pillHtml = SUPPLIERS.map(s => {
+        const qp = s.id==='culver' ? culverQ : carnQ;
+        const cls = qp ? (qp.is_awarded?'awarded':'filled') : '';
+        return `<span class="quote-pill ${cls}">${qp&&qp.is_awarded?'✓ ':qp?'● ':'○ '}${esc(s.name)} ${qp&&qp.total_amount?fmt$(qp.total_amount):(qp?'Partial':'—')}</span>`;
+      }).join('');
+
+      const scopeIdSafe = scope ? scope.id : '';
+      return `
+        <div class="card scope-card" onclick="openScope('${scopeIdSafe}','${st}','${safeJs(proj.name)}')">
+          <div class="scope-card-header">
+            <div class="scope-card-title"><span class="scope-icon">${sc.icon}</span> ${esc(sc.label)}</div>
+            <span class="badge ${ss.badge}">${esc(ss.label)}</span>
+          </div>
+          <div class="quote-pills">${pillHtml}</div>
+          <div class="scope-card-footer">
+            <div style="font-size:13px;font-weight:700;color:var(--success)">${awardedQ?'Awarded: '+fmt$(awardedQ.total_amount):''}</div>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openScope('${scopeIdSafe}','${st}','${safeJs(proj.name)}')">${sq.length?'View Quotes →':'Enter Quotes →'}</button>
+          </div>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="page-header">
+        <div>
+          <h1>${esc(proj.name)}</h1>
+          <div class="page-subtitle">${esc(proj.customer)}${proj.target_install_date?' · Target: '+fmtDate(proj.target_install_date):''}</div>
+        </div>
+        <button class="btn btn-secondary" onclick="showPage('dashboard')">← Projects</button>
+      </div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="info-grid">${infoHtml}</div>
+        ${proj.machine_description?`<div style="padding-top:14px;border-top:1px solid var(--border);margin-top:4px"><div class="info-label" style="margin-bottom:4px">Machines</div><div style="font-size:13px;line-height:1.5">${esc(proj.machine_description)}</div></div>`:''}
+      </div>
+      <div class="scopes-grid">${scopeCards}</div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="card" style="color:var(--danger)">Error: ${esc(e.message)}</div>`;
   }
 }
 
-// SAVINGS METRICS — calculated live from HISTORICAL_POS
-// =============================================
-function renderSavingsMetrics() {
-  const total = liveHistoricalPOS.length;
-  const ecns  = liveHistoricalPOS.filter(p => p.ecn).length;
-  const ecnRate = ((ecns / total) * 100).toFixed(1);
-  const avgValue = Math.round(liveHistoricalPOS.reduce((s, p) => s + p.value, 0) / total);
-  const margins = liveHistoricalPOS.filter(p => p.margin !== null && p.margin > 0).map(p => p.margin);
-  const avgMargin = (margins.reduce((a, b) => a + b, 0) / margins.length).toFixed(1);
+// ══════════════════════════════════════════════════
+// SCOPE DETAIL
+// ══════════════════════════════════════════════════
+async function openScope(scopeId, scopeType, projectName) {
+  _scopeId   = scopeId;
+  _scopeType = scopeType;
+  if (projectName) _projectName = projectName;
+  _activeTab = 'culver';
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-scope-detail').classList.add('active');
+  setBreadcrumb([
+    {label:'Projects',fn:"showPage('dashboard')"},
+    {label:_projectName||'Project',fn:`openProject('${_projectId}','${safeJs(_projectName||'')}')` },
+    {label:SCOPES[scopeType].label},
+  ]);
+  await loadScopeDetail();
+}
 
-  const fmtVal = v => v >= 1000000 ? `$${(v/1000000).toFixed(2)}M` : `$${Math.round(v/1000)}K`;
+async function loadScopeDetail() {
+  const el = document.getElementById('scope-detail-content');
+  el.innerHTML = `<div class="card empty-state"><div class="spinner spinner-lg" style="margin:0 auto 14px"></div></div>`;
+  try {
+    const [scope]  = await q('rfq_scopes','select',{eq:['id',_scopeId]});
+    const quotes   = await q('rfq_quotes','select',{eq:['scope_id',_scopeId]});
+    renderScope(scope, quotes);
+  } catch(e) {
+    document.getElementById('scope-detail-content').innerHTML = `<div class="card" style="color:var(--danger)">Error: ${esc(e.message)}</div>`;
+  }
+}
 
-  const subtitle = document.getElementById('savings-subtitle');
-  if (subtitle) subtitle.textContent = `${total} historical POs · ECN risk by customer · AE performance · Should-cost benchmarks`;
+function renderScope(scope, quotes) {
+  const sc    = SCOPES[_scopeType];
+  const STEPS = ['draft','rfq_sent','quotes_received','awarded'];
+  const SLABELS = ['Draft','RFQ Sent','Quotes In','Awarded'];
+  const cur   = STEPS.indexOf(scope.status);
 
-  const container = document.getElementById('savings-metrics-container');
-  if (!container) return;
-  container.innerHTML = `
-    <div class="card metric-card">
-      <div class="metric-value" style="color:var(--danger)">${ecnRate}%</div>
-      <div class="metric-label">ECN Rate (${ecns}/${total} POs)</div>
+  const stepperHtml = STEPS.map((s,i) => {
+    const done = cur > i;
+    const now  = cur === i;
+    return `${i>0?`<div class="step-line ${done?'done':''}"></div>`:''}
+    <div class="step-node">
+      <div class="step-dot ${done?'done':now?'current':''}">${done?'✓':i+1}</div>
+      <span class="step-text ${done?'done':now?'current':''}">${SLABELS[i]}</span>
+    </div>`;
+  }).join('');
+
+  const ctxHtml = sc.context.length ? `
+    <div class="context-box">
+      <div class="context-box-title">Scope Context — from RFQ document</div>
+      <div class="context-grid">
+        ${sc.context.map(c=>`<div class="ctx-item"><strong>${esc(c.l)}</strong>${esc(c.v)}</div>`).join('')}
+      </div>
+    </div>` : '';
+
+  const culverQ  = quotes.find(x=>x.supplier_name==='Culver Development');
+  const carnQ    = quotes.find(x=>x.supplier_name==='Carnaghi SC');
+  const activeQ  = _activeTab==='culver' ? culverQ : carnQ;
+  const activeS  = SUPPLIERS.find(s=>s.id===_activeTab);
+
+  const tabsHtml = SUPPLIERS.map(s => {
+    const hasQ = s.id==='culver' ? !!culverQ : !!carnQ;
+    return `<button class="sup-tab ${_activeTab===s.id?'active':''}" onclick="switchTab('${s.id}')">${esc(s.name)} <span style="font-size:11px;color:var(--muted)">${esc(s.contact)}</span>${hasQ?' ✓':''}</button>`;
+  }).join('');
+
+  const statusActions = buildStatusActions(scope);
+  const quoteForm     = buildQuoteForm(scope, activeQ, activeS);
+  const compHtml      = (culverQ && carnQ) ? buildComparison(scope, culverQ, carnQ) :
+    `<div style="color:var(--muted);font-size:13px;padding:8px 0">Comparison appears once quotes from both suppliers are saved.</div>`;
+
+  document.getElementById('scope-detail-content').innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1>${sc.icon} ${esc(sc.label)}</h1>
+        <div class="page-subtitle">${esc(_projectName||'')}</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="openProject('${_projectId}','${safeJs(_projectName||'')}')">← Project</button>
     </div>
-    <div class="card metric-card">
-      <div class="metric-value" style="color:var(--warning)">${fmtVal(avgValue)}</div>
-      <div class="metric-label">Avg PO Value</div>
+    <div class="stepper">${stepperHtml}</div>
+    ${statusActions}
+    ${ctxHtml}
+    <div class="card" style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <div style="font-size:14px;font-weight:700">Supplier Quotes</div>
+        <div style="font-size:12px;color:var(--muted)">Enter each supplier's quote line by line</div>
+      </div>
+      <div class="supplier-tabs">${tabsHtml}</div>
+      <div id="quote-form">${quoteForm}</div>
     </div>
-    <div class="card metric-card">
-      <div class="metric-value" style="color:var(--success)">${avgMargin}%</div>
-      <div class="metric-label">Avg Quoted Margin</div>
-    </div>
-    <div class="card metric-card">
-      <div class="metric-value" style="color:var(--danger)">$1M+</div>
-      <div class="metric-label">Slate Install Miss</div>
+    <div class="card">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">📊 Quote Comparison</div>
+      <div id="comparison">${compHtml}</div>
     </div>`;
 }
 
-// ECN RISK BY CUSTOMER — calculated live from HISTORICAL_POS
-// =============================================
-function renderECNRiskChart() {
-  // Customer groupings — maps display label to a filter function
-  const GROUPS = [
-    { label: 'GM Arlington', fn: p => p.customer.includes('Arlington') },
-    { label: 'GM Orion',     fn: p => p.customer.includes('Orion') },
-    { label: 'GM Flint',     fn: p => p.customer.includes('Flint') },
-    { label: 'Blue Bird',    fn: p => p.customer.includes('Blue Bird') },
-    { label: 'Lucid',        fn: p => p.customer.includes('Lucid') },
-    { label: 'Ford Plants',  fn: p => p.customer.startsWith('Ford') },
-    { label: 'Kia / Rivian', fn: p => p.customer.includes('Kia') || p.customer.includes('Rivian') },
-  ];
-
-  const rows = GROUPS.map(g => {
-    const pos  = liveHistoricalPOS.filter(g.fn);
-    if (!pos.length) return null;
-    const ecns = pos.filter(p => p.ecn).length;
-    const rate = ecns / pos.length;
-    const pct  = (rate * 100).toFixed(1);
-    const color = rate >= 0.5 ? 'var(--danger)' : rate > 0 ? 'var(--warning)' : 'var(--success)';
-    return { label: g.label, ecns, total: pos.length, pct, rate, color };
-  }).filter(Boolean);
-
-  // Sort by rate desc, then total desc
-  rows.sort((a, b) => b.rate - a.rate || b.total - a.total);
-
-  // Find worst customer for insight
-  const worst = rows.find(r => r.rate > 0) || rows[0];
-  const insight = worst.rate > 0
-    ? `⚠ <strong>${worst.label} alert:</strong> ${worst.pct}% ECN rate on ${worst.total} POs. When quoting ${worst.label}, SpecBridge flags installation scope as highest-risk missing field.`
-    : `✅ No ECNs recorded across tracked customers YTD.`;
-  const insightColor = worst.rate >= 0.5 ? 'var(--danger)' : 'var(--warning)';
-
-  const html = rows.map(r => `
-    <div class="risk-row">
-      <div class="risk-label" style="color:${r.color}">${r.label}</div>
-      <div class="risk-bar-wrap"><div class="risk-bar" style="width:${r.pct}%;background:${r.color}"></div></div>
-      <div class="risk-pct" style="color:${r.color}">${r.pct}%</div>
-      <div style="font-size:11px;color:var(--muted)">${r.ecns}/${r.total}</div>
-    </div>`).join('');
-
-  const el = document.getElementById('ecn-risk-container');
-  if (el) el.innerHTML = html + `
-    <div style="margin-top:14px;padding:10px;background:var(--bg);border-radius:6px;font-size:12px;color:${insightColor};line-height:1.5">
-      ${insight}
+function buildStatusActions(scope) {
+  const trans = {
+    draft:           {label:'Mark RFQ as Sent →',       next:'rfq_sent',        cls:'btn-primary'},
+    rfq_sent:        {label:'Mark Quotes Received →',   next:'quotes_received', cls:'btn-warning'},
+    quotes_received: null,
+    awarded:         null,
+    on_hold:         {label:'Reactivate → Draft',        next:'draft',           cls:'btn-secondary'},
+  };
+  const t = trans[scope.status];
+  const holdBtn = scope.status!=='on_hold'&&scope.status!=='awarded'
+    ? `<button class="btn btn-secondary btn-sm" onclick="advanceScope('${scope.id}','on_hold')">⏸ On Hold</button>` : '';
+  if (!t) return `<div style="display:flex;gap:8px;margin-bottom:22px;align-items:center">${holdBtn}<span class="badge ${STATUS[scope.status].badge}">${esc(STATUS[scope.status].label)}</span></div>`;
+  return `
+    <div style="display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap;align-items:center">
+      <button class="btn ${t.cls} btn-sm" onclick="advanceScope('${scope.id}','${t.next}')">${t.label}</button>
+      ${holdBtn}
+      <span class="badge ${STATUS[scope.status].badge}">${esc(STATUS[scope.status].label)}</span>
     </div>`;
 }
 
-// AE PERFORMANCE TABLE — calculated live from HISTORICAL_POS
-// =============================================
-function renderAETable() {
-  const AES = ['Jennifer Willbrandt', 'Paul Kitchen', 'Darin Levander', 'Jeremy Gutierrez'];
-  const stats = {};
-  AES.forEach(ae => { stats[ae] = { pos: 0, ecns: 0, totalValue: 0, margins: [] }; });
+function buildQuoteForm(scope, existingQ, supplier) {
+  const sc    = SCOPES[_scopeType];
+  const items = existingQ ? (existingQ.line_items||[]) : [];
+  const getAmt   = k => { const i=items.find(x=>x.key===k); return i&&i.amount?i.amount:''; };
+  const getNotes = k => { const i=items.find(x=>x.key===k); return i&&i.notes?esc(i.notes):''; };
 
-  liveHistoricalPOS.forEach(po => {
-    if (!stats[po.ae]) return;
-    const s = stats[po.ae];
-    s.pos++;
-    if (po.ecn) s.ecns++;
-    s.totalValue += po.value;
-    if (po.margin !== null) s.margins.push(po.margin);
+  const reqItems = sc.items.filter(i=>i.req);
+  const optItems = sc.items.filter(i=>!i.req);
+
+  const rows = reqItems.map(i=>`
+    <tr>
+      <td class="li-label">${esc(i.label)}</td>
+      <td class="li-amt-cell"><input type="number" class="amt-input" id="li-${i.key}" value="${getAmt(i.key)}" placeholder="0" min="0" step="0.01" oninput="calcTotal()" /></td>
+      <td class="li-notes-cell"><input type="text" class="notes-input" id="ln-${i.key}" value="${getNotes(i.key)}" placeholder="unit rate, hrs, notes…" /></td>
+    </tr>`).join('');
+
+  const optRows = optItems.length ? `
+    <tr class="opt-header"><td colspan="3">Optional / Rate Card Items</td></tr>
+    ${optItems.map(i=>`
+    <tr>
+      <td class="li-label li-optional">${esc(i.label)}</td>
+      <td class="li-amt-cell"><input type="number" class="amt-input" id="li-${i.key}" value="${getAmt(i.key)}" placeholder="0" min="0" step="0.01" oninput="calcTotal()" /></td>
+      <td class="li-notes-cell"><input type="text" class="notes-input" id="ln-${i.key}" value="${getNotes(i.key)}" placeholder="rate…" /></td>
+    </tr>`).join('')}` : '';
+
+  const awardedBanner = existingQ&&existingQ.is_awarded ? `<div class="awarded-banner">✓ This quote has been awarded</div>` : '';
+  const initTotal = existingQ&&existingQ.total_amount ? fmt$(existingQ.total_amount) : '—';
+
+  return `
+    ${awardedBanner}
+    <table class="line-table">
+      <thead><tr><th>Line Item</th><th style="text-align:right">Amount (USD)</th><th>Notes / Unit Rate</th></tr></thead>
+      <tbody>
+        ${rows}${optRows}
+        <tr class="total-row">
+          <td>TOTAL (required items)</td>
+          <td style="text-align:right"><span id="running-total" style="color:var(--accent)">${initTotal}</span></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="quote-bar">
+      <div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="clearForm()">Clear</button>
+        <button class="btn btn-primary btn-sm" id="save-btn" onclick="saveQuote('${scope.id}','${esc(supplier.name)}')">
+          ${existingQ?'Update Quote':'Save Quote'}
+        </button>
+      </div>
+    </div>`;
+}
+
+function calcTotal() {
+  const sc = SCOPES[_scopeType];
+  let total = 0;
+  sc.items.filter(i=>i.req).forEach(i => {
+    const el = document.getElementById('li-'+i.key);
+    if (el && el.value) total += parseFloat(el.value)||0;
   });
+  const el = document.getElementById('running-total');
+  if (el) el.textContent = total>0 ? fmt$(total) : '—';
+}
 
-  // Sort by ECN rate descending
-  const sorted = AES.map(ae => ({ ae, ...stats[ae] }))
-    .sort((a, b) => (b.ecns / b.pos) - (a.ecns / a.pos));
+function clearForm() {
+  SCOPES[_scopeType].items.forEach(i => {
+    const el = document.getElementById('li-'+i.key);
+    const nl = document.getElementById('ln-'+i.key);
+    if (el) el.value = '';
+    if (nl) nl.value = '';
+  });
+  calcTotal();
+}
 
-  const fmtVal = v => v >= 1000000 ? `$${(v/1000000).toFixed(2)}M` : `$${Math.round(v/1000)}K`;
-  const fmtPct = (n, d) => d ? ((n/d)*100).toFixed(1) + '%' : '—';
-  const ecnColor = r => r >= 0.5 ? 'var(--danger)' : r >= 0.25 ? 'var(--warning)' : 'var(--success)';
+function switchTab(id) {
+  _activeTab = id;
+  loadScopeDetail();
+}
 
-  // Build insight for highest-risk AE
-  const top = sorted[0];
-  const topRate = top.pos ? (top.ecns / top.pos) : 0;
-  const insightAE = topRate > 0
-    ? `💡 <strong>Insight:</strong> ${top.ae.split(' ')[0]}'s ECN rate is ${fmtPct(top.ecns, top.pos)} — the highest on the team. SpecBridge captures installation scope on every quote to reduce rework exposure.`
-    : `💡 <strong>Insight:</strong> No ECNs recorded YTD. SpecBridge helps keep it that way.`;
+async function saveQuote(scopeId, supplierName) {
+  const sc = SCOPES[_scopeType];
+  const btn = document.getElementById('save-btn');
+  if (btn) { btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Saving…'; }
+  try {
+    const lineItems = sc.items.map(i => {
+      const el = document.getElementById('li-'+i.key);
+      const nl = document.getElementById('ln-'+i.key);
+      return { key:i.key, label:i.label, amount:el?parseFloat(el.value)||0:0, notes:nl?nl.value.trim():'' };
+    });
+    const total = lineItems.filter(i=>{ const li=sc.items.find(l=>l.key===i.key); return li&&li.req; }).reduce((s,i)=>s+(i.amount||0),0);
 
-  const rows = sorted.map(s => {
-    const rate = s.pos ? s.ecns / s.pos : 0;
-    const avgMargin = s.margins.length ? (s.margins.reduce((a,b) => a+b, 0) / s.margins.length).toFixed(1) + '%' : '—';
-    const ecnPill = s.ecns > 0
-      ? `<span class="ecn-pill ecn-yes">${s.ecns}</span>`
-      : `<span class="ecn-pill ecn-no">0</span>`;
+    const existing = await q('rfq_quotes','select',{eq:['scope_id',scopeId]});
+    const prev = existing.find(x=>x.supplier_name===supplierName);
+    if (prev) {
+      await q('rfq_quotes','update',{data:{line_items:lineItems,total_amount:total},eq:['id',prev.id]});
+    } else {
+      const s = SUPPLIERS.find(x=>x.name===supplierName);
+      await q('rfq_quotes','insert',{data:{scope_id:scopeId,supplier_name:supplierName,supplier_contact:s?s.contact:null,line_items:lineItems,total_amount:total}});
+    }
+    // Auto-advance to quotes_received if both quotes exist and scope is rfq_sent
+    const updatedQs = await q('rfq_quotes','select',{eq:['scope_id',scopeId]});
+    const [scope]   = await q('rfq_scopes','select',{eq:['id',scopeId]});
+    if (updatedQs.length>=2 && scope.status==='rfq_sent') {
+      await q('rfq_scopes','update',{data:{status:'quotes_received'},eq:['id',scopeId]});
+      toast('Both quotes saved — status auto-advanced to Quotes In','info');
+    } else {
+      toast(`${supplierName} quote saved`,'success');
+    }
+    await loadScopeDetail();
+  } catch(e) {
+    toast('Error: '+e.message,'error');
+    if (btn) { btn.disabled=false; btn.textContent='Save Quote'; }
+  }
+}
+
+async function advanceScope(scopeId, newStatus) {
+  try {
+    await q('rfq_scopes','update',{data:{status:newStatus},eq:['id',scopeId]});
+    toast(`Status → ${STATUS[newStatus].label}`,'info');
+    await loadScopeDetail();
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
+function buildComparison(scope, culverQ, carnQ) {
+  const sc = SCOPES[_scopeType];
+  const culverItems = culverQ.line_items||[];
+  const carnItems   = carnQ.line_items||[];
+  const getAmt = (items,key) => { const i=items.find(x=>x.key===key); return i?(i.amount||0):0; };
+
+  const rows = sc.items.filter(i=>i.req).map(i => {
+    const ca = getAmt(culverItems,i.key);
+    const cb = getAmt(carnItems,i.key);
+    const cLow = ca>0&&cb>0&&ca<cb;
+    const cbLow = ca>0&&cb>0&&cb<ca;
     return `<tr>
-      <td><strong>${s.ae}</strong></td>
-      <td>${s.pos}</td>
-      <td>${ecnPill}</td>
-      <td style="color:${ecnColor(rate)}">${fmtPct(s.ecns, s.pos)}</td>
-      <td>${avgMargin}</td>
-      <td>${fmtVal(s.totalValue)}</td>
+      <td class="comp-item-col">${esc(i.label)}</td>
+      <td class="comp-amt ${cLow?'comp-lower':''}">${ca>0?fmt$(ca):'—'}</td>
+      <td class="comp-amt ${cbLow?'comp-lower':''}">${cb>0?fmt$(cb):'—'}</td>
     </tr>`;
   }).join('');
 
-  const html = `
-    <table class="po-table">
+  const ct = culverQ.total_amount||0;
+  const nct = carnQ.total_amount||0;
+  const cLowTotal  = ct>0&&nct>0&&ct<=nct;
+  const nLowTotal  = ct>0&&nct>0&&nct<=ct;
+  const savings    = ct>0&&nct>0 ? Math.abs(ct-nct) : 0;
+  const savingsPct = Math.max(ct,nct)>0 ? (savings/Math.max(ct,nct)*100).toFixed(1) : 0;
+  const awarded    = [culverQ,carnQ].find(x=>x.is_awarded);
+
+  const awardBtn = (xq) => {
+    if (awarded) return awarded.id===xq.id ? `<div style="color:#86efac;font-size:12px;font-weight:700">✓ Awarded</div>` : `<div style="color:var(--muted);font-size:11px">Not awarded</div>`;
+    return `<button class="btn btn-success btn-xs" onclick="awardQuote('${xq.id}','${scope.id}')">Award →</button>`;
+  };
+
+  return `
+    <table class="comp-table">
       <thead>
         <tr>
-          <th>AE</th><th>POs</th><th>ECNs</th><th>ECN Rate</th><th>Avg Margin</th><th>Total Value</th>
+          <th class="comp-item-col">Line Item</th>
+          <th style="text-align:right">Culver Development<br><small style="font-weight:400;color:var(--muted)">Scott Culver</small></th>
+          <th style="text-align:right">Carnaghi SC<br><small style="font-weight:400;color:var(--muted)">Greg Carnaghi</small></th>
         </tr>
       </thead>
-      <tbody>${rows}</tbody>
+      <tbody>
+        ${rows}
+        <tr class="comp-total-row">
+          <td><strong>TOTAL</strong></td>
+          <td class="comp-amt ${cLowTotal?'comp-lower':''}">
+            <div>${fmt$(ct)}</div>
+            <div style="margin-top:8px">${awardBtn(culverQ)}</div>
+          </td>
+          <td class="comp-amt ${nLowTotal?'comp-lower':''}">
+            <div>${fmt$(nct)}</div>
+            <div style="margin-top:8px">${awardBtn(carnQ)}</div>
+          </td>
+        </tr>
+      </tbody>
     </table>
-    <div style="margin-top:14px;padding:10px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--muted);line-height:1.5">
-      ${insightAE}
-    </div>`;
-
-  const el = document.getElementById('ae-table-container');
-  if (el) el.innerHTML = html;
+    ${savings>0?`
+    <div class="savings-box">
+      <div>
+        <div class="savings-box-label">Competitive savings — lower bid vs. higher bid</div>
+        <div class="savings-box-pct">${savingsPct}% saved by awarding to lower bidder</div>
+      </div>
+      <div class="savings-box-amt">${fmt$(savings)}</div>
+    </div>`:''}`;
 }
 
-// BOOT
-// =============================================
-loadDashboard();
-// Update review badge on load
-updateReviewBadge();
+async function awardQuote(quoteId, scopeId) {
+  try {
+    const all = await q('rfq_quotes','select',{eq:['scope_id',scopeId]});
+    for (const x of all) await q('rfq_quotes','update',{data:{is_awarded:false},eq:['id',x.id]});
+    await q('rfq_quotes','update',{data:{is_awarded:true},eq:['id',quoteId]});
+    await q('rfq_scopes','update',{data:{status:'awarded'},eq:['id',scopeId]});
+    toast('Quote awarded! Scope marked Awarded.','success');
+    await loadScopeDetail();
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
 
-// Load live PO data from Supabase and render all savings content
-reloadSavings();
+// ══════════════════════════════════════════════════
+// SAVINGS
+// ══════════════════════════════════════════════════
+async function loadSavings() {
+  try {
+    const projects = await q('rfq_projects','select',{order:['created_at',false]});
+    const scopes   = await q('rfq_scopes','select');
+    const quotes   = await q('rfq_quotes','select');
+
+    const awardedQs    = quotes.filter(x=>x.is_awarded);
+    const totalAwarded = awardedQs.reduce((s,x)=>s+(x.total_amount||0),0);
+    const compared     = scopes.filter(s=>{const sq=quotes.filter(x=>x.scope_id===s.id);return sq.length>=2;});
+    const totalSavings = compared.reduce((sum,s)=>{
+      const sq = quotes.filter(x=>x.scope_id===s.id).map(x=>x.total_amount||0).filter(a=>a>0);
+      return sq.length>=2 ? sum+(Math.max(...sq)-Math.min(...sq)) : sum;
+    },0);
+
+    document.getElementById('savings-metrics').innerHTML = `
+      <div class="card metric-card"><div class="metric-value" style="color:var(--success);font-size:${totalAwarded>0?'18':'26'}px">${fmt$(totalAwarded)}</div><div class="metric-label">Total Awarded</div></div>
+      <div class="card metric-card"><div class="metric-value" style="color:var(--success);font-size:${totalSavings>0?'18':'26'}px">${fmt$(totalSavings)}</div><div class="metric-label">Competitive Savings</div></div>
+      <div class="card metric-card"><div class="metric-value" style="color:var(--accent)">${awardedQs.length}</div><div class="metric-label">Scopes Awarded</div></div>
+      <div class="card metric-card"><div class="metric-value" style="color:var(--warning)">${compared.length}</div><div class="metric-label">Scopes Compared</div></div>
+    `;
+
+    if (!quotes.length) {
+      document.getElementById('savings-content').innerHTML = `
+        <div class="card empty-state">
+          <div class="empty-icon">💰</div>
+          <div class="empty-text">No quotes yet</div>
+          <div class="empty-sub">Enter quotes from Culver Development and Carnaghi SC to see competitive savings</div>
+        </div>`;
+      return;
+    }
+
+    const rows = projects.map(p => {
+      const ps = scopes.filter(s=>s.project_id===p.id);
+      const pq = quotes.filter(x=>ps.some(s=>s.id===x.scope_id));
+      if (!pq.length) return '';
+      const tableRows = SCOPE_ORDER.map(st => {
+        const scope = ps.find(s=>s.scope_type===st);
+        if (!scope) return '';
+        const sq = pq.filter(x=>x.scope_id===scope.id);
+        if (!sq.length) return '';
+        const sc = SCOPES[st];
+        const aw = sq.find(x=>x.is_awarded);
+        const amts = sq.map(x=>x.total_amount||0).filter(a=>a>0);
+        const sav = amts.length>=2 ? Math.max(...amts)-Math.min(...amts) : 0;
+        const savPct = amts.length>=2 ? (sav/Math.max(...amts)*100).toFixed(1) : null;
+        const cq = sq.find(x=>x.supplier_name==='Culver Development');
+        const nq = sq.find(x=>x.supplier_name==='Carnaghi SC');
+        return `<tr>
+          <td>${sc.icon} ${esc(sc.label)}</td>
+          <td class="sv-right">${cq?fmt$(cq.total_amount):'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right">${nq?fmt$(nq.total_amount):'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right ${aw?'sv-green':''}">${aw?fmt$(aw.total_amount):'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right ${sav>0?'sv-green':''}">${sav>0?fmt$(sav)+(savPct?` <span style="font-size:11px;opacity:0.7">(${savPct}%)</span>`:''):'<span class="sv-muted">—</span>'}</td>
+        </tr>`;
+      }).filter(Boolean).join('');
+      if (!tableRows) return '';
+      const projTotal = pq.filter(x=>x.is_awarded).reduce((s,x)=>s+(x.total_amount||0),0);
+      return `
+        <div class="card" style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div style="font-size:15px;font-weight:700">${esc(p.name)}</div>
+            ${projTotal?`<div style="font-size:13px;font-weight:700;color:var(--success)">${fmt$(projTotal)} awarded</div>`:''}
+          </div>
+          <table class="sv-table">
+            <thead><tr><th>Scope</th><th class="sv-right">Culver Dev.</th><th class="sv-right">Carnaghi SC</th><th class="sv-right">Awarded</th><th class="sv-right">Savings</th></tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>`;
+    }).filter(Boolean).join('');
+
+    document.getElementById('savings-content').innerHTML = rows ||
+      `<div class="card" style="color:var(--muted);text-align:center;padding:48px">No comparative data yet. Enter quotes for both suppliers to see savings.</div>`;
+  } catch(e) {
+    document.getElementById('savings-content').innerHTML = `<div class="card" style="color:var(--danger)">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+loadDashboard();
 </script>
 </body>
 </html>
