@@ -1197,6 +1197,9 @@ function renderScope(scope, quotes) {
         }
       </div>
     </div>`;
+  // Post-render: initialise running totals
+  calcTotal();
+  updateMilestoneTotal();
 }
 
 // ══════════════════════════════════════════════════
@@ -1473,23 +1476,7 @@ function buildQuoteForm(scope, existingQ, supplier) {
           <input type="text" id="pt-notes" value="${esc(pt.notes||'')}" placeholder="e.g. Prevailing wage, bonding, insurance requirements…" />
         </div>
       </div>
-    </div>
-    <script>
-      (function initMilestoneTotal(){
-        const ids=['ms_mobilization','ms_delivery','ms_install','ms_acceptance'];
-        function update(){
-          const vals=ids.map(id=>parseFloat(document.getElementById(id)?.value||0)||0);
-          const tot=vals.reduce((a,b)=>a+b,0);
-          const el=document.getElementById('ms-total-pct');
-          const note=document.getElementById('ms-wc-note');
-          if(el){el.textContent=tot+'%';el.style.color=tot===100?'#22c55e':tot>100?'#f87171':'#f59e0b';}
-          if(note&&tot===100) note.textContent='✓ Milestones sum to 100% — working capital schedule complete';
-          else if(note&&tot>0) note.textContent=`${100-tot}% unallocated — milestones must sum to 100%`;
-        }
-        ids.forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener('input',update);});
-        update();
-      })();
-    </script>`;
+    </div>`;
 
   return `
     ${awardedBanner}
@@ -1514,6 +1501,23 @@ function buildQuoteForm(scope, existingQ, supplier) {
         </button>
       </div>
     </div>`;
+}
+
+function updateMilestoneTotal() {
+  const ids = ['ms_mobilization','ms_delivery','ms_install','ms_acceptance'];
+  const vals = ids.map(id => parseFloat(document.getElementById(id)?.value||0)||0);
+  const tot  = vals.reduce((a,b)=>a+b,0);
+  const el   = document.getElementById('ms-total-pct');
+  const note = document.getElementById('ms-wc-note');
+  if (el) {
+    el.textContent = tot + '%';
+    el.style.color = tot===100 ? '#22c55e' : tot>100 ? '#f87171' : '#f59e0b';
+  }
+  if (note) {
+    if (tot===100) note.textContent = '✓ Milestones sum to 100% — working capital schedule complete';
+    else if (tot>0) note.textContent = (100-tot) + '% unallocated — milestones must sum to 100%';
+    else note.textContent = 'Enter percentages above';
+  }
 }
 
 function calcTotal() {
