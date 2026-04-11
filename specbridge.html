@@ -465,7 +465,7 @@ let _activeTab      = 'culver';
 // ══════════════════════════════════════════════════
 const SUPPLIERS = [
   { id: 'culver',   name: 'Culver Development', contact: 'Scott Culver'  },
-  { id: 'carnaghi', name: 'Carnaghi SC',         contact: 'Greg Carnaghi' },
+  { id: 'nwi',      name: 'NWI',                contact: 'Contact TBD'   },
 ];
 
 const STATUS = {
@@ -826,7 +826,7 @@ async function loadProjectDetail(projectId) {
       const ss      = scope ? (STATUS[scope.status]||STATUS.draft) : STATUS.draft;
       const sq      = scope ? (qByScope[scope.id]||[]) : [];
       const culverQ = sq.find(x=>x.supplier_name==='Culver Development');
-      const carnQ   = sq.find(x=>x.supplier_name==='Carnaghi SC');
+      const carnQ   = sq.find(x=>x.supplier_name==='NWI');
       const awardedQ= sq.find(x=>x.is_awarded);
 
       if (sc.pending) return `
@@ -937,7 +937,7 @@ function renderScope(scope, quotes) {
     </div>` : '';
 
   const culverQ  = quotes.find(x=>x.supplier_name==='Culver Development');
-  const carnQ    = quotes.find(x=>x.supplier_name==='Carnaghi SC');
+  const carnQ    = quotes.find(x=>x.supplier_name==='NWI');
   const activeQ  = _activeTab==='culver' ? culverQ : carnQ;
   const activeS  = SUPPLIERS.find(s=>s.id===_activeTab);
 
@@ -1109,7 +1109,20 @@ function buildQuoteForm(scope, existingQ, supplier) {
           <label for="pt-milestone">Milestone Structure</label>
           <input type="text" id="pt-milestone" value="${esc(pt.milestones||'')}" placeholder="e.g. 30% mobilization / 60% mid / 10% completion" />
         </div>
-        <div class="form-group span-2" style="grid-column:span 2">
+        <div class="form-group">
+          <label for="pt-incoterms">Incoterms</label>
+          <select id="pt-incoterms">
+            <option value="">Select…</option>
+            ${['DDP — Delivered Duty Paid, installed on site','FCA — Free Carrier','EXW — Ex Works','CPT — Carriage Paid To','Other'].map(o=>`<option value="${o}" ${(pt.incoterms||'').startsWith(o.split(' ')[0])?'selected':''}>${o}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="pt-validity">Quote Validity Period</label>
+          <input type="text" id="pt-validity" value="${esc(pt.validity||'')}" placeholder="e.g. 30 days, 60 days…" />
+        </div>
+      </div>
+      <div class="payment-grid" style="margin-top:10px">
+        <div class="form-group span-2" style="grid-column:span 3">
           <label for="pt-notes">Commercial Notes</label>
           <input type="text" id="pt-notes" value="${esc(pt.notes||'')}" placeholder="e.g. Prevailing wage applies, insurance requirements, bonding…" />
         </div>
@@ -1184,6 +1197,8 @@ async function saveQuote(scopeId, supplierName) {
       terms:       (document.getElementById('pt-terms')?.value)||'',
       deposit_pct: parseFloat(document.getElementById('pt-deposit')?.value)||null,
       milestones:  (document.getElementById('pt-milestone')?.value||'').trim(),
+      incoterms:   (document.getElementById('pt-incoterms')?.value||'').trim(),
+      validity:    (document.getElementById('pt-validity')?.value||'').trim(),
       notes:       (document.getElementById('pt-notes')?.value||'').trim(),
     };
     const submittedDate = document.getElementById('pt-submitted')?.value || null;
@@ -1322,7 +1337,7 @@ function buildComparison(scope, culverQ, carnQ) {
         <tr>
           <th class="comp-item-col">Line Item</th>
           <th style="text-align:right">Culver Development<br><small style="font-weight:400;color:var(--muted)">Scott Culver</small></th>
-          <th style="text-align:right">Carnaghi SC<br><small style="font-weight:400;color:var(--muted)">Greg Carnaghi</small></th>
+          <th style="text-align:right">NWI<br><small style="font-weight:400;color:var(--muted)">Contact TBD</small></th>
         </tr>
       </thead>
       <tbody>
@@ -1462,11 +1477,14 @@ async function generateRFQ(scopeId) {
           <div class="rfq-section">
             <div class="rfq-section-title">Commercial Requirements</div>
             <div class="rfq-terms-box">
+              <p><strong>Incoterms:</strong> DDP — Delivered Duty Paid, installed on site. Supplier is responsible for transport, unloading, and full installation at the site address above.</p>
               <p><strong>Payment Terms:</strong> Please state your required payment terms, including any deposit percentage, milestone schedule, and final payment timing.</p>
-              <p><strong>Quote Validity:</strong> This quotation shall remain valid for a minimum of 30 days from the date of submission.</p>
+              <p><strong>Quote Validity:</strong> Please state the validity period for your quotation. Minimum 30 days from the date of submission is required.</p>
               <p><strong>Insurance:</strong> Supplier shall maintain general liability insurance of not less than $2,000,000 per occurrence. Certificate of insurance to be provided prior to mobilization.</p>
-              <p><strong>Compliance:</strong> All work shall be performed in compliance with applicable OSHA regulations (29 CFR 1910 &amp; 1926), local codes, and any site-specific safety requirements communicated by BEP prior to mobilization.</p>
+              <p><strong>Compliance:</strong> All work shall be performed in compliance with applicable OSHA regulations (29 CFR 1910 &amp; 1926), US federal and South Carolina state standards, and any site-specific safety requirements communicated by BEP prior to mobilization.</p>
+              <p><strong>Pre-Mobilization Documents:</strong> Risk assessment, lifting/hoisting plan, and equipment certificates/approvals must be submitted to BEP at least 1 month prior to mobilization.</p>
               <p><strong>Prevailing Wage:</strong> Please indicate if prevailing wage requirements apply and confirm compliance.</p>
+              <p><strong>Timeplan:</strong> Supplier shall submit a day-by-day timeplan (tasks + duration + number of resources per trade) together with the quotation.</p>
               <p style="margin-bottom:0"><strong>Exclusions:</strong> Please clearly list any items not included in your quote.</p>
             </div>
           </div>
@@ -1591,7 +1609,7 @@ async function loadSavings() {
         const sav = amts.length>=2 ? Math.max(...amts)-Math.min(...amts) : 0;
         const savPct = amts.length>=2 ? (sav/Math.max(...amts)*100).toFixed(1) : null;
         const cq = sq.find(x=>x.supplier_name==='Culver Development');
-        const nq = sq.find(x=>x.supplier_name==='Carnaghi SC');
+        const nq = sq.find(x=>x.supplier_name==='NWI');
         const bg = scope.budget_guidance ? Number(scope.budget_guidance) : null;
         const bvAmt = bg && aw ? bg - (aw.total_amount||0) : null;
         const bvHtml = bvAmt!==null
@@ -1619,7 +1637,7 @@ async function loadSavings() {
             <thead><tr>
               <th>Scope</th>
               <th class="sv-right">Culver Dev.</th>
-              <th class="sv-right">Carnaghi SC</th>
+              <th class="sv-right">NWI</th>
               <th class="sv-right">Awarded</th>
               <th class="sv-right">Budget</th>
               <th class="sv-right">vs. Budget</th>
