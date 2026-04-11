@@ -387,6 +387,16 @@
               <label for="np-date">Target Install Date</label>
               <input id="np-date" type="date" />
             </div>
+            <div class="form-group">
+              <label for="np-region">Region / Office</label>
+              <select id="np-region">
+                <option value="">Select region…</option>
+                <option value="Grand Rapids, NA">Grand Rapids — North America</option>
+                <option value="Bruges, EMEA">Bruges — EMEA</option>
+                <option value="Other NA">Other — North America</option>
+                <option value="Other EMEA">Other — EMEA</option>
+              </select>
+            </div>
           </div>
         </div>
         <div>
@@ -509,7 +519,9 @@ const STATUS = {
   draft:           { label: 'Draft',       badge: 'badge-gray'   },
   rfq_sent:        { label: 'RFQ Sent',    badge: 'badge-blue'   },
   quotes_received: { label: 'Quotes In',   badge: 'badge-yellow' },
+  ae_review:       { label: 'AE Review',   badge: 'badge-purple' },
   awarded:         { label: 'Awarded',     badge: 'badge-green'  },
+  killed:          { label: 'Killed',      badge: 'badge-red'    },
   on_hold:         { label: 'On Hold',     badge: 'badge-red'    },
 };
 
@@ -707,7 +719,7 @@ function showPage(id) {
 }
 
 function resetNewProjectForm() {
-  ['np-name','np-customer','np-jo','np-date','np-site','np-pm','np-buyer','np-machines','np-notes']
+  ['np-name','np-customer','np-jo','np-date','np-site','np-pm','np-buyer','np-machines','np-notes','np-region']
     .forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
   document.getElementById('np-err').style.display='none';
   document.getElementById('np-btn').textContent='Create Project + Auto-generate 4 Scopes';
@@ -810,6 +822,7 @@ async function createProject() {
         buyer_name:          document.getElementById('np-buyer').value.trim()||null,
         machine_description: document.getElementById('np-machines').value.trim()||null,
         notes:               document.getElementById('np-notes').value.trim()||null,
+        region:              document.getElementById('np-region').value||null,
       }, sel:'*'
     });
     await q('rfq_scopes','insert',{
@@ -854,6 +867,7 @@ async function loadProjectDetail(projectId) {
       {l:'Site Address', v:proj.site_address||'—'},
       {l:'BEP PM',       v:proj.pm_name||'—'},
       {l:'Buyer',        v:proj.buyer_name||'—'},
+      {l:'Region',       v:proj.region||'—'},
       {l:'Target Install',v:fmtDate(proj.target_install_date)},
     ].map(i=>`<div><div class="info-label">${esc(i.l)}</div><div class="info-value">${esc(i.v)}</div></div>`).join('');
 
@@ -936,6 +950,29 @@ async function loadProjectDetail(projectId) {
         return `<div style="margin-top:6px;font-size:11px;color:var(--muted)">📅 RFQ deadline in ${daysLeft}d (${fmtDate(scope.rfq_deadline)})</div>`;
       })();
 
+      // Completeness score — required line items filled across both supplier quotes
+      const completenessHtml = (()=>{
+        const reqItems = sc.items.filter(i=>i.req);
+        if (!reqItems.length || !sq.length) return '';
+        let filled = 0, total = reqItems.length * Math.min(sq.length, SUPPLIERS.length);
+        sq.forEach(qx => {
+          const items = qx.line_items||[];
+          reqItems.forEach(i => { if ((items.find(x=>x.key===i.key)?.amount||0)>0) filled++; });
+        });
+        const pct = total>0 ? Math.round(filled/total*100) : 0;
+        const color = pct===100?'#22c55e':pct>=60?'#f59e0b':'#f87171';
+        return `
+          <div style="margin-top:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:10px;color:var(--muted)">Quote completeness</span>
+              <span style="font-size:10px;font-weight:700;color:${color}">${pct}%</span>
+            </div>
+            <div style="height:4px;background:#1e2535;border-radius:2px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width 0.3s"></div>
+            </div>
+          </div>`;
+      })();
+
       const quotesWithAmt = sq.filter(x=>x.total_amount>0);
       const compSourcingBadge = quotesWithAmt.length >= 2
         ? `<span style="font-size:10px;font-weight:700;background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.3);border-radius:4px;padding:2px 7px;letter-spacing:0.04em">COMPETED ✓</span>`
@@ -954,6 +991,7 @@ async function loadProjectDetail(projectId) {
           ${budgetHtml}
           ${compSourcingBadge ? `<div style="margin-top:8px">${compSourcingBadge}</div>` : ''}
           ${deadlineHtml}
+          ${completenessHtml}
           <div class="scope-card-footer">
             <div style="font-size:13px;font-weight:700;color:var(--success)">${awardedQ?'Awarded: '+fmt$(awardedQ.total_amount):''}</div>
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openScope('${scopeIdSafe}','${st}','${safeJs(proj.name)}')">${sq.length?'View Quotes →':'Enter Quotes →'}</button>
@@ -1012,8 +1050,8 @@ async function loadScopeDetail() {
 
 function renderScope(scope, quotes) {
   const sc    = SCOPES[_scopeType];
-  const STEPS = ['draft','rfq_sent','quotes_received','awarded'];
-  const SLABELS = ['Draft','RFQ Sent','Quotes In','Awarded'];
+  const STEPS = ['draft','rfq_sent','quotes_received','ae_review','awarded'];
+  const SLABELS = ['Draft','RFQ Sent','Quotes In','AE Review','Awarded'];
   const cur   = STEPS.indexOf(scope.status);
 
   const stepperHtml = STEPS.map((s,i) => {
@@ -1034,6 +1072,7 @@ function renderScope(scope, quotes) {
       </div>
     </div>` : '';
 
+  // Scope completeness detail
   const culverQ  = quotes.find(x=>x.supplier_name==='Culver Development');
   const carnQ    = quotes.find(x=>x.supplier_name==='NWI');
   const activeQ  = _activeTab==='culver' ? culverQ : carnQ;
@@ -1046,21 +1085,28 @@ function renderScope(scope, quotes) {
 
   // Budget guidance bar
   const bg = scope.budget_guidance ? Number(scope.budget_guidance) : null;
+  const bgTarget = bg ? bg * 0.95 : null; // Bogon: 5% below budget is the actual target
   const awardedQ = quotes.find(x=>x.is_awarded);
   let varianceHtml = '';
   if (bg && awardedQ && awardedQ.total_amount) {
     const diff = bg - awardedQ.total_amount;
     const pct  = Math.abs(diff/bg*100).toFixed(1);
+    const vsTarget = bgTarget - (awardedQ.total_amount||0);
+    const targetHtml = `<span style="font-size:11px;color:var(--muted)"> · Bogon target: ${fmt$(bgTarget)} ${vsTarget>=0?`<span style="color:#86efac">(▼ ${fmt$(vsTarget)} under target)</span>`:`<span style="color:#fca5a5">(▲ ${fmt$(Math.abs(vsTarget))} over target)</span>`}</span>`;
     varianceHtml = diff >= 0
-      ? `<span class="budget-variance bv-under">▼ ${fmt$(diff)} under budget (${pct}%)</span>`
-      : `<span class="budget-variance bv-over">▲ ${fmt$(Math.abs(diff))} over budget (${pct}%)</span>`;
+      ? `<span class="budget-variance bv-under">▼ ${fmt$(diff)} under budget (${pct}%)</span>${targetHtml}`
+      : `<span class="budget-variance bv-over">▲ ${fmt$(Math.abs(diff))} over budget (${pct}%)</span>${targetHtml}`;
   } else if (bg && culverQ && carnQ) {
     const lowestBid = Math.min(culverQ.total_amount||Infinity, carnQ.total_amount||Infinity);
     const diff = bg - lowestBid;
     const pct  = Math.abs(diff/bg*100).toFixed(1);
+    const vsTarget = bgTarget - lowestBid;
+    const targetHtml = `<span style="font-size:11px;color:var(--muted)"> · Bogon target: ${fmt$(bgTarget)} ${vsTarget>=0?`<span style="color:#86efac">(▼ ${fmt$(vsTarget)} under)</span>`:`<span style="color:#fca5a5">(▲ ${fmt$(Math.abs(vsTarget))} over)</span>`}</span>`;
     varianceHtml = diff >= 0
-      ? `<span class="budget-variance bv-under">Lowest bid ▼ ${fmt$(diff)} under budget (${pct}%)</span>`
-      : `<span class="budget-variance bv-over">Lowest bid ▲ ${fmt$(Math.abs(diff))} over budget (${pct}%)</span>`;
+      ? `<span class="budget-variance bv-under">Lowest bid ▼ ${fmt$(diff)} under budget (${pct}%)</span>${targetHtml}`
+      : `<span class="budget-variance bv-over">Lowest bid ▲ ${fmt$(Math.abs(diff))} over budget (${pct}%)</span>${targetHtml}`;
+  } else if (bg) {
+    varianceHtml = `<span style="font-size:11px;color:var(--muted)">Bogon target (5% below): <strong style="color:#f59e0b">${fmt$(bgTarget)}</strong></span>`;
   }
 
   const budgetBarHtml = `
@@ -1076,6 +1122,7 @@ function renderScope(scope, quotes) {
       ${varianceHtml}
       <div style="margin-left:auto">
         <button class="btn btn-teal btn-sm" onclick="generateRFQ('${scope.id}')">📄 Generate RFQ Document</button>
+        <button class="btn btn-secondary btn-sm" onclick="generateSOW('${scope.id}')">📋 Generate SOW</button>
       </div>
     </div>`;
 
@@ -1096,6 +1143,24 @@ function renderScope(scope, quotes) {
     ${statusActions}
     ${budgetBarHtml}
     ${ctxHtml}
+    ${(()=>{
+      const reqItems = sc.items.filter(i=>i.req);
+      if (!reqItems.length) return '';
+      const allQ = [culverQ, carnQ].filter(Boolean);
+      if (!allQ.length) return '';
+      const gaps = [];
+      SUPPLIERS.forEach(s => {
+        const xq = s.id==='culver' ? culverQ : carnQ;
+        const items = xq?.line_items||[];
+        const missing = reqItems.filter(i=>!(items.find(x=>x.key===i.key)?.amount>0)).map(i=>i.label);
+        if (missing.length) gaps.push({supplier:s.name, missing});
+      });
+      if (!gaps.length) return `<div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12px;color:#22c55e;font-weight:700">✅ All required line items filled for both suppliers</div>`;
+      return `<div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:12px 16px;margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;color:#f59e0b;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">⚠ Quote Gaps — Missing Required Line Items</div>
+        ${gaps.map(g=>`<div style="font-size:12px;margin-bottom:4px"><strong style="color:var(--text)">${esc(g.supplier)}:</strong> <span style="color:var(--muted)">${g.missing.map(m=>esc(m)).join(', ')}</span></div>`).join('')}
+      </div>`;
+    })()}
     <div class="card" style="margin-bottom:20px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <div style="font-size:14px;font-weight:700">Supplier Quotes</div>
@@ -1258,14 +1323,37 @@ function buildStatusActions(scope) {
   const trans = {
     draft:           {label:'Mark RFQ as Sent →',       next:'rfq_sent',        cls:'btn-primary'},
     rfq_sent:        {label:'Mark Quotes Received →',   next:'quotes_received', cls:'btn-warning'},
-    quotes_received: null,
-    awarded:         null,
+    quotes_received: {label:'Submit for AE Review →',   next:'ae_review',       cls:'btn-warning'},
     on_hold:         {label:'Reactivate → Draft',        next:'draft',           cls:'btn-secondary'},
+    awarded:         null,
+    killed:          null,
+    ae_review:       null,
   };
   const t = trans[scope.status];
-  const holdBtn = scope.status!=='on_hold'&&scope.status!=='awarded'
+  const holdBtn = !['on_hold','awarded','killed'].includes(scope.status)
     ? `<button class="btn btn-secondary btn-sm" onclick="advanceScope('${scope.id}','on_hold')">⏸ On Hold</button>` : '';
-  if (!t) return `<div style="display:flex;gap:8px;margin-bottom:22px;align-items:center">${holdBtn}<span class="badge ${STATUS[scope.status].badge}">${esc(STATUS[scope.status].label)}</span></div>`;
+
+  // AE Review: special approve + kill buttons
+  if (scope.status === 'ae_review') {
+    return `
+      <div style="background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.25);border-radius:8px;padding:14px 18px;margin-bottom:22px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <div style="flex:1;min-width:180px">
+          <div style="font-size:11px;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">⚙ AE Review Pending</div>
+          <div style="font-size:12px;color:var(--muted)">Awaiting Applications Engineering approval to proceed to award</div>
+        </div>
+        <button class="btn btn-success btn-sm" onclick="advanceScope('${scope.id}','awarded')">✓ Approve → Award</button>
+        <button class="btn btn-sm" style="background:rgba(248,113,113,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.3)" onclick="advanceScope('${scope.id}','killed')">✕ Kill Scope</button>
+        ${holdBtn}
+        <span class="badge ${STATUS[scope.status].badge}">${STATUS[scope.status].label}</span>
+      </div>`;
+  }
+  if (scope.status === 'killed') {
+    return `<div style="display:flex;gap:8px;margin-bottom:22px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-secondary btn-sm" onclick="advanceScope('${scope.id}','draft')">↺ Reopen → Draft</button>
+      <span class="badge badge-red">Killed</span>
+    </div>`;
+  }
+  if (!t) return `<div style="display:flex;gap:8px;margin-bottom:22px;align-items:center">${holdBtn}<span class="badge ${STATUS[scope.status]?.badge||'badge-gray'}">${esc(STATUS[scope.status]?.label||scope.status)}</span></div>`;
   return `
     <div style="display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap;align-items:center">
       <button class="btn ${t.cls} btn-sm" onclick="advanceScope('${scope.id}','${t.next}')">${t.label}</button>
@@ -1330,11 +1418,45 @@ function buildQuoteForm(scope, existingQ, supplier) {
           <input type="date" id="pt-submitted" value="${existingQ&&existingQ.submitted_date?existingQ.submitted_date:''}" />
         </div>
       </div>
-      <div class="payment-grid" style="margin-top:10px">
-        <div class="form-group">
-          <label for="pt-milestone">Milestone Structure</label>
-          <input type="text" id="pt-milestone" value="${esc(pt.milestones||'')}" placeholder="e.g. 30% mobilization / 60% mid / 10% completion" />
+      <div style="margin-top:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px">💼 Payment Milestone Schedule — Working Capital</div>
+        <div style="background:#0d1117;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="background:#111420">
+              <th style="padding:8px 12px;text-align:left;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em">Milestone</th>
+              <th style="padding:8px 12px;text-align:center;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;width:90px">% of Total</th>
+              <th style="padding:8px 12px;text-align:left;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.05em">Trigger / Notes</th>
+            </tr></thead>
+            <tbody>
+              ${[
+                {key:'ms_mobilization', label:'Mobilization / Deposit', def: pt.ms_mobilization||'', note_key:'ms_mobilization_note', note_def: pt.ms_mobilization_note||'Upon contract signature / PO issue'},
+                {key:'ms_delivery',     label:'On Delivery',            def: pt.ms_delivery||'',     note_key:'ms_delivery_note',     note_def: pt.ms_delivery_note||'Equipment delivered to site'},
+                {key:'ms_install',      label:'Installation Complete',  def: pt.ms_install||'',      note_key:'ms_install_note',      note_def: pt.ms_install_note||'Mechanical completion sign-off'},
+                {key:'ms_acceptance',   label:'Final Acceptance',       def: pt.ms_acceptance||'',   note_key:'ms_acceptance_note',   note_def: pt.ms_acceptance_note||'Customer acceptance / punch list cleared'},
+              ].map(m=>`<tr style="border-top:1px solid var(--border)">
+                <td style="padding:8px 12px;font-size:12px;font-weight:600">${m.label}</td>
+                <td style="padding:8px 12px;text-align:center">
+                  <input type="number" id="${m.key}" value="${m.def}" min="0" max="100" step="5" placeholder="0"
+                    style="width:60px;text-align:center;background:#1a1f2e;border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;font-size:12px"
+                    oninput="updateMilestoneTotal()" />
+                  <span style="font-size:11px;color:var(--muted)">%</span>
+                </td>
+                <td style="padding:8px 12px">
+                  <input type="text" id="${m.note_key}" value="${esc(m.note_def)}"
+                    style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px;padding:2px 0"
+                    placeholder="Trigger condition…" />
+                </td>
+              </tr>`).join('')}
+              <tr style="border-top:2px solid var(--border);background:#111420">
+                <td style="padding:8px 12px;font-size:12px;font-weight:700">TOTAL</td>
+                <td style="padding:8px 12px;text-align:center;font-weight:700" id="ms-total-pct">—</td>
+                <td style="padding:8px 12px;font-size:11px;color:var(--muted)" id="ms-wc-note">Enter percentages above</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
+      </div>
+      <div class="payment-grid" style="margin-top:12px">
         <div class="form-group">
           <label for="pt-incoterms">Incoterms</label>
           <select id="pt-incoterms">
@@ -1346,14 +1468,28 @@ function buildQuoteForm(scope, existingQ, supplier) {
           <label for="pt-validity">Quote Validity Period</label>
           <input type="text" id="pt-validity" value="${esc(pt.validity||'')}" placeholder="e.g. 30 days, 60 days…" />
         </div>
-      </div>
-      <div class="payment-grid" style="margin-top:10px">
-        <div class="form-group span-2" style="grid-column:span 3">
+        <div class="form-group">
           <label for="pt-notes">Commercial Notes</label>
-          <input type="text" id="pt-notes" value="${esc(pt.notes||'')}" placeholder="e.g. Prevailing wage applies, insurance requirements, bonding…" />
+          <input type="text" id="pt-notes" value="${esc(pt.notes||'')}" placeholder="e.g. Prevailing wage, bonding, insurance requirements…" />
         </div>
       </div>
-    </div>`;
+    </div>
+    <script>
+      (function initMilestoneTotal(){
+        const ids=['ms_mobilization','ms_delivery','ms_install','ms_acceptance'];
+        function update(){
+          const vals=ids.map(id=>parseFloat(document.getElementById(id)?.value||0)||0);
+          const tot=vals.reduce((a,b)=>a+b,0);
+          const el=document.getElementById('ms-total-pct');
+          const note=document.getElementById('ms-wc-note');
+          if(el){el.textContent=tot+'%';el.style.color=tot===100?'#22c55e':tot>100?'#f87171':'#f59e0b';}
+          if(note&&tot===100) note.textContent='✓ Milestones sum to 100% — working capital schedule complete';
+          else if(note&&tot>0) note.textContent=`${100-tot}% unallocated — milestones must sum to 100%`;
+        }
+        ids.forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener('input',update);});
+        update();
+      })();
+    </script>`;
 
   return `
     ${awardedBanner}
@@ -1418,14 +1554,21 @@ async function saveQuote(scopeId, supplierName) {
     });
     const total = lineItems.filter(i=>{ const li=sc.items.find(l=>l.key===i.key); return li&&li.req; }).reduce((s,i)=>s+(i.amount||0),0);
 
-    // Collect payment terms
+    // Collect payment terms (structured milestones)
     const paymentTerms = {
-      terms:       (document.getElementById('pt-terms')?.value)||'',
-      deposit_pct: parseFloat(document.getElementById('pt-deposit')?.value)||null,
-      milestones:  (document.getElementById('pt-milestone')?.value||'').trim(),
-      incoterms:   (document.getElementById('pt-incoterms')?.value||'').trim(),
-      validity:    (document.getElementById('pt-validity')?.value||'').trim(),
-      notes:       (document.getElementById('pt-notes')?.value||'').trim(),
+      terms:                  (document.getElementById('pt-terms')?.value)||'',
+      deposit_pct:            parseFloat(document.getElementById('pt-deposit')?.value)||null,
+      ms_mobilization:        parseFloat(document.getElementById('ms_mobilization')?.value)||null,
+      ms_mobilization_note:   (document.getElementById('ms_mobilization_note')?.value||'').trim(),
+      ms_delivery:            parseFloat(document.getElementById('ms_delivery')?.value)||null,
+      ms_delivery_note:       (document.getElementById('ms_delivery_note')?.value||'').trim(),
+      ms_install:             parseFloat(document.getElementById('ms_install')?.value)||null,
+      ms_install_note:        (document.getElementById('ms_install_note')?.value||'').trim(),
+      ms_acceptance:          parseFloat(document.getElementById('ms_acceptance')?.value)||null,
+      ms_acceptance_note:     (document.getElementById('ms_acceptance_note')?.value||'').trim(),
+      incoterms:              (document.getElementById('pt-incoterms')?.value||'').trim(),
+      validity:               (document.getElementById('pt-validity')?.value||'').trim(),
+      notes:                  (document.getElementById('pt-notes')?.value||'').trim(),
     };
     const submittedDate = document.getElementById('pt-submitted')?.value || null;
 
@@ -1554,6 +1697,11 @@ function buildComparison(scope, culverQ, carnQ) {
         <div class="market-rate-item-label" style="color:var(--accent)">Budget Guidance</div>
         <div class="market-rate-item-val" style="color:var(--accent)">${fmt$(bg)}</div>
         <div style="font-size:10px;color:var(--muted);margin-top:3px">BEP internal estimate</div>
+      </div>
+      <div class="market-rate-item" style="border-color:rgba(245,158,11,0.4)">
+        <div class="market-rate-item-label" style="color:#f59e0b">Bogon Target (−5%)</div>
+        <div class="market-rate-item-val" style="color:#f59e0b">${fmt$(bg*0.95)}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">Must beat this to protect margin</div>
       </div>`:''}
     </div>` : '';
 
@@ -1636,6 +1784,129 @@ function buildComparison(scope, culverQ, carnQ) {
       </div>` : ''}
     </div>`;
     })()}`;
+}
+
+// ══════════════════════════════════════════════════
+// SOW GENERATION
+// ══════════════════════════════════════════════════
+async function generateSOW(scopeId) {
+  try {
+    const [scope]  = await q('rfq_scopes','select',{eq:['id',scopeId]});
+    const proj     = _projectData || (await q('rfq_projects','select',{eq:['id',_projectId]}))[0];
+    const quotes   = await q('rfq_quotes','select',{eq:['scope_id',scopeId]});
+    const sc       = SCOPES[_scopeType];
+    const awarded  = quotes.find(x=>x.is_awarded);
+    const supplier = awarded ? {name:awarded.supplier_name, contact: awarded.supplier_name==='Culver Development'?'Scott Culver':'Contact TBD'} : null;
+    const today    = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    const bg       = scope.budget_guidance ? Number(scope.budget_guidance) : null;
+
+    const getAmt = (items,key) => { const i=(items||[]).find(x=>x.key===key); return i?(i.amount||0):0; };
+    const lineItemRows = sc.items.filter(i=>i.req).map((i,idx) => {
+      const amt = awarded ? getAmt(awarded.line_items||[], i.key) : 0;
+      return `
+        <tr>
+          <td style="width:28px;color:#64748b;font-size:11px;text-align:center">${idx+1}</td>
+          <td style="font-weight:600">${esc(i.label)}</td>
+          <td style="font-size:12px;color:#64748b">${esc(i.unit||'Lump Sum')}</td>
+          <td style="text-align:right;font-weight:600;min-width:90px">${amt>0?fmt$(amt):'TBD'}</td>
+        </tr>`;
+    }).join('');
+
+    const specRows = sc.context.map(c=>`<div style="margin-bottom:6px"><strong>${esc(c.l)}:</strong> ${esc(c.v)}</div>`).join('');
+
+    const sowHtml = `
+      <div style="font-family:'Inter',sans-serif;max-width:800px;margin:0 auto;padding:40px 48px;color:#0f172a;font-size:13px;line-height:1.6">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;border-bottom:2px solid #e2e8f0;padding-bottom:20px">
+          <div>
+            <div style="font-size:22px;font-weight:700;margin-bottom:4px">Statement of Work</div>
+            <div style="font-size:14px;color:#64748b">${esc(sc.icon)} ${esc(sc.label)}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:#94a3b8">SOW Date</div>
+            <div style="font-weight:600">${today}</div>
+            ${scope.rfq_deadline?`<div style="font-size:11px;color:#94a3b8;margin-top:4px">Response Due</div><div style="font-weight:600">${fmtDate(scope.rfq_deadline)}</div>`:''}
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
+          <div style="background:#f8fafc;border-radius:8px;padding:16px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:10px">Project</div>
+            <div><strong>${esc(proj.name)}</strong></div>
+            <div style="color:#64748b;margin-top:4px">${esc(proj.customer)}</div>
+            ${proj.jo_numbers?`<div style="color:#64748b">JO: ${esc(proj.jo_numbers)}</div>`:''}
+            ${proj.site_address?`<div style="color:#64748b;margin-top:4px;font-size:12px">${esc(proj.site_address)}</div>`:''}
+            ${proj.region?`<div style="color:#64748b;font-size:12px">${esc(proj.region)}</div>`:''}
+          </div>
+          <div style="background:#f8fafc;border-radius:8px;padding:16px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:10px">Issued To</div>
+            ${supplier
+              ? `<div><strong>${esc(supplier.name)}</strong></div><div style="color:#64748b;margin-top:4px">Attn: ${esc(supplier.contact)}</div>`
+              : `<div style="color:#94a3b8;font-style:italic">Supplier TBD — award scope first</div>`}
+            <div style="margin-top:10px">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:6px">Issued By</div>
+              <div>Burke Equipment Partners</div>
+              ${proj.buyer_name?`<div style="color:#64748b">${esc(proj.buyer_name)}</div>`:''}
+              ${proj.pm_name?`<div style="color:#64748b">PM: ${esc(proj.pm_name)}</div>`:''}
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:24px">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e2e8f0">1. Scope of Work</div>
+          <p style="margin:0 0 10px">Supplier shall furnish all labor, materials, tools, equipment, supervision, and incidentals necessary to complete the following installation scope for the ${esc(proj.name)} project at ${esc(proj.site_address||proj.customer)}.</p>
+          ${sc.context.length?`<div style="background:#f8fafc;border-radius:6px;padding:14px;margin-top:10px;font-size:12px">${specRows}</div>`:''}
+        </div>
+
+        <div style="margin-bottom:24px">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e2e8f0">2. Deliverables &amp; Pricing Schedule</div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:#f8fafc">
+                <th style="width:28px;padding:8px;border:1px solid #e2e8f0;font-size:11px;color:#64748b">#</th>
+                <th style="padding:8px;border:1px solid #e2e8f0;font-size:11px;color:#64748b;text-align:left">Description</th>
+                <th style="padding:8px;border:1px solid #e2e8f0;font-size:11px;color:#64748b;text-align:left">Unit</th>
+                <th style="padding:8px;border:1px solid #e2e8f0;font-size:11px;color:#64748b;text-align:right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>${lineItemRows}</tbody>
+            ${awarded?.total_amount?`<tfoot><tr style="background:#f0fdf4;font-weight:700"><td colspan="3" style="padding:10px 8px;border:1px solid #e2e8f0">TOTAL</td><td style="padding:10px 8px;border:1px solid #e2e8f0;text-align:right">${fmt$(awarded.total_amount)}</td></tr></tfoot>`:''}
+          </table>
+          ${bg?`<div style="margin-top:8px;font-size:11px;color:#64748b">Budget guidance (internal): ${fmt$(bg)} · Bogon target (−5%): <strong>${fmt$(bg*0.95)}</strong></div>`:''}
+        </div>
+
+        <div style="margin-bottom:24px">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e2e8f0">3. Commercial Terms</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px">
+            <div><strong>Incoterms:</strong> DDP (Delivered Duty Paid — installed on site)</div>
+            <div><strong>Quotation Validity:</strong> ${awarded?.payment_terms?.validity||'30 days from submission'}</div>
+            <div><strong>Currency:</strong> USD</div>
+            <div><strong>Payment Terms:</strong> ${awarded?.payment_terms?.terms||'Net 30 — per BEP standard'}</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:32px">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e2e8f0">4. Authorization</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:16px">
+            <div>
+              <div style="border-bottom:1px solid #cbd5e1;margin-bottom:6px;height:32px"></div>
+              <div style="font-size:11px;color:#64748b">Burke Equipment Partners — Authorized Signature</div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:2px">Name / Title / Date</div>
+            </div>
+            <div>
+              <div style="border-bottom:1px solid #cbd5e1;margin-bottom:6px;height:32px"></div>
+              <div style="font-size:11px;color:#64748b">Supplier — Authorized Signature</div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:2px">Name / Title / Date</div>
+            </div>
+          </div>
+        </div>
+        <div style="border-top:1px solid #e2e8f0;padding-top:12px;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between">
+          <span>SpecBridge — Generated ${today}</span>
+          <span>CONFIDENTIAL — Burke Equipment Partners internal use</span>
+        </div>
+      </div>`;
+
+    openModal(`SOW — ${sc.label}`, sowHtml, `<button class="btn btn-primary btn-sm" onclick="window.print()">🖨 Print / Save PDF</button><button class="btn btn-secondary btn-sm" onclick="closeModal()">Close</button>`);
+  } catch(e) { toast('SOW error: '+e.message,'error'); }
 }
 
 async function awardQuote(quoteId, scopeId) {
@@ -1830,32 +2101,47 @@ async function loadSavings() {
     const scopes   = await q('rfq_scopes','select');
     const quotes   = await q('rfq_quotes','select');
 
-    const awardedQs    = quotes.filter(x=>x.is_awarded);
-    const totalAwarded = awardedQs.reduce((s,x)=>s+(x.total_amount||0),0);
-    const compared     = scopes.filter(s=>{const sq=quotes.filter(x=>x.scope_id===s.id);return sq.length>=2;});
-    const totalSavings = compared.reduce((sum,s)=>{
-      const sq = quotes.filter(x=>x.scope_id===s.id).map(x=>x.total_amount||0).filter(a=>a>0);
-      return sq.length>=2 ? sum+(Math.max(...sq)-Math.min(...sq)) : sum;
+    const awardedQs      = quotes.filter(x=>x.is_awarded);
+    const totalAwarded   = awardedQs.reduce((s,x)=>s+(x.total_amount||0),0);
+    const totalProfitP   = totalAwarded * 0.02;
+    const scopesWithQ    = scopes.filter(s=>quotes.some(x=>x.scope_id===s.id&&x.total_amount>0));
+    const competed       = scopesWithQ.filter(s=>quotes.filter(x=>x.scope_id===s.id&&x.total_amount>0).length>=2);
+    const singleSource   = scopesWithQ.filter(s=>quotes.filter(x=>x.scope_id===s.id&&x.total_amount>0).length===1);
+    const totalSavings   = competed.reduce((sum,s)=>{
+      const amts = quotes.filter(x=>x.scope_id===s.id&&x.total_amount>0).map(x=>x.total_amount);
+      return amts.length>=2 ? sum+(Math.max(...amts)-Math.min(...amts)) : sum;
     },0);
+    const budgetedScopes = scopes.filter(s=>s.budget_guidance&&awardedQs.some(x=>x.scope_id===s.id));
+    const totalBudgeted  = budgetedScopes.reduce((s,x)=>s+Number(x.budget_guidance||0),0);
+    const totalAwardedBg = budgetedScopes.reduce((sum,s)=>{
+      const aw=awardedQs.find(x=>x.scope_id===s.id); return sum+(aw?.total_amount||0);
+    },0);
+    const budgetVariance = totalBudgeted - totalAwardedBg;
 
-    // Budget vs awarded
-    const budgetedScopes = scopes.filter(s=>s.budget_guidance&&awardedQs.some(q=>q.scope_id===s.id));
-    const totalBudgeted  = budgetedScopes.reduce((s,x)=>s+(x.budget_guidance||0),0);
-    const totalAwardedBudgeted = budgetedScopes.reduce((sum,s)=>{
-      const aw = awardedQs.find(q=>q.scope_id===s.id);
-      return sum + (aw?aw.total_amount||0:0);
-    },0);
-    const budgetVariance = totalBudgeted - totalAwardedBudgeted;
+    // Business case banner
+    const bcBanner = (totalSavings>0||totalProfitP>0) ? `
+      <div style="background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(56,189,248,0.06));border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:20px 24px;margin-bottom:24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+        <div style="font-size:28px">📊</div>
+        <div style="flex:1;min-width:220px">
+          <div style="font-size:13px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Business Case — Competitive Sourcing ROI</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.5">${competed.length} scope${competed.length!==1?'s':''} competed across ${projects.length} project${projects.length!==1?'s':''}${totalSavings>0?` · <strong style="color:#22c55e">${fmt$(totalSavings)}</strong> captured in competitive savings`:''}</div>
+        </div>
+        ${totalProfitP>0?`<div style="text-align:right"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Profit Protection Target</div><div style="font-size:24px;font-weight:700;color:#a855f7">${fmt$(totalProfitP)}</div><div style="font-size:10px;color:var(--muted)">2% BEP policy push-back</div></div>`:''}
+      </div>` : '';
 
     document.getElementById('savings-metrics').innerHTML = `
       <div class="card metric-card"><div class="metric-value" style="color:var(--success);font-size:${totalAwarded>0?'18':'26'}px">${fmt$(totalAwarded)}</div><div class="metric-label">Total Awarded</div></div>
       <div class="card metric-card"><div class="metric-value" style="color:var(--success);font-size:${totalSavings>0?'18':'26'}px">${fmt$(totalSavings)}</div><div class="metric-label">Competitive Savings</div></div>
-      <div class="card metric-card"><div class="metric-value" style="color:${budgetVariance>=0?'var(--success)':'var(--danger)'};font-size:${Math.abs(budgetVariance)>0?'18':'26'}px">${budgetVariance!==0?(budgetVariance>0?'▼ ':'▲ ')+fmt$(Math.abs(budgetVariance)):'—'}</div><div class="metric-label">vs. Budget Guidance</div></div>
-      <div class="card metric-card"><div class="metric-value" style="color:var(--warning)">${compared.length}</div><div class="metric-label">Scopes Compared</div></div>
-    `;
+      <div class="card metric-card"><div class="metric-value" style="color:#a855f7;font-size:${totalProfitP>0?'18':'26'}px">${fmt$(totalProfitP)}</div><div class="metric-label">Profit Protection (2%)</div></div>
+      <div class="card metric-card">
+        <div class="metric-value" style="color:${singleSource.length>0?'var(--warning)':'var(--success)'}">
+          ${competed.length}<span style="font-size:14px;color:var(--muted)">/${scopesWithQ.length}</span>
+        </div>
+        <div class="metric-label">Scopes Competed${singleSource.length>0?` · <span style="color:var(--warning)">${singleSource.length} single-source</span>`:''}</div>
+      </div>`;
 
     if (!quotes.length) {
-      document.getElementById('savings-content').innerHTML = `
+      document.getElementById('savings-content').innerHTML = bcBanner + `
         <div class="card empty-state">
           <div class="empty-icon">💰</div>
           <div class="empty-text">No quotes yet</div>
@@ -1873,35 +2159,51 @@ async function loadSavings() {
         if (!scope) return '';
         const sq = pq.filter(x=>x.scope_id===scope.id);
         if (!sq.length) return '';
-        const sc = SCOPES[st];
-        const aw = sq.find(x=>x.is_awarded);
+        const sc   = SCOPES[st];
+        const aw   = sq.find(x=>x.is_awarded);
         const amts = sq.map(x=>x.total_amount||0).filter(a=>a>0);
-        const sav = amts.length>=2 ? Math.max(...amts)-Math.min(...amts) : 0;
+        const sav  = amts.length>=2 ? Math.max(...amts)-Math.min(...amts) : 0;
         const savPct = amts.length>=2 ? (sav/Math.max(...amts)*100).toFixed(1) : null;
-        const cq = sq.find(x=>x.supplier_name==='Culver Development');
-        const nq = sq.find(x=>x.supplier_name==='NWI');
-        const bg = scope.budget_guidance ? Number(scope.budget_guidance) : null;
-        const bvAmt = bg && aw ? bg - (aw.total_amount||0) : null;
-        const bvHtml = bvAmt!==null
-          ? `<span style="font-size:11px;font-weight:700;color:${bvAmt>=0?'#86efac':'#fca5a5'}">${bvAmt>=0?'▼':'▲'} ${fmt$(Math.abs(bvAmt))}</span>`
-          : '<span class="sv-muted">—</span>';
+        const cq   = sq.find(x=>x.supplier_name==='Culver Development');
+        const nq   = sq.find(x=>x.supplier_name==='NWI');
+        const bg   = scope.budget_guidance ? Number(scope.budget_guidance) : null;
+        const bgTarget = bg ? bg * 0.95 : null;
+        const bvAmt = bg && aw ? bg-(aw.total_amount||0) : null;
+        const profP = aw?.total_amount ? aw.total_amount*0.02 : null;
+        const competed2 = amts.length >= 2;
+        const srcBadge = competed2
+          ? `<span style="font-size:9px;font-weight:700;color:#22c55e;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:3px;padding:1px 5px">COMPETED</span>`
+          : amts.length===1
+            ? `<span style="font-size:9px;font-weight:700;color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:3px;padding:1px 5px">SINGLE SRC</span>`
+            : '';
         return `<tr>
-          <td>${sc.icon} ${esc(sc.label)}</td>
-          <td class="sv-right">${cq?fmt$(cq.total_amount):'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right">${nq?fmt$(nq.total_amount):'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right ${aw?'sv-green':''}">${aw?fmt$(aw.total_amount):'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right">${bg?fmt$(bg):'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right">${bvHtml}</td>
-          <td class="sv-right ${sav>0?'sv-green':''}">${sav>0?fmt$(sav)+(savPct?` <span style="font-size:11px;opacity:0.7">(${savPct}%)</span>`:''):'<span class="sv-muted">—</span>'}</td>
+          <td>${sc.icon} ${esc(sc.label)}<br><div style="margin-top:3px">${srcBadge}</div></td>
+          <td class="sv-right">${cq?.total_amount?fmt$(cq.total_amount):'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right">${nq?.total_amount?fmt$(nq.total_amount):'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right ${aw?'sv-green':''}">${aw?.total_amount?fmt$(aw.total_amount):'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right">${bg?`${fmt$(bg)}<br><span style="font-size:10px;color:var(--muted)">Target: ${fmt$(bgTarget)}</span>`:'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right">${bvAmt!==null?`<span style="font-weight:700;color:${bvAmt>=0?'#86efac':'#fca5a5'}">${bvAmt>=0?'▼':'▲'} ${fmt$(Math.abs(bvAmt))}</span>`:'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right ${sav>0?'sv-green':''}">${sav>0?fmt$(sav)+(savPct?` <span style="font-size:10px;opacity:0.7">(${savPct}%)</span>`:''):'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right" style="color:#a855f7">${profP?fmt$(profP):'<span class="sv-muted">—</span>'}</td>
         </tr>`;
       }).filter(Boolean).join('');
       if (!tableRows) return '';
-      const projTotal = pq.filter(x=>x.is_awarded).reduce((s,x)=>s+(x.total_amount||0),0);
+      const projAwarded = pq.filter(x=>x.is_awarded).reduce((s,x)=>s+(x.total_amount||0),0);
+      const projProfP   = projAwarded * 0.02;
+      const projScopes  = ps.filter(s=>!SCOPES[s.scope_type]?.pending);
+      const projCompeted= projScopes.filter(s=>quotes.filter(x=>x.scope_id===s.id&&x.total_amount>0).length>=2).length;
       return `
         <div class="card" style="margin-bottom:16px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-            <div style="font-size:15px;font-weight:700">${esc(p.name)}</div>
-            ${projTotal?`<div style="font-size:13px;font-weight:700;color:var(--success)">${fmt$(projTotal)} awarded</div>`:''}
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+            <div>
+              <div style="font-size:15px;font-weight:700">${esc(p.name)}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:3px">${esc(p.customer)}${p.region?` · ${esc(p.region)}`:''}</div>
+            </div>
+            <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+              ${projAwarded?`<div style="text-align:right"><div style="font-size:10px;color:var(--muted)">Awarded</div><div style="font-size:14px;font-weight:700;color:#22c55e">${fmt$(projAwarded)}</div></div>`:''}
+              ${projProfP>0?`<div style="text-align:right"><div style="font-size:10px;color:var(--muted)">Profit Prot.</div><div style="font-size:14px;font-weight:700;color:#a855f7">${fmt$(projProfP)}</div></div>`:''}
+              <div style="text-align:right"><div style="font-size:10px;color:var(--muted)">Sourcing</div><div style="font-size:13px;font-weight:700;color:${projCompeted===projScopes.length?'#22c55e':'#f59e0b'}">${projCompeted}/${projScopes.length} competed</div></div>
+            </div>
           </div>
           <table class="sv-table">
             <thead><tr>
@@ -1909,17 +2211,18 @@ async function loadSavings() {
               <th class="sv-right">Culver Dev.</th>
               <th class="sv-right">NWI</th>
               <th class="sv-right">Awarded</th>
-              <th class="sv-right">Budget</th>
+              <th class="sv-right">Budget / Target</th>
               <th class="sv-right">vs. Budget</th>
               <th class="sv-right">Comp. Savings</th>
+              <th class="sv-right" style="color:#a855f7">Profit Prot.</th>
             </tr></thead>
             <tbody>${tableRows}</tbody>
           </table>
         </div>`;
     }).filter(Boolean).join('');
 
-    document.getElementById('savings-content').innerHTML = rows ||
-      `<div class="card" style="color:var(--muted);text-align:center;padding:48px">No comparative data yet. Enter quotes for both suppliers to see savings.</div>`;
+    document.getElementById('savings-content').innerHTML = bcBanner + (rows ||
+      `<div class="card" style="color:var(--muted);text-align:center;padding:48px">No comparative data yet. Enter quotes for both suppliers to see savings.</div>`);
   } catch(e) {
     document.getElementById('savings-content').innerHTML = `<div class="card" style="color:var(--danger)">Error: ${esc(e.message)}</div>`;
   }
