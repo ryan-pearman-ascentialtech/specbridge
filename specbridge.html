@@ -329,8 +329,9 @@
 <nav>
   <div class="nav-logo">Spec<span>Bridge</span></div>
   <div class="nav-divider"></div>
-  <button class="nav-link" id="nav-dashboard" onclick="showPage('dashboard')">Projects</button>
-  <button class="nav-link" id="nav-savings"   onclick="showPage('savings')">Savings</button>
+  <button class="nav-link" id="nav-dashboard"  onclick="showPage('dashboard')">Projects</button>
+  <button class="nav-link" id="nav-savings"    onclick="showPage('savings')">Savings</button>
+  <button class="nav-link" id="nav-ae-review"  onclick="showPage('ae-review')" style="position:relative">AE Queue <span id="ae-nav-badge" style="display:none;background:#a855f7;color:#fff;border-radius:10px;font-size:10px;padding:1px 7px;margin-left:5px;font-weight:700;vertical-align:middle">0</span></button>
   <div class="nav-right">
     <div id="breadcrumb-area" class="breadcrumb" style="display:none"></div>
   </div>
@@ -469,6 +470,21 @@
       <div class="card metric-card"></div><div class="card metric-card"></div><div class="card metric-card"></div>
     </div>
     <div id="savings-content">
+      <div class="card empty-state"><div class="spinner spinner-lg" style="margin:0 auto 14px"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════ AE REVIEW ══════════════════════════════ -->
+<div id="page-ae-review" class="page">
+  <div class="container">
+    <div class="page-header">
+      <div>
+        <h1>AE Review Queue</h1>
+        <div class="page-subtitle" id="ae-queue-subtitle">Scopes awaiting Applications Engineering approval</div>
+      </div>
+    </div>
+    <div id="ae-review-content">
       <div class="card empty-state"><div class="spinner spinner-lg" style="margin:0 auto 14px"></div></div>
     </div>
   </div>
@@ -735,8 +751,9 @@ async function q(table, op, opts={}) {
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  if (id==='dashboard') { setNav('dashboard'); setBreadcrumb(null); loadDashboard(); }
-  else if (id==='savings')  { setNav('savings');   setBreadcrumb(null); loadSavings(); }
+  if (id==='dashboard') { setNav('dashboard');  setBreadcrumb(null); loadDashboard(); }
+  else if (id==='savings')   { setNav('savings');    setBreadcrumb(null); loadSavings(); }
+  else if (id==='ae-review') { setNav('ae-review');  setBreadcrumb(null); loadAEReview(); }
   else if (id==='new-project') {
     setBreadcrumb([{label:'Projects',fn:"showPage('dashboard')"},{label:'New Project'}]);
     resetNewProjectForm();
@@ -762,6 +779,9 @@ async function loadDashboard() {
     const awardedQs    = allQuotes.filter(x=>x.is_awarded);
     const totalAwarded = awardedQs.reduce((s,x)=>s+(x.total_amount||0),0);
     const inFlight     = allScopes.filter(s=>s.status!=='draft'&&s.status!=='awarded').length;
+    const aeCount      = allScopes.filter(s=>s.status==='ae_review').length;
+    const aeBadge      = document.getElementById('ae-nav-badge');
+    if (aeBadge) { aeBadge.textContent = aeCount; aeBadge.style.display = aeCount ? 'inline' : 'none'; }
     const awardedCount = allScopes.filter(s=>s.status==='awarded').length;
 
     // Budget vs awarded variance
@@ -1369,7 +1389,7 @@ function buildStatusActions(scope) {
           <div style="font-size:11px;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">⚙ AE Review Pending</div>
           <div style="font-size:12px;color:var(--muted)">Awaiting Applications Engineering approval to proceed to award</div>
         </div>
-        <button class="btn btn-success btn-sm" onclick="advanceScope('${scope.id}','awarded')">✓ Approve → Award</button>
+        <button class="btn btn-success btn-sm" onclick="aeApprove('${scope.id}',null)">✓ Approve → Award</button>
         <button class="btn btn-sm" style="background:rgba(248,113,113,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.3)" onclick="advanceScope('${scope.id}','killed')">✕ Kill Scope</button>
         ${holdBtn}
         <span class="badge ${STATUS[scope.status].badge}">${STATUS[scope.status].label}</span>
@@ -1844,7 +1864,7 @@ async function generateSOW(scopeId) {
     const specRows = sc.context.map(c=>`<div style="margin-bottom:6px"><strong>${esc(c.l)}:</strong> ${esc(c.v)}</div>`).join('');
 
     const sowHtml = `
-      <div style="font-family:'Inter',sans-serif;max-width:800px;margin:0 auto;padding:40px 48px;color:#0f172a;font-size:13px;line-height:1.6">
+      <div style="font-family:'Inter',sans-serif;max-width:800px;margin:0 auto;padding:40px 48px;color:#0f172a;font-size:13px;line-height:1.6;background:#ffffff;border-radius:6px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;border-bottom:2px solid #e2e8f0;padding-bottom:20px">
           <div>
             <div style="font-size:22px;font-weight:700;margin-bottom:4px">Statement of Work</div>
@@ -2255,6 +2275,170 @@ async function loadSavings() {
   } catch(e) {
     document.getElementById('savings-content').innerHTML = `<div class="card" style="color:var(--danger)">Error: ${esc(e.message)}</div>`;
   }
+}
+
+// ══════════════════════════════════════════════════
+// AE APPROVE (gated — quote must be awarded first)
+// ══════════════════════════════════════════════════
+async function aeApprove(scopeId, refreshFn) {
+  try {
+    const quotes = await q('rfq_quotes','select',{eq:['scope_id',scopeId]});
+    const hasAwarded = quotes.some(x=>x.is_awarded && (x.total_amount||0)>0);
+    if (!hasAwarded) {
+      toast('No awarded quote — click Award → next to the winning quote first, then approve','error');
+      return;
+    }
+    await q('rfq_scopes','update',{data:{status:'awarded'},eq:['id',scopeId]});
+    toast('Scope approved and awarded ✓','success');
+    if (typeof refreshFn === 'function') refreshFn();
+    else await loadScopeDetail();
+  } catch(e) { toast('AE approve error: '+e.message,'error'); }
+}
+
+// ══════════════════════════════════════════════════
+// AE REVIEW QUEUE PAGE
+// ══════════════════════════════════════════════════
+async function loadAEReview() {
+  const el = document.getElementById('ae-review-content');
+  el.innerHTML = '<div class="card empty-state"><div class="spinner spinner-lg" style="margin:0 auto 14px"></div></div>';
+  try {
+    const allScopes = await q('rfq_scopes','select',{});
+    const aeScopes  = allScopes.filter(s=>s.status==='ae_review');
+
+    // Sync nav badge
+    const badge = document.getElementById('ae-nav-badge');
+    if (badge) { badge.textContent = aeScopes.length; badge.style.display = aeScopes.length ? 'inline' : 'none'; }
+    document.getElementById('ae-queue-subtitle').textContent = aeScopes.length
+      ? aeScopes.length + ' scope' + (aeScopes.length>1?'s':'') + ' awaiting AE approval'
+      : 'All clear — no scopes pending review';
+
+    if (!aeScopes.length) {
+      el.innerHTML = '<div class="card empty-state"><div class="empty-icon">✅</div><div class="empty-text">AE Queue Empty</div><div class="empty-sub">No scopes currently pending Applications Engineering approval</div></div>';
+      return;
+    }
+
+    const projects = await q('rfq_projects','select',{});
+    const projMap  = Object.fromEntries(projects.map(p=>[p.id,p]));
+    const scopeIds = aeScopes.map(s=>s.id);
+    const quotes   = scopeIds.length ? await q('rfq_quotes','select',{in:['scope_id',scopeIds]}) : [];
+
+    el.innerHTML = aeScopes.map(scope => {
+      const proj     = projMap[scope.project_id]||{};
+      const sc       = SCOPES[scope.scope_type]||{label:scope.scope_type, icon:'📋', items:[]};
+      const sq       = quotes.filter(x=>x.scope_id===scope.id);
+      const culverQ  = sq.find(x=>x.supplier_name==='Culver Development')||{};
+      const nwiQ     = sq.find(x=>x.supplier_name==='NWI')||{};
+      const awarded  = sq.find(x=>x.is_awarded);
+      const ct       = culverQ.total_amount||0;
+      const nt       = nwiQ.total_amount||0;
+      const bg       = scope.budget_guidance ? Number(scope.budget_guidance) : null;
+      const mktAvg   = ct>0&&nt>0 ? (ct+nt)/2 : (ct||nt||0);
+      const lowestQ  = ct>0&&nt>0 ? Math.min(ct,nt) : (ct||nt||0);
+      const headroom = mktAvg>0&&lowestQ>0 ? mktAvg-lowestQ : null;
+      const savings  = ct>0&&nt>0 ? Math.abs(ct-nt) : 0;
+      const bothQuoted = ct>0&&nt>0;
+
+      const quoteRows = sq.length===0
+        ? '<div style="color:var(--muted);font-size:12px;padding:8px 0">No quotes on file for this scope yet</div>'
+        : sq.map(x=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+            <div>
+              <span style="font-weight:600;font-size:14px">${esc(x.supplier_name)}</span>
+              ${x.is_awarded?'<span style="color:#86efac;font-size:11px;font-weight:700;margin-left:8px">✓ AWARDED</span>':''}
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-weight:700;font-size:16px">${fmt$(x.total_amount)}</span>
+              ${!x.is_awarded&&(x.total_amount||0)>0
+                ? '<button class="btn btn-success btn-xs" onclick="awardQuoteFromQueue(\''+x.id+'\',\''+scope.id+'\')">Award →</button>'
+                : ''}
+            </div>
+          </div>`).join('');
+
+      const metricsRow = mktAvg>0 ? `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+          <div style="text-align:center;padding:10px;background:var(--bg-card);border-radius:6px;border:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Market Defensible</div>
+            <div style="font-weight:700;color:var(--warning)">${fmt$(mktAvg)}</div>
+          </div>
+          ${headroom!==null?`<div style="text-align:center;padding:10px;background:var(--bg-card);border-radius:6px;border:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Neg. Headroom</div>
+            <div style="font-weight:700;color:var(--success)">${fmt$(headroom)}</div>
+          </div>`:''}
+          ${savings>0?`<div style="text-align:center;padding:10px;background:var(--bg-card);border-radius:6px;border:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Comp. Savings</div>
+            <div style="font-weight:700;color:var(--success)">${fmt$(savings)}</div>
+          </div>`:''}
+          ${bg?`<div style="text-align:center;padding:10px;background:var(--bg-card);border-radius:6px;border:1px solid rgba(245,158,11,0.3)">
+            <div style="font-size:10px;color:#f59e0b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Bogon (−5%)</div>
+            <div style="font-weight:700;color:#f59e0b">${fmt$(bg*0.95)}</div>
+          </div>`:''}
+        </div>` : '';
+
+      const warnMsg = !awarded
+        ? `<div style="font-size:12px;color:#f59e0b;margin-top:10px;padding:8px 12px;background:rgba(245,158,11,0.08);border-radius:4px;border-left:3px solid #f59e0b">⚠ No winning quote selected — click <strong>Award →</strong> next to the preferred supplier, then Approve</div>`
+        : '';
+
+      return `
+        <div class="card" style="margin-bottom:18px;border:1px solid rgba(168,85,247,0.3)">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+            <div>
+              <div style="font-size:17px;font-weight:700">${esc(sc.icon)} ${esc(sc.label)}</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:3px">
+                <span style="color:var(--accent);cursor:pointer" onclick="openProject('${proj.id}','${safeJs(proj.name||'')}')">🔗 ${esc(proj.name||'Unknown Project')}</span>
+                ${proj.customer?' · '+esc(proj.customer):''}
+                ${proj.jo_numbers?' · JO: '+esc(proj.jo_numbers):''}
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <span class="badge badge-purple">AE Review</span>
+              ${bothQuoted
+                ? '<span class="badge" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3)">COMPETED ✓</span>'
+                : '<span class="badge badge-yellow">SINGLE SOURCE ⚠</span>'}
+            </div>
+          </div>
+
+          <div style="margin-bottom:4px">${quoteRows}</div>
+          ${warnMsg}
+          ${metricsRow}
+
+          <div style="display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);flex-wrap:wrap;align-items:center">
+            <button class="btn btn-success btn-sm" onclick="aeApprove('${scope.id}',loadAEReview)">✓ Approve → Award</button>
+            <button class="btn btn-sm" style="background:rgba(248,113,113,0.12);color:#f87171;border:1px solid rgba(248,113,113,0.3)" onclick="aeKillFromQueue('${scope.id}')">✕ Kill Scope</button>
+            <button class="btn btn-secondary btn-sm" onclick="aeHoldFromQueue('${scope.id}')">⏸ On Hold</button>
+            <button class="btn btn-secondary btn-sm" onclick="openProject('${proj.id}','${safeJs(proj.name||'')}')">🔍 Open Project →</button>
+          </div>
+        </div>`;
+    }).join('');
+
+  } catch(e) {
+    el.innerHTML = '<div class="card" style="color:var(--danger);padding:24px">Error loading AE queue: '+esc(e.message)+'</div>';
+  }
+}
+
+async function awardQuoteFromQueue(quoteId, scopeId) {
+  try {
+    const all = await q('rfq_quotes','select',{eq:['scope_id',scopeId]});
+    for (const x of all) await q('rfq_quotes','update',{data:{is_awarded:false},eq:['id',x.id]});
+    await q('rfq_quotes','update',{data:{is_awarded:true},eq:['id',quoteId]});
+    toast('Quote marked as winner — now click Approve to finalize','success');
+    await loadAEReview();
+  } catch(e) { toast('Error awarding quote: '+e.message,'error'); }
+}
+
+async function aeKillFromQueue(scopeId) {
+  try {
+    await q('rfq_scopes','update',{data:{status:'killed'},eq:['id',scopeId]});
+    toast('Scope killed','info');
+    await loadAEReview();
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
+async function aeHoldFromQueue(scopeId) {
+  try {
+    await q('rfq_scopes','update',{data:{status:'on_hold'},eq:['id',scopeId]});
+    toast('Scope placed on hold','info');
+    await loadAEReview();
+  } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
 // ══════════════════════════════════════════════════
