@@ -346,10 +346,12 @@
 <!-- ═══════════════════════════════ NAV ═══════════════════════════════ -->
 <nav>
   <div class="nav-logo">Spec<span>Bridge</span></div>
+  <div style="font-size:11px;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:3px 12px;color:#94a3b8;white-space:nowrap;">🏭 <strong style="color:#e2e8f0">BEP Grand Rapids</strong>&nbsp;&nbsp;·&nbsp;&nbsp;Pilot&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#60a5fa">Rollout: BEP Brugge · EPIC · +4 entities</span></div>
   <div class="nav-divider"></div>
   <button class="nav-link" id="nav-dashboard"  onclick="showPage('dashboard')">Projects</button>
   <button class="nav-link" id="nav-savings"    onclick="showPage('savings')">Savings</button>
   <button class="nav-link" id="nav-ae-review"  onclick="showPage('ae-review')" style="position:relative">AE Queue <span id="ae-nav-badge" style="display:none;background:#a855f7;color:#fff;border-radius:10px;font-size:10px;padding:1px 7px;margin-left:5px;font-weight:700;vertical-align:middle">0</span></button>
+  <button class="nav-link" id="nav-admin" onclick="showPage('admin')">⚙ Admin</button>
   <div class="nav-right">
     <div id="breadcrumb-area" class="breadcrumb" style="display:none"></div>
   </div>
@@ -494,6 +496,12 @@
       <div>
         <h1>Savings Dashboard</h1>
         <div class="page-subtitle">Competitive bidding results across all projects</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:1rem 0 0.5rem;padding:1rem 1.25rem;background:#0a1f10;border:1px solid #1e5c2e;border-radius:10px;">
+      <div style="text-align:center;"><div style="font-size:10px;color:#5a9e6a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">BEP GR Projects / Year</div><div style="font-size:24px;font-weight:800;color:#4ade80;line-height:1;">~257</div><div style="font-size:10px;color:#5a9e6a;margin-top:4px;">based on live PO log data</div></div>
+      <div style="text-align:center;border-left:1px solid #1e5c2e;"><div style="font-size:10px;color:#5a9e6a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">ECN Rate (YTD 2026)</div><div style="font-size:24px;font-weight:800;color:#f97316;line-height:1;">26.7%</div><div style="font-size:10px;color:#5a9e6a;margin-top:4px;">24 ECNs across 90 POs</div></div>
+      <div style="text-align:center;border-left:1px solid #1e5c2e;"><div style="font-size:10px;color:#5a9e6a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Annual ECN Exposure</div><div style="font-size:24px;font-weight:800;color:#f97316;line-height:1;">~$8.4M</div><div style="font-size:10px;color:#5a9e6a;margin-top:4px;">annualized from YTD ECN PO value</div></div>
+      <div style="text-align:center;border-left:1px solid #1e5c2e;"><div style="font-size:10px;color:#5a9e6a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Projected Annual Savings</div><div style="font-size:24px;font-weight:800;color:#4ade80;line-height:1;">$300K–$840K</div><div style="font-size:10px;color:#5a9e6a;margin-top:4px;">10–14% on ~$3–6M install spend</div></div>
+    </div>
       </div>
     </div>
     <div class="metrics-row" id="savings-metrics">
@@ -785,6 +793,7 @@ function showPage(id) {
   if (id==='dashboard') { setNav('dashboard');  setBreadcrumb(null); loadDashboard(); }
   else if (id==='savings')   { setNav('savings');    setBreadcrumb(null); loadSavings(); }
   else if (id==='ae-review') { setNav('ae-review');  setBreadcrumb(null); loadAEReview(); }
+  else if (id==='admin')     { setNav('admin');      setBreadcrumb(null); }
   else if (id==='new-project') {
     setBreadcrumb([{label:'Projects',fn:"showPage('dashboard')"},{label:'New Project'}]);
     resetNewProjectForm();
@@ -2776,5 +2785,151 @@ async function aeHoldFromQueue(scopeId) {
 // ══════════════════════════════════════════════════
 loadDashboard();
 </script>
+
+  <!-- ═══════════════════════════════ ADMIN PAGE ═══════════════════════════════ -->
+  <div id="page-admin" class="page">
+    <div style="max-width:900px;margin:0 auto;padding:2rem;">
+      <h1 style="font-size:22px;font-weight:800;color:#f1f5f9;margin-bottom:4px;">⚙ Admin — Entities &amp; Suppliers</h1>
+      <p style="font-size:13px;color:#64748b;margin-bottom:1.5rem;">Manage rollout entities and preferred supplier rosters for competitive bidding</p>
+
+      <!-- Entities -->
+      <div style="background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1.25rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#f1f5f9;">T&amp;M Rollout Entities</div>
+            <div style="font-size:11px;color:#475569;margin-top:2px;">Same tool, zero re-development — add an entity and it's live</div>
+          </div>
+          <button onclick="document.getElementById('add-entity-form').style.display='block';document.getElementById('new-entity-name').focus();" style="background:#3b82f6;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;">+ Add Entity</button>
+        </div>
+        <div id="entity-list">
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:6px;">
+            <div style="width:10px;height:10px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#f1f5f9;">BEP Grand Rapids</div><div style="font-size:11px;color:#64748b;">Burke Porter · Grand Rapids, MI · Pilot entity</div></div>
+            <span style="font-size:10px;background:#14532d;color:#4ade80;padding:2px 10px;border-radius:20px;font-weight:700;">ACTIVE</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:6px;">
+            <div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></div>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#f1f5f9;">BEP Brugge</div><div style="font-size:11px;color:#64748b;">Burke Porter · Brugge, Belgium · Scale 1 — Month 3</div></div>
+            <span style="font-size:10px;background:#451a03;color:#f59e0b;padding:2px 10px;border-radius:20px;font-weight:700;">PENDING</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:6px;">
+            <div style="width:10px;height:10px;border-radius:50%;background:#475569;flex-shrink:0;"></div>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#94a3b8;">EPIC</div><div style="font-size:11px;color:#475569;">T&amp;M · Scale 2 — Month 5</div></div>
+            <span style="font-size:10px;background:#1e293b;color:#475569;padding:2px 10px;border-radius:20px;font-weight:700;border:1px solid #334155;">PLANNED</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:6px;">
+            <div style="width:10px;height:10px;border-radius:50%;background:#475569;flex-shrink:0;"></div>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#94a3b8;">Kleinknecht</div><div style="font-size:11px;color:#475569;">Germany · Scale 3 — Month 7</div></div>
+            <span style="font-size:10px;background:#1e293b;color:#475569;padding:2px 10px;border-radius:20px;font-weight:700;border:1px solid #334155;">PLANNED</span>
+          </div>
+        </div>
+        <div id="add-entity-form" style="display:none;margin-top:1rem;padding:1rem;background:#1e293b;border-radius:8px;border:1px solid #334155;">
+          <div style="font-size:13px;font-weight:600;color:#f1f5f9;margin-bottom:10px;">New Entity</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Entity Name</label><input id="new-entity-name" type="text" placeholder="e.g. Galileo" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
+            <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Location</label><input id="new-entity-loc" type="text" placeholder="e.g. Turin, Italy" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
+            <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Brand / Parent</label><input id="new-entity-brand" type="text" placeholder="e.g. T&M Division" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
+            <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Rollout Phase</label><input id="new-entity-phase" type="text" placeholder="e.g. Scale 4 — Month 9" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="adminAddEntity()" style="background:#3b82f6;color:white;border:none;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:600;cursor:pointer;">Add Entity</button>
+            <button onclick="document.getElementById('add-entity-form').style.display='none'" style="background:transparent;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preferred Suppliers -->
+      <div style="background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:1.25rem 1.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#f1f5f9;">Preferred Suppliers — BEP Grand Rapids</div>
+            <div style="font-size:11px;color:#475569;margin-top:2px;">Suppliers available for competitive quoting — minimum 2 per scope for governance compliance</div>
+          </div>
+          <button onclick="document.getElementById('add-supplier-form').style.display='block';document.getElementById('new-sup-name').focus();" style="background:#3b82f6;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;">+ Add Supplier</button>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 2fr 1.2fr 1fr;gap:0;padding:5px 12px;margin-bottom:4px;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#475569;">Supplier</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#475569;">Contact</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#475569;">Category</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#475569;">Status</div>
+        </div>
+        <div id="supplier-list">
+          <div style="display:grid;grid-template-columns:2fr 2fr 1.2fr 1fr;gap:0;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:5px;align-items:center;">
+            <div><div style="font-size:13px;font-weight:600;color:#f1f5f9;">Culver Development</div><div style="font-size:11px;color:#64748b;">Sterling Heights, MI</div></div>
+            <div style="font-size:12px;color:#94a3b8;">Scott Culver · sculver@culverteam.com</div>
+            <div><span style="font-size:10px;background:#1e3a5f;color:#60a5fa;padding:2px 8px;border-radius:20px;">Steel / Crane</span></div>
+            <div><span style="font-size:10px;background:#14532d;color:#4ade80;padding:2px 8px;border-radius:20px;font-weight:700;">PREFERRED</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 2fr 1.2fr 1fr;gap:0;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:5px;align-items:center;">
+            <div><div style="font-size:13px;font-weight:600;color:#f1f5f9;">NWI</div><div style="font-size:11px;color:#64748b;">Contact TBD</div></div>
+            <div style="font-size:12px;color:#94a3b8;">—</div>
+            <div><span style="font-size:10px;background:#1e3a5f;color:#60a5fa;padding:2px 8px;border-radius:20px;">All Scopes</span></div>
+            <div><span style="font-size:10px;background:#14532d;color:#4ade80;padding:2px 8px;border-radius:20px;font-weight:700;">PREFERRED</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 2fr 1.2fr 1fr;gap:0;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:5px;align-items:center;">
+            <div><div style="font-size:13px;font-weight:600;color:#f1f5f9;">Kirk Mechanical</div><div style="font-size:11px;color:#64748b;">Service &amp; Install</div></div>
+            <div style="font-size:12px;color:#94a3b8;">—</div>
+            <div><span style="font-size:10px;background:#2d1b4e;color:#a78bfa;padding:2px 8px;border-radius:20px;">Mechanical</span></div>
+            <div><span style="font-size:10px;background:#14532d;color:#4ade80;padding:2px 8px;border-radius:20px;font-weight:700;">PREFERRED</span></div>
+          </div>
+        </div>
+        <div id="add-supplier-form" style="display:none;margin-top:1rem;padding:1rem;background:#1e293b;border-radius:8px;border:1px solid #334155;">
+          <div style="font-size:13px;font-weight:600;color:#f1f5f9;margin-bottom:10px;">New Preferred Supplier</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Company Name</label><input id="new-sup-name" type="text" placeholder="e.g. ABC Industrial" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
+            <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Primary Contact</label><input id="new-sup-contact" type="text" placeholder="Name · email" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
+            <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Location</label><input id="new-sup-loc" type="text" placeholder="City, State" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
+            <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Scope Category</label>
+              <select id="new-sup-cat" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;">
+                <option>All Scopes</option><option>Steel / Crane</option><option>Mechanical</option><option>Electrical</option><option>Civil / Concrete</option><option>HVAC / Piping</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="adminAddSupplier()" style="background:#3b82f6;color:white;border:none;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:600;cursor:pointer;">Add Supplier</button>
+            <button onclick="document.getElementById('add-supplier-form').style.display='none'" style="background:transparent;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function adminAddEntity() {
+      const name = document.getElementById('new-entity-name').value.trim();
+      const loc  = document.getElementById('new-entity-loc').value.trim();
+      const brand = document.getElementById('new-entity-brand').value.trim();
+      const phase = document.getElementById('new-entity-phase').value.trim();
+      if (!name) return;
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:6px;';
+      const sub = [brand, loc, phase].filter(Boolean).join(' · ');
+      row.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></div>'
+        + '<div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#f1f5f9;">' + name + '</div>'
+        + '<div style="font-size:11px;color:#64748b;">' + sub + '</div></div>'
+        + '<span style="font-size:10px;background:#451a03;color:#f59e0b;padding:2px 10px;border-radius:20px;font-weight:700;">PENDING</span>';
+      document.getElementById('entity-list').appendChild(row);
+      ['new-entity-name','new-entity-loc','new-entity-brand','new-entity-phase'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('add-entity-form').style.display = 'none';
+    }
+    function adminAddSupplier() {
+      const name    = document.getElementById('new-sup-name').value.trim();
+      const contact = document.getElementById('new-sup-contact').value.trim();
+      const loc     = document.getElementById('new-sup-loc').value.trim();
+      const cat     = document.getElementById('new-sup-cat').value;
+      if (!name) return;
+      const catBg = {'All Scopes':'#1e3a5f;color:#60a5fa','Steel / Crane':'#1e3a5f;color:#60a5fa','Mechanical':'#2d1b4e;color:#a78bfa','Electrical':'#14532d;color:#86efac','Civil / Concrete':'#1a1a2e;color:#818cf8','HVAC / Piping':'#2e1a1a;color:#f9a8d4'};
+      const cc = catBg[cat] || '#1e293b;color:#94a3b8';
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:2fr 2fr 1.2fr 1fr;gap:0;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:5px;align-items:center;';
+      row.innerHTML = '<div><div style="font-size:13px;font-weight:600;color:#f1f5f9;">' + name + '</div><div style="font-size:11px;color:#64748b;">' + loc + '</div></div>'
+        + '<div style="font-size:12px;color:#94a3b8;">' + (contact||'—') + '</div>'
+        + '<div><span style="font-size:10px;background:' + cc + ';padding:2px 8px;border-radius:20px;">' + cat + '</span></div>'
+        + '<div><span style="font-size:10px;background:#14532d;color:#4ade80;padding:2px 8px;border-radius:20px;font-weight:700;">PREFERRED</span></div>';
+      document.getElementById('supplier-list').appendChild(row);
+      ['new-sup-name','new-sup-contact','new-sup-loc'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('add-supplier-form').style.display = 'none';
+    }
+  </script>
 </body>
 </html>
