@@ -2400,6 +2400,7 @@ function showDDTab(tab) {
   });
   const el = document.getElementById('dd-content');
   if (!el) return;
+  try {
   const { projects, scopes, quotes } = _dashCache;
   const projMap = Object.fromEntries(projects.map(p=>[p.id,p]));
 
@@ -2539,7 +2540,9 @@ function showDDTab(tab) {
       const barPct = total>0?(total/maxTotal*95).toFixed(1):0;
       const segHtml = segs.map(s=>{
         const pct = (s.amount/total*100).toFixed(1);
-        return '<div style="width:'+pct+'%;background:'+SCOPE_COLORS[s.scope_type]+';height:100%;opacity:0.85" title="'+SCOPES[s.scope_type].label+': '+fmt$(s.amount)+'"></div>';
+        const col  = SCOPE_COLORS[s.type]||'#64748b';
+        const lbl  = SCOPES[s.type]?.label||s.type;
+        return '<div style="width:'+pct+'%;background:'+col+';height:100%;opacity:0.85" title="'+lbl+': '+fmt$(s.amount)+'"></div>';
       }).join('');
       return '<div class="dd-bar-row">' +
         '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">' +
@@ -2598,6 +2601,9 @@ function showDDTab(tab) {
           supplierBar +
         '</div>' +
       '</div>';
+  }
+  } catch(e) {
+    el.innerHTML = '<div style="color:var(--danger);padding:16px;font-size:12px">Error rendering tab: ' + esc(e.message) + '</div>';
   }
 }
 
