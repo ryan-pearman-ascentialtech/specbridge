@@ -99,9 +99,27 @@
 
     /* ── METRICS ROW ── */
     .metrics-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
-    .metric-card { text-align: center; padding: 18px 12px; }
+    .metric-card { text-align: center; padding: 18px 12px; cursor: pointer; transition: border-color 0.15s, transform 0.12s; user-select: none; }
+    .metric-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .metric-card.dd-active { border-color: var(--accent); background: rgba(79,124,255,0.07); }
     .metric-value { font-size: 26px; font-weight: 700; line-height: 1; margin-bottom: 5px; }
     .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    #dash-drilldown { display: none; margin-bottom: 20px; animation: ddSlide 0.18s ease; }
+    #dash-drilldown.open { display: block; }
+    @keyframes ddSlide { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+    .dd-tab-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); padding: 0 18px; }
+    .dd-tab { background: none; border: none; color: var(--muted); font-size: 12px; font-weight: 600; padding: 12px 16px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.12s, border-color 0.12s; letter-spacing: 0.02em; }
+    .dd-tab:hover { color: var(--text); }
+    .dd-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .dd-scope-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .dd-scope-row:last-child { border-bottom: none; }
+    .dd-proj-group { margin-bottom: 18px; }
+    .dd-proj-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
+    .dd-bar-row { margin-bottom: 14px; }
+    .dd-bar-track { background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; height: 22px; display: flex; margin-top: 5px; }
+    .dd-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .dd-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+    .dd-legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
 
     /* ── EMPTY STATE ── */
     .empty-state { text-align: center; padding: 64px 24px; color: var(--muted); }
@@ -350,6 +368,19 @@
     <div class="metrics-row" id="dash-metrics">
       <div class="card metric-card"><div class="spinner spinner-lg" style="margin:0 auto"></div></div>
       <div class="card metric-card"></div><div class="card metric-card"></div><div class="card metric-card"></div>
+    </div>
+    <div id="dash-drilldown">
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-right:14px">
+          <div class="dd-tab-bar" style="flex:1">
+            <button class="dd-tab" id="dd-tab-flight"  onclick="showDDTab('flight')">🔄 In Flight</button>
+            <button class="dd-tab" id="dd-tab-awarded" onclick="showDDTab('awarded')">✅ Awarded</button>
+            <button class="dd-tab" id="dd-tab-totals"  onclick="showDDTab('totals')">$ Breakdown</button>
+          </div>
+          <button onclick="closeDrilldown()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;padding:4px 0" title="Close">✕</button>
+        </div>
+        <div id="dd-content" style="padding:18px 20px;max-height:500px;overflow-y:auto"></div>
+      </div>
     </div>
     <div class="projects-list" id="projects-list">
       <div class="card empty-state"><div class="spinner spinner-lg" style="margin:0 auto 14px"></div></div>
@@ -787,12 +818,26 @@ async function loadDashboard() {
     // Budget vs awarded variance
     const budgeted = allScopes.filter(s=>s.budget_guidance).reduce((s,x)=>s+(x.budget_guidance||0),0);
 
-    document.getElementById('dash-metrics').innerHTML = `
-      <div class="card metric-card"><div class="metric-value" style="color:var(--accent)">${projects.length}</div><div class="metric-label">Projects</div></div>
-      <div class="card metric-card"><div class="metric-value" style="color:var(--warning)">${inFlight}</div><div class="metric-label">Scopes In Flight</div></div>
-      <div class="card metric-card"><div class="metric-value" style="color:var(--success)">${awardedCount}</div><div class="metric-label">Scopes Awarded</div></div>
-      <div class="card metric-card"><div class="metric-value" style="color:var(--success);font-size:${totalAwarded>0?'18':'26'}px">${fmt$(totalAwarded)}</div><div class="metric-label">Total Awarded</div></div>
-    `;
+    // Cache for drilldown
+    _dashCache = { projects, scopes: allScopes, quotes: allQuotes };
+
+    document.getElementById('dash-metrics').innerHTML =
+      '<div class="card metric-card" onclick="openDrilldown(\'flight\')" title="Click to see all in-flight scopes">' +
+        '<div class="metric-value" style="color:var(--accent)">' + projects.length + '</div>' +
+        '<div class="metric-label">Projects</div>' +
+      '</div>' +
+      '<div class="card metric-card" onclick="openDrilldown(\'flight\')" title="Click to see all in-flight scopes">' +
+        '<div class="metric-value" style="color:var(--warning)">' + inFlight + '</div>' +
+        '<div class="metric-label">Scopes In Flight</div>' +
+      '</div>' +
+      '<div class="card metric-card" onclick="openDrilldown(\'awarded\')" title="Click to see awarded scopes">' +
+        '<div class="metric-value" style="color:var(--success)">' + awardedCount + '</div>' +
+        '<div class="metric-label">Scopes Awarded</div>' +
+      '</div>' +
+      '<div class="card metric-card" onclick="openDrilldown(\'totals\')" title="Click to see $ breakdown">' +
+        '<div class="metric-value" style="color:var(--success);font-size:' + (totalAwarded>0?'18':'26') + 'px">' + fmt$(totalAwarded) + '</div>' +
+        '<div class="metric-label">Total Awarded</div>' +
+      '</div>';
     document.getElementById('dash-subtitle').textContent = `${projects.length} project${projects.length!==1?'s':''} · ${allScopes.length} scopes`;
 
     if (!projects.length) {
@@ -2230,10 +2275,10 @@ async function loadSavings() {
           <td class="sv-right">${cq?.total_amount?fmt$(cq.total_amount):'<span class="sv-muted">—</span>'}</td>
           <td class="sv-right">${nq?.total_amount?fmt$(nq.total_amount):'<span class="sv-muted">—</span>'}</td>
           <td class="sv-right ${aw?'sv-green':''}">${aw?.total_amount?fmt$(aw.total_amount):'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right">${bg?`${fmt$(bg)}<br><span style="font-size:10px;color:var(--muted)">Target: ${fmt$(bgTarget)}</span>`:'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right">${bvAmt!==null?`<span style="font-weight:700;color:${bvAmt>=0?'#86efac':'#fca5a5'}">${bvAmt>=0?'▼':'▲'} ${fmt$(Math.abs(bvAmt))}</span>`:'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right ${sav>0?'sv-green':''}">${sav>0?fmt$(sav)+(savPct?` <span style="font-size:10px;opacity:0.7">(${savPct}%)</span>`:''):'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right" style="color:#a855f7">${profP?fmt$(profP):'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right">${bg?`${fmt$(bg)}<br><span style="font-size:10px;color:#f59e0b">Bogon: ${fmt$(bgTarget)}</span>`:'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right">${bvAmt!==null?`<span style="font-weight:700;color:${bvAmt>=0?'#86efac':'#fca5a5'}">${bvAmt>=0?'▼ '+fmt$(bvAmt)+' under':'▲ '+fmt$(Math.abs(bvAmt))+' over'}</span>`:'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right ${sav>0?'sv-green':''}">${sav>0?fmt$(sav)+(savPct?` <span style="font-size:10px;opacity:0.7">(${savPct}% spread)</span>`:''):'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right" style="color:#a855f7">${profP?fmt$(profP)+'<br><span style="font-size:10px;opacity:0.7">push 2% back</span>':'<span class="sv-muted">—</span>'}</td>
         </tr>`;
       }).filter(Boolean).join('');
       if (!tableRows) return '';
@@ -2259,21 +2304,300 @@ async function loadSavings() {
               <th>Scope</th>
               <th class="sv-right">Culver Dev.</th>
               <th class="sv-right">NWI</th>
-              <th class="sv-right">Awarded</th>
-              <th class="sv-right">Budget / Target</th>
+              <th class="sv-right">Awarded ✓</th>
+              <th class="sv-right">Budget · Bogon (−5%)</th>
               <th class="sv-right">vs. Budget</th>
               <th class="sv-right">Comp. Savings</th>
-              <th class="sv-right" style="color:#a855f7">Profit Prot.</th>
+              <th class="sv-right" style="color:#a855f7">Profit Prot. (2%)</th>
             </tr></thead>
             <tbody>${tableRows}</tbody>
+            ${(()=>{
+              const projScopesForTotals = ps.filter(s=>{
+                const sq=pq.filter(x=>x.scope_id===s.id); return sq.length>0;
+              });
+              const totCulver = pq.filter(x=>x.supplier_name==='Culver Development'&&!x.is_awarded).reduce((s,x)=>s+(x.total_amount||0),0) + pq.filter(x=>x.supplier_name==='Culver Development'&&x.is_awarded).reduce((s,x)=>s+(x.total_amount||0),0);
+              const totCulverOnly = pq.filter(x=>x.supplier_name==='Culver Development').reduce((s,x)=>s+(x.total_amount||0),0);
+              const totNWIOnly = pq.filter(x=>x.supplier_name==='NWI').reduce((s,x)=>s+(x.total_amount||0),0);
+              const totAw = pq.filter(x=>x.is_awarded).reduce((s,x)=>s+(x.total_amount||0),0);
+              const totSav = SCOPE_ORDER.reduce((sum,st)=>{
+                const s=ps.find(x=>x.scope_type===st); if(!s) return sum;
+                const sq2=pq.filter(x=>x.scope_id===s.id&&(x.total_amount||0)>0);
+                if(sq2.length<2) return sum;
+                const amts2=sq2.map(x=>x.total_amount||0);
+                return sum+(Math.max(...amts2)-Math.min(...amts2));
+              },0);
+              const totPP = totAw*0.02;
+              if (!totAw && !totSav) return '';
+              return '<tfoot><tr style="background:rgba(255,255,255,0.03);font-weight:700;border-top:2px solid var(--border)">' +
+                '<td style="padding:8px;font-size:12px;color:var(--muted)">PROJECT TOTAL</td>' +
+                '<td class="sv-right" style="padding:8px;font-size:12px">' + (totCulverOnly?fmt$(totCulverOnly):'—') + '</td>' +
+                '<td class="sv-right" style="padding:8px;font-size:12px">' + (totNWIOnly?fmt$(totNWIOnly):'—') + '</td>' +
+                '<td class="sv-right" style="padding:8px;font-size:13px;color:#22c55e">' + (totAw?fmt$(totAw):'—') + '</td>' +
+                '<td colspan="2" style="padding:8px"></td>' +
+                '<td class="sv-right" style="padding:8px;font-size:12px;color:#22c55e">' + (totSav?fmt$(totSav):'—') + '</td>' +
+                '<td class="sv-right" style="padding:8px;font-size:12px;color:#a855f7">' + (totPP?fmt$(totPP):'—') + '</td>' +
+              '</tr></tfoot>';
+            })()}
           </table>
         </div>`;
     }).filter(Boolean).join('');
 
-    document.getElementById('savings-content').innerHTML = bcBanner + (rows ||
+    const legend = `
+      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:11px;color:var(--muted);display:flex;gap:20px;flex-wrap:wrap;line-height:1.6">
+        <div style="font-weight:700;color:var(--text);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;width:100%;margin-bottom:2px">How to read this table</div>
+        <div><strong style="color:var(--text)">Awarded ✓</strong> — the quote selected for execution</div>
+        <div><strong style="color:var(--text)">Budget · Bogon (−5%)</strong> — internal estimate from Bruges; Bogon = budget minus 5%, the threshold BEP must beat to protect margin</div>
+        <div><strong style="color:#86efac">▼ under / <span style="color:#fca5a5">▲ over</span></strong> — awarded amount vs. your budget; green = came in under budget</div>
+        <div><strong style="color:var(--text)">Comp. Savings</strong> — dollar spread between the two bids; captures value created by competitive sourcing</div>
+        <div><strong style="color:#a855f7">Profit Prot. (2%)</strong> — per BEP policy: push supplier 2% on material costs; this column shows the recovery target</div>
+        <div><strong style="color:#22c55e">COMPETED</strong> = 2 quotes received &nbsp;·&nbsp; <strong style="color:#f59e0b">SINGLE SRC</strong> = 1 quote only (flag for governance)</div>
+      </div>`;
+    document.getElementById('savings-content').innerHTML = bcBanner + (rows ? legend + rows :
       `<div class="card" style="color:var(--muted);text-align:center;padding:48px">No comparative data yet. Enter quotes for both suppliers to see savings.</div>`);
   } catch(e) {
     document.getElementById('savings-content').innerHTML = `<div class="card" style="color:var(--danger)">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════
+// DASHBOARD DRILLDOWN
+// ══════════════════════════════════════════════════
+let _dashCache = { projects:[], scopes:[], quotes:[] };
+let _ddActiveTab = 'flight';
+const SCOPE_COLORS = {
+  steel_cover_plates: '#4f7cff',
+  crane_rigging: '#f59e0b',
+  mechanical_compressed_air: '#22c55e',
+  electrical: '#a855f7',
+};
+
+function openDrilldown(tab) {
+  const dd = document.getElementById('dash-drilldown');
+  dd.classList.add('open');
+  showDDTab(tab);
+  document.querySelectorAll('#dash-metrics .metric-card').forEach(c => c.classList.remove('dd-active'));
+  const idx = {flight:0,flight2:1,awarded:2,totals:3};
+  if (tab==='flight') {
+    document.querySelectorAll('#dash-metrics .metric-card')[0]?.classList.add('dd-active');
+    document.querySelectorAll('#dash-metrics .metric-card')[1]?.classList.add('dd-active');
+  } else if (tab==='awarded') {
+    document.querySelectorAll('#dash-metrics .metric-card')[2]?.classList.add('dd-active');
+  } else {
+    document.querySelectorAll('#dash-metrics .metric-card')[3]?.classList.add('dd-active');
+  }
+}
+
+function closeDrilldown() {
+  document.getElementById('dash-drilldown').classList.remove('open');
+  document.querySelectorAll('#dash-metrics .metric-card').forEach(c => c.classList.remove('dd-active'));
+}
+
+function showDDTab(tab) {
+  _ddActiveTab = tab;
+  ['flight','awarded','totals'].forEach(t => {
+    const el = document.getElementById('dd-tab-'+t);
+    if (el) el.classList.toggle('active', t===tab);
+  });
+  const el = document.getElementById('dd-content');
+  if (!el) return;
+  const { projects, scopes, quotes } = _dashCache;
+  const projMap = Object.fromEntries(projects.map(p=>[p.id,p]));
+
+  if (tab === 'flight') {
+    const inFlight = scopes.filter(s=>s.status!=='draft'&&s.status!=='awarded'&&s.status!=='killed');
+    if (!inFlight.length) { el.innerHTML = '<div style="color:var(--muted);text-align:center;padding:32px">No scopes currently in flight</div>'; return; }
+    const STATUS_SORT = {ae_review:0,quotes_received:1,rfq_sent:2,on_hold:3};
+    const sorted = [...inFlight].sort((a,b)=>(STATUS_SORT[a.status]??9)-(STATUS_SORT[b.status]??9));
+    const byProj = {};
+    sorted.forEach(s=>{ (byProj[s.project_id]||(byProj[s.project_id]=[])).push(s); });
+    el.innerHTML = Object.entries(byProj).map(([pid,ss])=>{
+      const p = projMap[pid]||{name:'Unknown'};
+      const rows = ss.map(s=>{
+        const sc = SCOPES[s.scope_type]||{icon:'📋',label:s.scope_type};
+        const st = STATUS[s.status]||{label:s.status,badge:'badge-gray'};
+        const sq = quotes.filter(q=>q.scope_id===s.id);
+        const quoteAmts = sq.filter(q=>q.total_amount>0).map(q=>
+          '<span style="font-size:11px;color:var(--muted)">' + esc(q.supplier_name.split(' ')[0]) + ': <strong style="color:var(--text)">' + fmt$(q.total_amount) + '</strong></span>'
+        ).join('  ');
+        const deadline = s.rfq_deadline ? (()=>{
+          const days = Math.round((new Date(s.rfq_deadline)-new Date())/(1000*60*60*24));
+          const col = days<0?'#f87171':days<=7?'#f59e0b':'var(--muted)';
+          return '<span style="font-size:11px;color:'+col+';margin-left:8px">' + (days<0?'⚠ '+Math.abs(days)+'d overdue':days===0?'⚠ Due today':'⏱ '+days+'d left') + '</span>';
+        })() : '';
+        return '<div class="dd-scope-row">' +
+          '<span style="font-size:16px">' + sc.icon + '</span>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:13px;font-weight:600">' + esc(sc.label) + '</div>' +
+            '<div style="margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">' + quoteAmts + deadline + '</div>' +
+          '</div>' +
+          '<span class="badge ' + st.badge + '">' + st.label + '</span>' +
+        '</div>';
+      }).join('');
+      return '<div class="dd-proj-group">' +
+        '<div class="dd-proj-label">📁 ' + esc(p.name) + ' · ' + esc(p.customer||'') + '</div>' +
+        rows +
+      '</div>';
+    }).join('');
+
+  } else if (tab === 'awarded') {
+    const awarded = scopes.filter(s=>s.status==='awarded');
+    if (!awarded.length) { el.innerHTML = '<div style="color:var(--muted);text-align:center;padding:32px">No scopes awarded yet</div>'; return; }
+    const totalAmt = awarded.reduce((sum,s)=>{
+      const aq = quotes.find(q=>q.scope_id===s.id&&q.is_awarded);
+      return sum+(aq?.total_amount||0);
+    },0);
+    const byProj = {};
+    awarded.forEach(s=>{ (byProj[s.project_id]||(byProj[s.project_id]=[])).push(s); });
+    let totalSaved = 0;
+    const rows = Object.entries(byProj).map(([pid,ss])=>{
+      const p = projMap[pid]||{name:'Unknown'};
+      const scopeRows = ss.map(s=>{
+        const sc = SCOPES[s.scope_type]||{icon:'📋',label:s.scope_type};
+        const aq = quotes.find(q=>q.scope_id===s.id&&q.is_awarded);
+        const allQ = quotes.filter(q=>q.scope_id===s.id&&(q.total_amount||0)>0);
+        const competed = allQ.length>=2;
+        const loser = allQ.find(q=>!q.is_awarded&&(q.total_amount||0)>0);
+        const savings = competed&&aq&&loser ? Math.abs((aq.total_amount||0)-(loser.total_amount||0)) : 0;
+        if (savings>0) totalSaved+=savings;
+        const bg = s.budget_guidance?Number(s.budget_guidance):null;
+        const aAmt = aq?.total_amount||0;
+        const vsBudget = bg&&aAmt ? aAmt-bg : null;
+        return '<div class="dd-scope-row">' +
+          '<div style="width:10px;height:10px;border-radius:2px;background:' + (SCOPE_COLORS[s.scope_type]||'#64748b') + ';flex-shrink:0"></div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:13px;font-weight:600">' + sc.icon + ' ' + esc(sc.label) + '</div>' +
+            '<div style="font-size:11px;color:var(--muted);margin-top:2px">' +
+              (aq ? 'Awarded to <strong style="color:var(--text)">' + esc(aq.supplier_name) + '</strong>' : 'No quote marked') +
+              (competed ? ' <span style="color:#86efac;margin-left:6px">COMPETED ✓</span>' : ' <span style="color:#f59e0b;margin-left:6px">SINGLE SOURCE</span>') +
+            '</div>' +
+          '</div>' +
+          '<div style="text-align:right">' +
+            '<div style="font-weight:700;font-size:14px;color:var(--success)">' + fmt$(aAmt) + '</div>' +
+            (savings>0?'<div style="font-size:11px;color:#86efac">saved ' + fmt$(savings) + '</div>':'') +
+            (vsBudget!==null?'<div style="font-size:11px;color:' + (vsBudget<=0?'#86efac':'#f87171') + '">' + (vsBudget<=0?'▼':'+') + fmt$(Math.abs(vsBudget)) + ' vs budget</div>':'') +
+          '</div>' +
+        '</div>';
+      }).join('');
+      const projTotal = ss.reduce((sum,s)=>{const aq=quotes.find(q=>q.scope_id===s.id&&q.is_awarded);return sum+(aq?.total_amount||0);},0);
+      return '<div class="dd-proj-group">' +
+        '<div class="dd-proj-label" style="display:flex;justify-content:space-between">' +
+          '<span>📁 ' + esc(p.name) + ' · ' + esc(p.customer||'') + '</span>' +
+          '<span style="color:var(--success)">' + fmt$(projTotal) + '</span>' +
+        '</div>' +
+        scopeRows +
+      '</div>';
+    }).join('');
+    el.innerHTML =
+      '<div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap">' +
+        '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:12px 18px;flex:1;min-width:120px">' +
+          '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em">Total Awarded</div>' +
+          '<div style="font-size:20px;font-weight:700;color:var(--success);margin-top:4px">' + fmt$(totalAmt) + '</div>' +
+        '</div>' +
+        '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:12px 18px;flex:1;min-width:120px">' +
+          '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em">Competitive Savings</div>' +
+          '<div style="font-size:20px;font-weight:700;color:#86efac;margin-top:4px">' + fmt$(totalSaved) + '</div>' +
+        '</div>' +
+        '<div style="background:rgba(79,124,255,0.08);border:1px solid rgba(79,124,255,0.2);border-radius:8px;padding:12px 18px;flex:1;min-width:120px">' +
+          '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em">Scopes Awarded</div>' +
+          '<div style="font-size:20px;font-weight:700;color:var(--accent);margin-top:4px">' + awarded.length + '</div>' +
+        '</div>' +
+      '</div>' + rows;
+
+  } else if (tab === 'totals') {
+    const awarded = scopes.filter(s=>s.status==='awarded');
+    const projTotals = projects.map(p=>{
+      const ps = scopes.filter(s=>s.project_id===p.id);
+      const segs = SCOPE_ORDER.map(st=>{
+        const s = ps.find(x=>x.scope_type===st);
+        if (!s) return null;
+        const aq = quotes.find(q=>q.scope_id===s.id&&q.is_awarded);
+        return { type:st, amount:aq?.total_amount||0, status:s.status };
+      }).filter(Boolean).filter(x=>x.amount>0);
+      const total = segs.reduce((s,x)=>s+x.amount,0);
+      const inFlight = ps.filter(s=>s.status!=='draft'&&s.status!=='awarded'&&s.status!=='killed').length;
+      return { p, segs, total, inFlight };
+    }).filter(x=>x.total>0||x.inFlight>0);
+
+    const maxTotal = Math.max(...projTotals.filter(x=>x.total>0).map(x=>x.total),1);
+    const grandTotal = projTotals.reduce((s,x)=>s+x.total,0);
+
+    // Supplier split
+    const culverTotal = quotes.filter(q=>q.is_awarded&&q.supplier_name==='Culver Development').reduce((s,q)=>s+(q.total_amount||0),0);
+    const nwiTotal    = quotes.filter(q=>q.is_awarded&&q.supplier_name==='NWI').reduce((s,q)=>s+(q.total_amount||0),0);
+    const culverPct = grandTotal>0?(culverTotal/grandTotal*100).toFixed(0):0;
+    const nwiPct    = grandTotal>0?(nwiTotal/grandTotal*100).toFixed(0):0;
+
+    // Scope type totals
+    const scopeTotals = SCOPE_ORDER.map(st=>{
+      const total = awarded.filter(s=>s.scope_type===st).reduce((sum,s)=>{
+        const aq=quotes.find(q=>q.scope_id===s.id&&q.is_awarded); return sum+(aq?.total_amount||0);
+      },0);
+      return {st,total};
+    }).filter(x=>x.total>0);
+
+    const bars = projTotals.map(({p,segs,total,inFlight})=>{
+      const barPct = total>0?(total/maxTotal*95).toFixed(1):0;
+      const segHtml = segs.map(s=>{
+        const pct = (s.amount/total*100).toFixed(1);
+        return '<div style="width:'+pct+'%;background:'+SCOPE_COLORS[s.scope_type]+';height:100%;opacity:0.85" title="'+SCOPES[s.scope_type].label+': '+fmt$(s.amount)+'"></div>';
+      }).join('');
+      return '<div class="dd-bar-row">' +
+        '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">' +
+          '<span style="font-weight:600">' + esc(p.name) + '</span>' +
+          '<span>' +
+            (total>0?'<span style="color:var(--success);font-weight:700">' + fmt$(total) + ' awarded</span>':'') +
+            (inFlight>0?'<span style="color:var(--warning);margin-left:8px">' + inFlight + ' in flight</span>':'') +
+          '</span>' +
+        '</div>' +
+        (total>0?
+          '<div style="display:flex;align-items:center;gap:8px">' +
+            '<div class="dd-bar-track" style="flex:1">' +
+              '<div style="width:'+barPct+'%;display:flex;height:100%">' + segHtml + '</div>' +
+            '</div>' +
+          '</div>'
+        :'<div style="height:22px;border-radius:4px;background:rgba(255,255,255,0.04);border:1px dashed var(--border);display:flex;align-items:center;padding:0 10px"><span style="font-size:11px;color:var(--muted)">No awarded scopes yet</span></div>') +
+      '</div>';
+    }).join('');
+
+    const scopeBreakdown = scopeTotals.map(({st,total})=>{
+      const pct = grandTotal>0?(total/grandTotal*100).toFixed(0):0;
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+        '<div style="width:10px;height:10px;border-radius:2px;background:'+SCOPE_COLORS[st]+';flex-shrink:0"></div>' +
+        '<div style="font-size:12px;flex:1">' + SCOPES[st].label + '</div>' +
+        '<div style="font-size:12px;font-weight:600;color:var(--success)">' + fmt$(total) + '</div>' +
+        '<div style="font-size:11px;color:var(--muted);width:36px;text-align:right">' + pct + '%</div>' +
+      '</div>';
+    }).join('');
+
+    const supplierBar = grandTotal>0 ?
+      '<div style="margin-bottom:14px">' +
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Supplier Split — Awarded Value</div>' +
+        '<div style="display:flex;height:18px;border-radius:4px;overflow:hidden;gap:2px">' +
+          (culverTotal>0?'<div style="width:'+culverPct+'%;background:#4f7cff;border-radius:3px 0 0 3px" title="Culver: '+fmt$(culverTotal)+'"></div>':'') +
+          (nwiTotal>0?'<div style="width:'+nwiPct+'%;background:#a855f7;border-radius:0 3px 3px 0" title="NWI: '+fmt$(nwiTotal)+'"></div>':'') +
+        '</div>' +
+        '<div style="display:flex;gap:16px;margin-top:5px;font-size:11px;color:var(--muted)">' +
+          (culverTotal>0?'<span><span style="color:#4f7cff">■</span> Culver ' + fmt$(culverTotal) + ' (' + culverPct + '%)</span>':'') +
+          (nwiTotal>0?'<span><span style="color:#a855f7">■</span> NWI ' + fmt$(nwiTotal) + ' (' + nwiPct + '%)</span>':'') +
+        '</div>' +
+      '</div>' : '';
+
+    el.innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">' +
+        '<div>' +
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:14px">Awarded by Project</div>' +
+          bars +
+          '<div class="dd-legend">' +
+            SCOPE_ORDER.map(st=>'<div class="dd-legend-item"><div class="dd-legend-dot" style="background:'+SCOPE_COLORS[st]+'"></div>' + SCOPES[st].label + '</div>').join('') +
+          '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:14px">Awarded by Scope Type</div>' +
+          scopeBreakdown +
+          (grandTotal>0?'<div style="border-top:1px solid var(--border);margin:10px 0 16px;padding-top:10px;display:flex;justify-content:space-between;font-weight:700"><span>Grand Total</span><span style="color:var(--success)">' + fmt$(grandTotal) + '</span></div>':'') +
+          supplierBar +
+        '</div>' +
+      '</div>';
   }
 }
 
