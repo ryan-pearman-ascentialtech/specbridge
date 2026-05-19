@@ -1,23 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8">
+<head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SpecBridge â€” BEP Installation Procurement</title>
+  <title>SpecBridge — BEP Installation Procurement</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;700&display=swap');
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
       --accent: #4f7cff; --accent-hover: #3d6aed;
       --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
       --text: #e2e8f0; --muted: #64748b; --radius: 8px;
-      --font: 'Inter Tight', Arial, sans-serif;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
     body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
 
-    /* â”€â”€ NAV â”€â”€ */
+    /* ── NAV ── */
     nav { display: flex; align-items: center; gap: 8px; padding: 0 24px; height: 52px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
     .nav-logo { font-size: 17px; font-weight: 700; margin-right: 12px; letter-spacing: -0.3px; }
     .nav-logo span { color: var(--accent); }
@@ -30,13 +29,13 @@
     .breadcrumb-link { color: var(--accent); cursor: pointer; }
     .breadcrumb-link:hover { text-decoration: underline; }
 
-    /* â”€â”€ LAYOUT â”€â”€ */
+    /* ── LAYOUT ── */
     .page { display: none; }
     .page.active { display: block; }
     .container { max-width: 1140px; margin: 0 auto; padding: 28px 24px; }
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
 
-    /* â”€â”€ BUTTONS â”€â”€ */
+    /* ── BUTTONS ── */
     .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: background 0.15s; font-family: var(--font); }
     .btn-primary   { background: var(--accent); color: #fff; }
     .btn-primary:hover   { background: var(--accent-hover); }
@@ -54,7 +53,7 @@
     .btn-xs  { padding: 3px 9px; font-size: 11px; border-radius: 5px; }
     .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-    /* â”€â”€ FORMS â”€â”€ */
+    /* ── FORMS ── */
     .form-group { display: flex; flex-direction: column; gap: 5px; }
     label { font-size: 12px; color: var(--muted); font-weight: 500; }
     label.req::after { content: ' *'; color: var(--danger); }
@@ -65,13 +64,13 @@
     input[type="number"]::-webkit-outer-spin-button,
     input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
-    /* â”€â”€ GRID â”€â”€ */
+    /* ── GRID ── */
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
     .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
     .span-2 { grid-column: span 2; }
 
-    /* â”€â”€ TOAST â”€â”€ */
+    /* ── TOAST ── */
     #toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 9999; }
     .toast { padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; animation: slideIn 0.2s ease; max-width: 340px; }
     .toast-success { background: #166534; color: #86efac; border: 1px solid #22c55e33; }
@@ -79,7 +78,7 @@
     .toast-info    { background: #1e3a5f; color: #93c5fd; border: 1px solid #3b82f633; }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-    /* â”€â”€ BADGE â”€â”€ */
+    /* ── BADGE ── */
     .badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; border: 1px solid transparent; }
     .badge-gray   { background: #1e2433; color: #94a3b8; border-color: #2a2d3a; }
     .badge-blue   { background: #1e3a5f; color: #93c5fd; border-color: #3b82f633; }
@@ -88,17 +87,17 @@
     .badge-red    { background: #7f1d1d; color: #fca5a5; border-color: #ef444433; }
     .badge-purple { background: #2e1065; color: #c4b5fd; border-color: #7c3aed33; }
 
-    /* â”€â”€ SPINNER â”€â”€ */
+    /* ── SPINNER ── */
     .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.25); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; flex-shrink: 0; }
     .spinner-lg { width: 28px; height: 28px; border-width: 3px; border-color: rgba(255,255,255,0.15); border-top-color: var(--accent); }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* â”€â”€ PAGE HEADER â”€â”€ */
+    /* ── PAGE HEADER ── */
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
     .page-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
     .page-subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; }
 
-    /* â”€â”€ METRICS ROW â”€â”€ */
+    /* ── METRICS ROW ── */
     .metrics-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
     .metric-card { text-align: center; padding: 18px 12px; cursor: pointer; transition: border-color 0.15s, transform 0.12s; user-select: none; }
     .metric-card:hover { border-color: var(--accent); transform: translateY(-2px); }
@@ -122,19 +121,17 @@
     .dd-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
     .dd-legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
 
-    /* â”€â”€ EMPTY STATE â”€â”€ */
+    /* ── EMPTY STATE ── */
     .empty-state { text-align: center; padding: 64px 24px; color: var(--muted); }
     .empty-icon  { font-size: 44px; margin-bottom: 14px; }
     .empty-text  { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
     .empty-sub   { font-size: 13px; margin-bottom: 22px; }
 
-    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    /* ══════════════════════════════════════════
        DASHBOARD
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+    ══════════════════════════════════════════ */
     .projects-list { display: flex; flex-direction: column; gap: 12px; }
     .project-card { cursor: pointer; transition: border-color 0.15s; }
-    .project-card.demo-anchor { border-left: 4px solid #DD7722; background: rgba(221,119,34,0.06); position: relative; }
-    .project-card.demo-anchor .project-card-name::after { content: "ACTIVE DEMO"; font-size: 10px; font-weight: 700; letter-spacing: .08em; color: #DD7722; background: rgba(221,119,34,0.15); padding: 2px 8px; border-radius: 20px; margin-left: 10px; vertical-align: middle; }
     .project-card:hover { border-color: var(--accent); }
     .project-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
     .project-card-name { font-size: 15px; font-weight: 700; }
@@ -143,15 +140,15 @@
     .scope-chips { display: flex; gap: 7px; flex-wrap: wrap; }
     .scope-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; border: 1px solid rgba(255,255,255,0.06); }
 
-    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    /* ══════════════════════════════════════════
        NEW PROJECT
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+    ══════════════════════════════════════════ */
     .np-form { display: flex; flex-direction: column; gap: 22px; max-width: 740px; }
     .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 
-    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    /* ══════════════════════════════════════════
        PROJECT DETAIL
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+    ══════════════════════════════════════════ */
     .info-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px 20px; margin-bottom: 24px; }
     .info-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
     .info-value { font-size: 13px; font-weight: 500; line-height: 1.4; }
@@ -169,9 +166,9 @@
     .scope-card-footer { margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
     .pending-msg { font-size: 12px; color: var(--warning); margin-top: 10px; line-height: 1.5; }
 
-    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    /* ══════════════════════════════════════════
        SCOPE DETAIL
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+    ══════════════════════════════════════════ */
     .stepper { display: flex; align-items: center; margin-bottom: 22px; }
     .step-node { display: flex; align-items: center; gap: 7px; }
     .step-dot { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 2px solid var(--border); background: var(--bg); color: var(--muted); flex-shrink: 0; }
@@ -245,9 +242,9 @@
     .market-rate-item-label { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
     .market-rate-item-val { font-size: 16px; font-weight: 700; }
 
-    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    /* ══════════════════════════════════════════
        SAVINGS DASHBOARD
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+    ══════════════════════════════════════════ */
     .sv-table { width: 100%; border-collapse: collapse; }
     .sv-table th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: left; }
     .sv-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
@@ -256,9 +253,9 @@
     .sv-green { color: var(--success); font-weight: 700; }
     .sv-muted { color: var(--muted); }
 
-    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    /* ══════════════════════════════════════════
        MODAL
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+    ══════════════════════════════════════════ */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 500; display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 32px 16px; }
     .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; max-width: 860px; width: 100%; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 22px; border-bottom: 1px solid var(--border); }
@@ -266,7 +263,7 @@
     .modal-body { padding: 24px 22px; max-height: 72vh; overflow-y: auto; }
     .modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
 
-    /* â”€â”€ RFQ DOCUMENT (inside modal, also print-friendly) â”€â”€ */
+    /* ── RFQ DOCUMENT (inside modal, also print-friendly) ── */
     .rfq-doc { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1d27; background: #fff; padding: 0; border-radius: 6px; overflow: hidden; }
     .rfq-doc-header { background: #1a1d27; color: #fff; padding: 20px 28px; display: flex; justify-content: space-between; align-items: flex-start; }
     .rfq-doc-logo { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
@@ -306,7 +303,7 @@
       .modal-body { max-height: none !important; overflow: visible !important; }
     }
 
-    /* â”€â”€ Comparison PDF export print styles â”€â”€ */
+    /* ── Comparison PDF export print styles ── */
     body.printing-comparison {
       background: #fff !important;
       color: #111 !important;
@@ -340,33 +337,33 @@
 </head>
 <body>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• PRINT COMPARISON FRAME â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ═══════════════════════ PRINT COMPARISON FRAME ═══════════════════ -->
 <div id="print-comparison-frame">
-  <button id="print-close-btn" onclick="closePrintComparison()" style="position:fixed;top:16px;right:16px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px;z-index:10000">âœ• Close</button>
+  <button id="print-close-btn" onclick="closePrintComparison()" style="position:fixed;top:16px;right:16px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px;z-index:10000">✕ Close</button>
   <div id="print-comparison-content"></div>
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• NAV â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ═══════════════════════════════ NAV ═══════════════════════════════ -->
 <nav>
   <div class="nav-logo">Spec<span>Bridge</span></div>
-  <div style="font-size:11px;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:3px 12px;color:#94a3b8;white-space:nowrap;">ðŸ­ <strong style="color:#e2e8f0">BEP Grand Rapids</strong>&nbsp;&nbsp;Â·&nbsp;&nbsp;Pilot&nbsp;&nbsp;Â·&nbsp;&nbsp;<span style="color:#60a5fa">Rollout: BEP Brugge Â· EPIC Â· +4 entities</span></div>
+  <div style="font-size:11px;background:#1e293b;border:1px solid #334155;border-radius:20px;padding:3px 12px;color:#94a3b8;white-space:nowrap;">🏭 <strong style="color:#e2e8f0">BEP Grand Rapids</strong>&nbsp;&nbsp;·&nbsp;&nbsp;Pilot&nbsp;&nbsp;·&nbsp;&nbsp;<span style="color:#60a5fa">Rollout: BEP Brugge · EPIC · +4 entities</span></div>
   <div class="nav-divider"></div>
   <button class="nav-link" id="nav-dashboard"  onclick="showPage('dashboard')">Projects</button>
   <button class="nav-link" id="nav-savings"    onclick="showPage('savings')">Savings</button>
   <button class="nav-link" id="nav-ae-review"  onclick="showPage('ae-review')" style="position:relative">AE Queue <span id="ae-nav-badge" style="display:none;background:#a855f7;color:#fff;border-radius:10px;font-size:10px;padding:1px 7px;margin-left:5px;font-weight:700;vertical-align:middle">0</span></button>
-  <button class="nav-link" id="nav-admin" onclick="showPage('admin')">âš™ Admin</button>
+  <button class="nav-link" id="nav-admin" onclick="showPage('admin')">⚙ Admin</button>
   <div class="nav-right">
     <div id="breadcrumb-area" class="breadcrumb" style="display:none"></div>
   </div>
 </nav>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• DASHBOARD â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ══════════════════════════════ DASHBOARD ══════════════════════════════ -->
 <div id="page-dashboard" class="page active">
   <div class="container">
     <div class="page-header">
       <div>
         <h1>Projects</h1>
-        <div class="page-subtitle" id="dash-subtitle">Loadingâ€¦</div>
+        <div class="page-subtitle" id="dash-subtitle">Loading…</div>
       </div>
       <button class="btn btn-primary" onclick="showPage('new-project')">+ New Project</button>
     </div>
@@ -378,11 +375,11 @@
       <div class="card" style="padding:0;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;padding-right:14px">
           <div class="dd-tab-bar" style="flex:1">
-            <button class="dd-tab" id="dd-tab-flight"  onclick="showDDTab('flight')">ðŸ”„ In Flight</button>
-            <button class="dd-tab" id="dd-tab-awarded" onclick="showDDTab('awarded')">âœ… Awarded</button>
+            <button class="dd-tab" id="dd-tab-flight"  onclick="showDDTab('flight')">🔄 In Flight</button>
+            <button class="dd-tab" id="dd-tab-awarded" onclick="showDDTab('awarded')">✅ Awarded</button>
             <button class="dd-tab" id="dd-tab-totals"  onclick="showDDTab('totals')">$ Breakdown</button>
           </div>
-          <button onclick="closeDrilldown()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;padding:4px 0" title="Close">âœ•</button>
+          <button onclick="closeDrilldown()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;padding:4px 0" title="Close">✕</button>
         </div>
         <div id="dd-content" style="padding:18px 20px;max-height:500px;overflow-y:auto"></div>
       </div>
@@ -393,7 +390,7 @@
   </div>
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• NEW PROJECT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ══════════════════════════════ NEW PROJECT ══════════════════════════════ -->
 <div id="page-new-project" class="page">
   <div class="container">
     <div class="page-header">
@@ -401,7 +398,7 @@
         <h1>New Project</h1>
         <div class="page-subtitle">All four trade scopes are created automatically</div>
       </div>
-      <button class="btn btn-secondary" onclick="showPage('dashboard')">â† Back</button>
+      <button class="btn btn-secondary" onclick="showPage('dashboard')">← Back</button>
     </div>
     <div class="card">
       <div class="np-form">
@@ -427,11 +424,11 @@
             <div class="form-group">
               <label for="np-region">Region / Office</label>
               <select id="np-region">
-                <option value="">Select regionâ€¦</option>
-                <option value="Grand Rapids, NA">Grand Rapids â€” North America</option>
-                <option value="Bruges, EMEA">Bruges â€” EMEA</option>
-                <option value="Other NA">Other â€” North America</option>
-                <option value="Other EMEA">Other â€” EMEA</option>
+                <option value="">Select region…</option>
+                <option value="Grand Rapids, NA">Grand Rapids — North America</option>
+                <option value="Bruges, EMEA">Bruges — EMEA</option>
+                <option value="Other NA">Other — North America</option>
+                <option value="Other EMEA">Other — EMEA</option>
               </select>
             </div>
           </div>
@@ -457,11 +454,11 @@
           <div class="section-title">Machine &amp; Scope Context</div>
           <div class="form-group">
             <label for="np-machines">Machine Description</label>
-            <textarea id="np-machines" rows="3" placeholder="e.g. 4Ã— Wheel Alignment stations (WAHA, ~12.5T each) + 1Ã— Roller Test Bench (~16T). EOL area, Assembly Shop, new plant."></textarea>
+            <textarea id="np-machines" rows="3" placeholder="e.g. 4× Wheel Alignment stations (WAHA, ~12.5T each) + 1× Roller Test Bench (~16T). EOL area, Assembly Shop, new plant."></textarea>
           </div>
           <div class="form-group" style="margin-top:12px">
             <label for="np-notes">Notes</label>
-            <textarea id="np-notes" rows="2" placeholder="Additional context for procurement teamâ€¦"></textarea>
+            <textarea id="np-notes" rows="2" placeholder="Additional context for procurement team…"></textarea>
           </div>
         </div>
         <div style="display:flex;gap:10px;padding-top:4px">
@@ -474,7 +471,7 @@
   </div>
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• PROJECT DETAIL â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ══════════════════════════════ PROJECT DETAIL ══════════════════════════════ -->
 <div id="page-project-detail" class="page">
   <div class="container">
     <div id="project-detail-content">
@@ -483,7 +480,7 @@
   </div>
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• SCOPE DETAIL â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ══════════════════════════════ SCOPE DETAIL ══════════════════════════════ -->
 <div id="page-scope-detail" class="page">
   <div class="container">
     <div id="scope-detail-content">
@@ -492,7 +489,7 @@
   </div>
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• SAVINGS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ══════════════════════════════ SAVINGS ══════════════════════════════ -->
 <div id="page-savings" class="page">
   <div class="container">
     <div class="page-header">
@@ -503,16 +500,16 @@
       <div style="text-align:center;"><div style="font-size:10px;color:#5a9e6a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">BEP GR Projects / Year</div><div style="font-size:24px;font-weight:800;color:#4ade80;line-height:1;">~257</div><div style="font-size:10px;color:#5a9e6a;margin-top:4px;">based on live PO log data</div></div>
       <div style="text-align:center;border-left:1px solid #1e5c2e;"><div style="font-size:10px;color:#5a9e6a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">ECN Rate (YTD 2026)</div><div style="font-size:24px;font-weight:800;color:#f97316;line-height:1;">26.7%</div><div style="font-size:10px;color:#5a9e6a;margin-top:4px;">24 ECNs across 90 POs</div></div>
       <div style="text-align:center;border-left:1px solid #1e5c2e;"><div style="font-size:10px;color:#5a9e6a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Annual ECN Exposure</div><div style="font-size:24px;font-weight:800;color:#f97316;line-height:1;">~$8.4M</div><div style="font-size:10px;color:#5a9e6a;margin-top:4px;">annualized from YTD ECN PO value</div></div>
-      <div style="text-align:center;border-left:1px solid #1e5c2e;"><div style="font-size:10px;color:#5a9e6a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Projected Annual Savings</div><div style="font-size:24px;font-weight:800;color:#4ade80;line-height:1;">$300Kâ€“$840K</div><div style="font-size:10px;color:#5a9e6a;margin-top:4px;">10â€“14% on ~$3â€“6M install spend</div></div>
+      <div style="text-align:center;border-left:1px solid #1e5c2e;"><div style="font-size:10px;color:#5a9e6a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">Projected Annual Savings</div><div style="font-size:24px;font-weight:800;color:#4ade80;line-height:1;">$300K–$840K</div><div style="font-size:10px;color:#5a9e6a;margin-top:4px;">10–14% on ~$3–6M install spend</div></div>
     </div>
       </div>
     </div>
-    <!-- AE ECN RISK TABLE â€” sourced from live BEP GR PO log YTD 2026 -->
+    <!-- AE ECN RISK TABLE — sourced from live BEP GR PO log YTD 2026 -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 1rem;">
 
       <!-- AE Performance -->
       <div style="background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:1rem 1.25rem;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#475569;margin-bottom:10px;">AE ECN Rate â€” YTD 2026</div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#475569;margin-bottom:10px;">AE ECN Rate — YTD 2026</div>
         <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:0;margin-bottom:6px;padding:0 0 6px;border-bottom:1px solid #1e293b;">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#334155;">AE</div>
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#334155;text-align:center;padding:0 10px;">POs</div>
@@ -553,7 +550,7 @@
 
       <!-- Customer ECN Risk -->
       <div style="background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:1rem 1.25rem;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#475569;margin-bottom:10px;">Customer ECN Exposure â€” YTD 2026</div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#475569;margin-bottom:10px;">Customer ECN Exposure — YTD 2026</div>
         <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:0;margin-bottom:6px;padding:0 0 6px;border-bottom:1px solid #1e293b;">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#334155;">Customer</div>
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#334155;text-align:center;padding:0 10px;">ECNs</div>
@@ -590,7 +587,7 @@
           <div style="text-align:center;padding:0 10px;"><span style="font-size:11px;font-weight:700;background:#4c0519;color:#f87171;padding:2px 7px;border-radius:20px;">100%</span></div>
           <div style="font-size:12px;color:#94a3b8;text-align:right;font-weight:600;">$43K</div>
         </div>
-        <div style="margin-top:10px;padding-top:8px;border-top:1px solid #1e293b;font-size:10px;color:#334155;font-style:italic;">Source: BEP GR PO log YTD Janâ€“Apr 2026 Â· 90 POs Â· 60 projects</div>
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid #1e293b;font-size:10px;color:#334155;font-style:italic;">Source: BEP GR PO log YTD Jan–Apr 2026 · 90 POs · 60 projects</div>
       </div>
 
     </div>
@@ -605,7 +602,7 @@
   </div>
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• AE REVIEW â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ══════════════════════════════ AE REVIEW ══════════════════════════════ -->
 <div id="page-ae-review" class="page">
   <div class="container">
     <div class="page-header">
@@ -620,12 +617,12 @@
   </div>
 </div>
 
-<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• MODAL â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!-- ══════════════════════════════ MODAL ══════════════════════════════ -->
 <div id="modal-overlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="modal-title"></div>
-      <button class="btn btn-secondary btn-sm" onclick="closeModal()">âœ• Close</button>
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">✕ Close</button>
     </div>
     <div class="modal-body" id="modal-body"></div>
     <div class="modal-footer" id="modal-footer"></div>
@@ -635,17 +632,17 @@
 <div id="toast-container"></div>
 
 <script>
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // SUPABASE
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 const SUPABASE_URL  = 'https://vvukjjuxjhlpuczcxirp.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2dWtqanV4amhscHVjemN4aXJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzOTY0NzYsImV4cCI6MjA5MDk3MjQ3Nn0.w3QFp8OOvZh5_c3olFU6MropqNq1jlJh8uxS7-a8IGY';
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // STATE
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 let _projectId      = null;
 let _projectName    = null;
 let _projectData    = null;
@@ -653,9 +650,9 @@ let _scopeId        = null;
 let _scopeType      = null;
 let _activeTab      = 'culver';
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // STATIC CONFIG
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 const SUPPLIERS = [
   { id: 'culver',   name: 'Culver Development', contact: 'Scott Culver'  },
   { id: 'nwi',      name: 'NWI',                contact: 'Contact TBD'   },
@@ -676,45 +673,45 @@ const SCOPE_ORDER = ['steel_cover_plates','crane_rigging','mechanical_compressed
 const SCOPES = {
   steel_cover_plates: {
     label: 'Steel Structures & Cover Plates',
-    icon:  'ðŸ—ï¸',
+    icon:  '🏗️',
     context: [
-      { l:'WAHA Pit Dimensions',   v:'9,000 Ã— 35,000 Ã— 2,850 mm' },
-      { l:'R&B Pit Dimensions',    v:'9,000 Ã— 6,000 Ã— 2,200 mm'  },
-      { l:'Cover Plates (WAHA)',   v:'~190 mÂ²'  },
-      { l:'Cover Plates (R&B)',    v:'~56 mÂ²'   },
+      { l:'WAHA Pit Dimensions',   v:'9,000 × 35,000 × 2,850 mm' },
+      { l:'R&B Pit Dimensions',    v:'9,000 × 6,000 × 2,200 mm'  },
+      { l:'Cover Plates (WAHA)',   v:'~190 m²'  },
+      { l:'Cover Plates (R&B)',    v:'~56 m²'   },
       { l:'Steel Structure (WAHA)',v:'~4,200 kg' },
       { l:'Hoist Structure',       v:'~13,500 kg'},
       { l:'Stairs',                v:'4 pcs'    },
-      { l:'Fencing Required',      v:'~100m WAHA + 2Ã— R&B pits' },
+      { l:'Fencing Required',      v:'~100m WAHA + 2× R&B pits' },
       { l:'Target Start',          v:'Mid-August 2026' },
     ],
     items: [
       { key:'mobilization',         label:'Mobilization',                                                              req:true  },
-      { key:'design_study',         label:'Design & Study â€” lump sum (incl. PE stamp)',                                req:true  },
-      { key:'stairs',               label:'Stairs â€” 4 pcs (price per stair)',                                          req:true  },
-      { key:'cover_plates_prod',    label:'Cover Plates Production per mÂ² (materials, cutting, drilling, painting) â€” 190 mÂ² WAHA + 56 mÂ² R&B', req:true },
-      { key:'cover_plates_install', label:'Cover Plates Installation per mÂ² or kg',                                   req:true  },
-      { key:'steel_prod',           label:'Steel Structure Production per kg/ton (materials, sawing, welding, painting) â€” ~4,200 kg + ~13,500 kg hoist', req:true },
+      { key:'design_study',         label:'Design & Study — lump sum (incl. PE stamp)',                                req:true  },
+      { key:'stairs',               label:'Stairs — 4 pcs (price per stair)',                                          req:true  },
+      { key:'cover_plates_prod',    label:'Cover Plates Production per m² (materials, cutting, drilling, painting) — 190 m² WAHA + 56 m² R&B', req:true },
+      { key:'cover_plates_install', label:'Cover Plates Installation per m² or kg',                                   req:true  },
+      { key:'steel_prod',           label:'Steel Structure Production per kg/ton (materials, sawing, welding, painting) — ~4,200 kg + ~13,500 kg hoist', req:true },
       { key:'steel_install',        label:'Steel Structure Installation per kg/ton',                                   req:true  },
-      { key:'fencing',              label:'Fencing â€” 6 weeks',                                                        req:true  },
+      { key:'fencing',              label:'Fencing — 6 weeks',                                                        req:true  },
       { key:'demobilization',       label:'Demobilization',                                                            req:true  },
       { key:'administration',       label:'Administration (insurance, quality certs, paint TDS, standards list)',      req:true  },
       { key:'opt_pm_safety',        label:'Optional: PM / Safety Advisor ($/hr)',                                      req:false },
-      { key:'opt_electrician',      label:'Optional: Industrial Electrician incl. tools ($/hr â€” est. 3 ppl Ã— 20 days)', req:false },
-      { key:'opt_mechanic',         label:'Optional: Mechanic incl. tools ($/hr â€” est. 3 ppl Ã— 20 days)',             req:false },
-      { key:'opt_forklift',         label:'Optional: 2Ã— Forklifts ($/day â€” 20 days)',                                 req:false },
+      { key:'opt_electrician',      label:'Optional: Industrial Electrician incl. tools ($/hr — est. 3 ppl × 20 days)', req:false },
+      { key:'opt_mechanic',         label:'Optional: Mechanic incl. tools ($/hr — est. 3 ppl × 20 days)',             req:false },
+      { key:'opt_forklift',         label:'Optional: 2× Forklifts ($/day — 20 days)',                                 req:false },
     ],
   },
   crane_rigging: {
     label: 'Crane & Rigging Operation',
-    icon:  'ðŸ—ï¸',
+    icon:  '🏗️',
     context: [
-      { l:'WAHA Machines',     v:'4Ã— @ ~12.5T each'             },
-      { l:'Roller Machine',    v:'1Ã— @ ~16T'                    },
-      { l:'WAHA Containers',   v:"5Ã— HC40' + 4Ã— Flatracks"      },
-      { l:'Roller Containers', v:"1Ã— HC40' + 1Ã— Flatrack"       },
-      { l:'Expected Duration', v:'7â€“8 days'                     },
-      { l:'Floor Load Max',    v:'5.7 ton/mÂ²'                   },
+      { l:'WAHA Machines',     v:'4× @ ~12.5T each'             },
+      { l:'Roller Machine',    v:'1× @ ~16T'                    },
+      { l:'WAHA Containers',   v:"5× HC40' + 4× Flatracks"      },
+      { l:'Roller Containers', v:"1× HC40' + 1× Flatrack"       },
+      { l:'Expected Duration', v:'7–8 days'                     },
+      { l:'Floor Load Max',    v:'5.7 ton/m²'                   },
       { l:'Forklift Spec',     v:'White wheel, electric/propane' },
       { l:'Pre-docs Required', v:'Risk assessment + lift plan 1 month prior' },
       { l:'Target Start',      v:'Early September 2026'          },
@@ -724,23 +721,23 @@ const SCOPES = {
       { key:'unloading',        label:'Unloading containers/flatracks (wooden crates)',                        req:true  },
       { key:'waste_removal',    label:'Removal of packing waste',                                             req:true  },
       { key:'transport',        label:'Transport to installation area',                                       req:true  },
-      { key:'lifting_waha',     label:'Lifting WAHA stations into pit â€” 4Ã— machines (~12.5T each)',           req:true  },
-      { key:'lifting_roller',   label:'Lifting Roller Test station into pit â€” 1Ã— machine (~16T)',             req:true  },
+      { key:'lifting_waha',     label:'Lifting WAHA stations into pit — 4× machines (~12.5T each)',           req:true  },
+      { key:'lifting_roller',   label:'Lifting Roller Test station into pit — 1× machine (~16T)',             req:true  },
       { key:'demobilization',   label:'Demobilization',                                                       req:true  },
       { key:'administration',   label:'Administration (OSHA 29 CFR 1910 & 1926 compliance, certifications)',  req:true  },
       { key:'rental_equipment', label:'Rental equipment for transport/lifting (crane, spreader beams, etc.)', req:true  },
       { key:'labor',            label:'Labor for transport/lifting',                                          req:true  },
       { key:'opt_pm_safety',    label:'Optional: PM / Safety Advisor ($/hr)',                                 req:false },
-      { key:'opt_electrician',  label:'Optional: Electrician incl. tools ($/hr â€” est. 3 ppl Ã— 20 days)',     req:false },
-      { key:'opt_mechanic',     label:'Optional: Mechanic incl. tools ($/hr â€” est. 3 ppl Ã— 20 days)',        req:false },
-      { key:'opt_forklift',     label:'Optional: 2Ã— Forklifts ($/day â€” 20 days)',                            req:false },
+      { key:'opt_electrician',  label:'Optional: Electrician incl. tools ($/hr — est. 3 ppl × 20 days)',     req:false },
+      { key:'opt_mechanic',     label:'Optional: Mechanic incl. tools ($/hr — est. 3 ppl × 20 days)',        req:false },
+      { key:'opt_forklift',     label:'Optional: 2× Forklifts ($/day — 20 days)',                            req:false },
     ],
   },
   mechanical_compressed_air: {
     label: 'Mechanical Assistance & Compressed Air',
-    icon:  'ðŸ”§',
+    icon:  '🔧',
     context: [
-      { l:'Total Machines',         v:'5 (4Ã— WAHA + 1Ã— Roller)'           },
+      { l:'Total Machines',         v:'5 (4× WAHA + 1× Roller)'           },
       { l:'WAHA Connections',       v:'4 machines + 1 reserve'             },
       { l:'Working Pressure',       v:'6 bar'                              },
       { l:'Pipe Material',          v:'Galvanized steel'                   },
@@ -752,10 +749,10 @@ const SCOPES = {
     ],
     items: [
       { key:'mobilization',    label:'Mobilization',                                                         req:true  },
-      { key:'ca_waha_mat',     label:'Compressed Air System (WAHA) â€” Materials',                             req:true  },
-      { key:'ca_waha_labor',   label:'Compressed Air System (WAHA) â€” Labor (incl. hours indication)',        req:true  },
-      { key:'ca_roller_mat',   label:'Compressed Air System (Roller) â€” Materials',                           req:true  },
-      { key:'ca_roller_labor', label:'Compressed Air System (Roller) â€” Labor (incl. hours indication)',      req:true  },
+      { key:'ca_waha_mat',     label:'Compressed Air System (WAHA) — Materials',                             req:true  },
+      { key:'ca_waha_labor',   label:'Compressed Air System (WAHA) — Labor (incl. hours indication)',        req:true  },
+      { key:'ca_roller_mat',   label:'Compressed Air System (Roller) — Materials',                           req:true  },
+      { key:'ca_roller_labor', label:'Compressed Air System (Roller) — Labor (incl. hours indication)',      req:true  },
       { key:'equipment',       label:'Equipment (cherry picker, etc.)',                                      req:true  },
       { key:'administration',  label:'Administration (certifications, tests, US compressed air regulations)', req:true },
       { key:'unit_pipe_2in',   label:'Unit Rate: Price per m installed pipe 2"',                             req:true  },
@@ -763,54 +760,54 @@ const SCOPES = {
       { key:'unit_elbow_2in',  label:'Unit Rate: Price per installed elbow 2"',                              req:true  },
       { key:'unit_elbow_1in',  label:'Unit Rate: Price per installed elbow 1"',                              req:true  },
       { key:'opt_pm_safety',   label:'Optional: PM / Safety Advisor ($/hr)',                                 req:false },
-      { key:'opt_electrician', label:'Optional: Electrician incl. tools ($/hr â€” est. 3 ppl Ã— 20 days)',     req:false },
-      { key:'opt_mechanic',    label:'Optional: Mechanic incl. tools ($/hr â€” est. 3 ppl Ã— 20 days)',        req:false },
-      { key:'opt_forklift',    label:'Optional: 2Ã— Forklifts ($/day â€” 20 days)',                            req:false },
+      { key:'opt_electrician', label:'Optional: Electrician incl. tools ($/hr — est. 3 ppl × 20 days)',     req:false },
+      { key:'opt_mechanic',    label:'Optional: Mechanic incl. tools ($/hr — est. 3 ppl × 20 days)',        req:false },
+      { key:'opt_forklift',    label:'Optional: 2× Forklifts ($/day — 20 days)',                            req:false },
     ],
   },
   electrical: {
     label: 'Electrical Assistance',
-    icon:  'âš¡',
+    icon:  '⚡',
     context: [
-      { l:'Total Machines',          v:'5 (4Ã— WAHA + 1Ã— Roller Test)'                   },
-      { l:'WAHA Pit Dimensions',     v:'9,000 Ã— 35,000 Ã— 2,850 mm'                      },
-      { l:'Roller Pit Dimensions',   v:'9,000 Ã— 6,000 Ã— 2,200 mm'                       },
-      { l:'Lighting Standard',       v:'ISO 8995:2002(E) â€” 500 lux minimum'             },
-      { l:'WAHA Luminaires',         v:'4 zones Ã— 3 luminaires = 12 total'              },
+      { l:'Total Machines',          v:'5 (4× WAHA + 1× Roller Test)'                   },
+      { l:'WAHA Pit Dimensions',     v:'9,000 × 35,000 × 2,850 mm'                      },
+      { l:'Roller Pit Dimensions',   v:'9,000 × 6,000 × 2,200 mm'                       },
+      { l:'Lighting Standard',       v:'ISO 8995:2002(E) — 500 lux minimum'             },
+      { l:'WAHA Luminaires',         v:'4 zones × 3 luminaires = 12 total'              },
       { l:'Roller Luminaires',       v:'TBD per zone layout'                             },
       { l:'Electrical Duration',     v:'WAHA: 5 days; Roller: 2 days; Assistance: 20 days' },
-      { l:'Working Hours',           v:'10 h/day, Monâ€“Sat'                              },
+      { l:'Working Hours',           v:'10 h/day, Mon–Sat'                              },
       { l:'Standard',                v:'UL (US standard); DDP Incoterms'                },
       { l:'Site Address',            v:'501 Blythewood Rd, Blythewood SC 29016'         },
       { l:'Target Start',            v:'September 2026'                                 },
     ],
     items: [
-      { key:'mobilization',           label:'Mobilization â€” lump sum',                                                    req:true  },
+      { key:'mobilization',           label:'Mobilization — lump sum',                                                    req:true  },
       { key:'feedin_waha_materials',  label:'Feed-in WAHA: Materials (conduit, cable, panels, breakers)',                 req:true  },
-      { key:'feedin_waha_labor',      label:'Feed-in WAHA: Labor â€” hours indication required',                           req:true  },
+      { key:'feedin_waha_labor',      label:'Feed-in WAHA: Labor — hours indication required',                           req:true  },
       { key:'feedin_roller_materials',label:'Feed-in Roller Test: Materials',                                             req:true  },
-      { key:'feedin_roller_labor',    label:'Feed-in Roller Test: Labor â€” hours indication required',                    req:true  },
+      { key:'feedin_roller_labor',    label:'Feed-in Roller Test: Labor — hours indication required',                    req:true  },
       { key:'lighting_waha_materials',label:'Lighting + Sockets WAHA: Materials (12 luminaires, 4 zones, 500 lux)',      req:true  },
-      { key:'lighting_waha_labor',    label:'Lighting + Sockets WAHA: Labor â€” hours indication required',               req:true  },
+      { key:'lighting_waha_labor',    label:'Lighting + Sockets WAHA: Labor — hours indication required',               req:true  },
       { key:'lighting_roller_materials',label:'Lighting + Sockets Roller: Materials',                                    req:true  },
-      { key:'lighting_roller_labor',  label:'Lighting + Sockets Roller: Labor â€” hours indication required',             req:true  },
+      { key:'lighting_roller_labor',  label:'Lighting + Sockets Roller: Labor — hours indication required',             req:true  },
       { key:'equipment',              label:'Equipment (cherry picker, scissor lift, cable pullers, etc.)',              req:true  },
       { key:'administration',         label:'Administration (UL certification, inspections, tests, US electrical regs)', req:true  },
       { key:'rate_pm',                label:'Unit Rate: Project Manager / Safety Advisor ($/hr)',                        req:true  },
-      { key:'rate_electrician',       label:'Unit Rate: Electrician incl. tools ($/hr â€” est. 3 electricians Ã— 20 days)',req:true  },
-      { key:'rate_mechanic',          label:'Unit Rate: Mechanic incl. tools ($/hr â€” est. 3 mechanics Ã— 20 days)',      req:true  },
+      { key:'rate_electrician',       label:'Unit Rate: Electrician incl. tools ($/hr — est. 3 electricians × 20 days)',req:true  },
+      { key:'rate_mechanic',          label:'Unit Rate: Mechanic incl. tools ($/hr — est. 3 mechanics × 20 days)',      req:true  },
     ],
   },
 };
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // UTILITIES
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 const esc    = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const safeJs = s => String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-const fmt$   = n => !n && n !== 0 ? 'â€”' : '$' + Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
-const fmt$d  = n => !n && n !== 0 ? 'â€”' : '$' + Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-const fmtDate = d => d ? new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : 'â€”';
+const fmt$   = n => !n && n !== 0 ? '—' : '$' + Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+const fmt$d  = n => !n && n !== 0 ? '—' : '$' + Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtDate = d => d ? new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
 const todayISO = () => new Date().toISOString().split('T')[0];
 
 function toast(msg, type='success') {
@@ -827,7 +824,7 @@ function setBreadcrumb(parts) {
   el.style.display = 'flex';
   el.innerHTML = parts.map((p,i) =>
     i < parts.length-1
-      ? `<span class="breadcrumb-link" onclick="${esc(p.fn)}">${esc(p.label)}</span><span class="breadcrumb-sep">â€º</span>`
+      ? `<span class="breadcrumb-link" onclick="${esc(p.fn)}">${esc(p.label)}</span><span class="breadcrumb-sep">›</span>`
       : `<span>${esc(p.label)}</span>`
   ).join('');
 }
@@ -838,9 +835,9 @@ function setNav(id) {
   if (el) el.classList.add('active');
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // MODAL
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 function openModal(title, bodyHtml, footerHtml='') {
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = bodyHtml;
@@ -851,9 +848,9 @@ function closeModal() {
   document.getElementById('modal-overlay').style.display = 'none';
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // DB HELPER
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 async function q(table, op, opts={}) {
   let query = db.from(table);
   if (op === 'select') {
@@ -875,9 +872,9 @@ async function q(table, op, opts={}) {
   return data;
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // ROUTING
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
@@ -898,9 +895,9 @@ function resetNewProjectForm() {
   document.getElementById('np-btn').textContent='Create Project + Auto-generate 4 Scopes';
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // DASHBOARD
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 async function loadDashboard() {
   try {
     const projects = await q('rfq_projects','select',{order:['created_at',false]});
@@ -938,12 +935,12 @@ async function loadDashboard() {
         '<div class="metric-value" style="color:var(--success);font-size:' + (totalAwarded>0?'18':'26') + 'px">' + fmt$(totalAwarded) + '</div>' +
         '<div class="metric-label">Total Awarded</div>' +
       '</div>';
-    document.getElementById('dash-subtitle').textContent = `${projects.length} project${projects.length!==1?'s':''} Â· ${allScopes.length} scopes`;
+    document.getElementById('dash-subtitle').textContent = `${projects.length} project${projects.length!==1?'s':''} · ${allScopes.length} scopes`;
 
     if (!projects.length) {
       document.getElementById('projects-list').innerHTML = `
         <div class="card empty-state">
-          <div class="empty-icon">ðŸ“‹</div>
+          <div class="empty-icon">📋</div>
           <div class="empty-text">No projects yet</div>
           <div class="empty-sub">Create your first RFQ project to get started</div>
           <button class="btn btn-primary" onclick="showPage('new-project')">+ New Project</button>
@@ -970,14 +967,14 @@ async function loadDashboard() {
             <div>
               <div class="project-card-name">${esc(p.name)}</div>
               <div class="project-card-meta">
-                <span>ðŸ“ ${esc(p.customer)}</span>
+                <span>📍 ${esc(p.customer)}</span>
                 ${p.jo_numbers?`<span>JO: ${esc(p.jo_numbers)}</span>`:''}
                 ${p.pm_name?`<span>PM: ${esc(p.pm_name)}</span>`:''}
-                ${p.target_install_date?`<span>ðŸ—“ ${fmtDate(p.target_install_date)}</span>`:''}
+                ${p.target_install_date?`<span>🗓 ${fmtDate(p.target_install_date)}</span>`:''}
               </div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px"><div class="scope-chips">${chips}</div><span style="font-size:11px;color:var(--muted);flex-shrink:0">${ps.filter(s=>s.status!=='draft').length}/${SCOPE_ORDER.length} scopes active</span></div>
+          <div class="scope-chips">${chips}</div>
         </div>`;
     }).join('');
 
@@ -986,9 +983,9 @@ async function loadDashboard() {
   }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // CREATE PROJECT
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 async function createProject() {
   const name     = document.getElementById('np-name').value.trim();
   const customer = document.getElementById('np-customer').value.trim();
@@ -1000,7 +997,7 @@ async function createProject() {
   errEl.style.display = 'none';
   const btn = document.getElementById('np-btn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Creatingâ€¦';
+  btn.innerHTML = '<span class="spinner"></span> Creating…';
   try {
     const [proj] = await q('rfq_projects','insert',{
       data: {
@@ -1027,9 +1024,9 @@ async function createProject() {
   }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // PROJECT DETAIL
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 async function openProject(projectId, projectName) {
   _projectId   = projectId;
   _projectName = projectName;
@@ -1053,15 +1050,15 @@ async function loadProjectDetail(projectId) {
 
     const infoHtml = [
       {l:'Customer',     v:proj.customer},
-      {l:'JO Number(s)', v:proj.jo_numbers||'â€”'},
-      {l:'Site Address', v:proj.site_address||'â€”'},
-      {l:'BEP PM',       v:proj.pm_name||'â€”'},
-      {l:'Buyer',        v:proj.buyer_name||'â€”'},
-      {l:'Region',       v:proj.region||'â€”'},
+      {l:'JO Number(s)', v:proj.jo_numbers||'—'},
+      {l:'Site Address', v:proj.site_address||'—'},
+      {l:'BEP PM',       v:proj.pm_name||'—'},
+      {l:'Buyer',        v:proj.buyer_name||'—'},
+      {l:'Region',       v:proj.region||'—'},
       {l:'Target Install',v:fmtDate(proj.target_install_date)},
     ].map(i=>`<div><div class="info-label">${esc(i.l)}</div><div class="info-value">${esc(i.v)}</div></div>`).join('');
 
-    // â”€â”€ Project rollup metrics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Project rollup metrics ──────────────────────
     let totalAwarded = 0, totalProfitProtect = 0, totalHeadroom = 0;
     let scopesCompeted = 0, scopesTotal = 0;
     SCOPE_ORDER.forEach(st => {
@@ -1089,7 +1086,7 @@ async function loadProjectDetail(projectId) {
         <div style="flex:1;min-width:160px;background:#0d1117;border:1px solid rgba(168,85,247,0.3);border-radius:10px;padding:16px 20px">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:6px">Profit Protection Target</div>
           <div style="font-size:26px;font-weight:700;color:#a855f7">${fmt$(totalProfitProtect)}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:3px">2% BEP policy â€” push back on suppliers</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">2% BEP policy — push back on suppliers</div>
         </div>`:''}
         ${totalHeadroom>0?`
         <div style="flex:1;min-width:160px;background:#0d1117;border:1px solid #1e2535;border-radius:10px;padding:16px 20px">
@@ -1119,13 +1116,13 @@ async function loadProjectDetail(projectId) {
             <div class="scope-card-title"><span class="scope-icon">${sc.icon}</span> ${esc(sc.label)}</div>
             <span class="badge badge-purple">Pending</span>
           </div>
-          <div class="pending-msg">â³ ${esc(sc.pendingNote)}</div>
+          <div class="pending-msg">⏳ ${esc(sc.pendingNote)}</div>
         </div>`;
 
       const pillHtml = SUPPLIERS.map(s => {
         const qp = s.id==='culver' ? culverQ : carnQ;
         const cls = qp ? (qp.is_awarded?'awarded':'filled') : '';
-        return `<span class="quote-pill ${cls}">${qp&&qp.is_awarded?'âœ“ ':qp?'â— ':'â—‹ '}${esc(s.name)} ${qp&&qp.total_amount?fmt$(qp.total_amount):(qp?'Partial':'â€”')}</span>`;
+        return `<span class="quote-pill ${cls}">${qp&&qp.is_awarded?'✓ ':qp?'● ':'○ '}${esc(s.name)} ${qp&&qp.total_amount?fmt$(qp.total_amount):(qp?'Partial':'—')}</span>`;
       }).join('');
 
       const budgetHtml = scope&&scope.budget_guidance
@@ -1135,12 +1132,12 @@ async function loadProjectDetail(projectId) {
       const deadlineHtml = (()=>{
         if (!scope?.rfq_deadline) return '';
         const daysLeft = Math.round((new Date(scope.rfq_deadline) - new Date()) / 86400000);
-        if (daysLeft < 0)  return `<div style="margin-top:6px;font-size:11px;font-weight:700;color:#f87171">ðŸ”´ RFQ deadline ${Math.abs(daysLeft)}d overdue (${fmtDate(scope.rfq_deadline)})</div>`;
-        if (daysLeft <= 7) return `<div style="margin-top:6px;font-size:11px;font-weight:700;color:#f59e0b">ðŸŸ¡ RFQ deadline in ${daysLeft}d (${fmtDate(scope.rfq_deadline)})</div>`;
-        return `<div style="margin-top:6px;font-size:11px;color:var(--muted)">ðŸ“… RFQ deadline in ${daysLeft}d (${fmtDate(scope.rfq_deadline)})</div>`;
+        if (daysLeft < 0)  return `<div style="margin-top:6px;font-size:11px;font-weight:700;color:#f87171">🔴 RFQ deadline ${Math.abs(daysLeft)}d overdue (${fmtDate(scope.rfq_deadline)})</div>`;
+        if (daysLeft <= 7) return `<div style="margin-top:6px;font-size:11px;font-weight:700;color:#f59e0b">🟡 RFQ deadline in ${daysLeft}d (${fmtDate(scope.rfq_deadline)})</div>`;
+        return `<div style="margin-top:6px;font-size:11px;color:var(--muted)">📅 RFQ deadline in ${daysLeft}d (${fmtDate(scope.rfq_deadline)})</div>`;
       })();
 
-      // Completeness score â€” required line items filled across both supplier quotes
+      // Completeness score — required line items filled across both supplier quotes
       const completenessHtml = (()=>{
         const reqItems = sc.items.filter(i=>i.req);
         if (!reqItems.length || !sq.length) return '';
@@ -1165,9 +1162,9 @@ async function loadProjectDetail(projectId) {
 
       const quotesWithAmt = sq.filter(x=>x.total_amount>0);
       const compSourcingBadge = quotesWithAmt.length >= 2
-        ? `<span style="font-size:10px;font-weight:700;background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.3);border-radius:4px;padding:2px 7px;letter-spacing:0.04em">COMPETED âœ“</span>`
+        ? `<span style="font-size:10px;font-weight:700;background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.3);border-radius:4px;padding:2px 7px;letter-spacing:0.04em">COMPETED ✓</span>`
         : quotesWithAmt.length === 1
-          ? `<span style="font-size:10px;font-weight:700;background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);border-radius:4px;padding:2px 7px;letter-spacing:0.04em">SINGLE SOURCE âš </span>`
+          ? `<span style="font-size:10px;font-weight:700;background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);border-radius:4px;padding:2px 7px;letter-spacing:0.04em">SINGLE SOURCE ⚠</span>`
           : '';
 
       const scopeIdSafe = scope ? scope.id : '';
@@ -1184,7 +1181,7 @@ async function loadProjectDetail(projectId) {
           ${completenessHtml}
           <div class="scope-card-footer">
             <div style="font-size:13px;font-weight:700;color:var(--success)">${awardedQ?'Awarded: '+fmt$(awardedQ.total_amount):''}</div>
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openScope('${scopeIdSafe}','${st}','${safeJs(proj.name)}')">${sq.length?'View Quotes â†’':'Enter Quotes â†’'}</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openScope('${scopeIdSafe}','${st}','${safeJs(proj.name)}')">${sq.length?'View Quotes →':'Enter Quotes →'}</button>
           </div>
         </div>`;
     }).join('');
@@ -1193,9 +1190,9 @@ async function loadProjectDetail(projectId) {
       <div class="page-header">
         <div>
           <h1>${esc(proj.name)}</h1>
-          <div class="page-subtitle">${esc(proj.customer)}${proj.target_install_date?' Â· Target: '+fmtDate(proj.target_install_date):''}</div>
+          <div class="page-subtitle">${esc(proj.customer)}${proj.target_install_date?' · Target: '+fmtDate(proj.target_install_date):''}</div>
         </div>
-        <button class="btn btn-secondary" onclick="showPage('dashboard')">â† Projects</button>
+        <button class="btn btn-secondary" onclick="showPage('dashboard')">← Projects</button>
       </div>
       <div class="card" style="margin-bottom:20px">
         <div class="info-grid">${infoHtml}</div>
@@ -1208,9 +1205,9 @@ async function loadProjectDetail(projectId) {
   }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // SCOPE DETAIL
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 async function openScope(scopeId, scopeType, projectName) {
   _scopeId   = scopeId;
   _scopeType = scopeType;
@@ -1249,14 +1246,14 @@ function renderScope(scope, quotes) {
     const now  = cur === i;
     return `${i>0?`<div class="step-line ${done?'done':''}"></div>`:''}
     <div class="step-node">
-      <div class="step-dot ${done?'done':now?'current':''}">${done?'âœ“':i+1}</div>
+      <div class="step-dot ${done?'done':now?'current':''}">${done?'✓':i+1}</div>
       <span class="step-text ${done?'done':now?'current':''}">${SLABELS[i]}</span>
     </div>`;
   }).join('');
 
   const ctxHtml = sc.context.length ? `
     <div class="context-box">
-      <div class="context-box-title">Scope Context â€” from RFQ document</div>
+      <div class="context-box-title">Scope Context — from RFQ document</div>
       <div class="context-grid">
         ${sc.context.map(c=>`<div class="ctx-item"><strong>${esc(c.l)}</strong>${esc(c.v)}</div>`).join('')}
       </div>
@@ -1270,7 +1267,7 @@ function renderScope(scope, quotes) {
 
   const tabsHtml = SUPPLIERS.map(s => {
     const hasQ = s.id==='culver' ? !!culverQ : !!carnQ;
-    return `<button class="sup-tab ${_activeTab===s.id?'active':''}" onclick="switchTab('${s.id}')">${esc(s.name)} <span style="font-size:11px;color:var(--muted)">${esc(s.contact)}</span>${hasQ?' âœ“':''}</button>`;
+    return `<button class="sup-tab ${_activeTab===s.id?'active':''}" onclick="switchTab('${s.id}')">${esc(s.name)} <span style="font-size:11px;color:var(--muted)">${esc(s.contact)}</span>${hasQ?' ✓':''}</button>`;
   }).join('');
 
   // Budget guidance bar
@@ -1282,19 +1279,19 @@ function renderScope(scope, quotes) {
     const diff = bg - awardedQ.total_amount;
     const pct  = Math.abs(diff/bg*100).toFixed(1);
     const vsTarget = bgTarget - (awardedQ.total_amount||0);
-    const targetHtml = `<span style="font-size:11px;color:var(--muted)"> Â· Bogon target: ${fmt$(bgTarget)} ${vsTarget>=0?`<span style="color:#86efac">(â–¼ ${fmt$(vsTarget)} under target)</span>`:`<span style="color:#fca5a5">(â–² ${fmt$(Math.abs(vsTarget))} over target)</span>`}</span>`;
+    const targetHtml = `<span style="font-size:11px;color:var(--muted)"> · Bogon target: ${fmt$(bgTarget)} ${vsTarget>=0?`<span style="color:#86efac">(▼ ${fmt$(vsTarget)} under target)</span>`:`<span style="color:#fca5a5">(▲ ${fmt$(Math.abs(vsTarget))} over target)</span>`}</span>`;
     varianceHtml = diff >= 0
-      ? `<span class="budget-variance bv-under">â–¼ ${fmt$(diff)} under budget (${pct}%)</span>${targetHtml}`
-      : `<span class="budget-variance bv-over">â–² ${fmt$(Math.abs(diff))} over budget (${pct}%)</span>${targetHtml}`;
+      ? `<span class="budget-variance bv-under">▼ ${fmt$(diff)} under budget (${pct}%)</span>${targetHtml}`
+      : `<span class="budget-variance bv-over">▲ ${fmt$(Math.abs(diff))} over budget (${pct}%)</span>${targetHtml}`;
   } else if (bg && culverQ && carnQ) {
     const lowestBid = Math.min(culverQ.total_amount||Infinity, carnQ.total_amount||Infinity);
     const diff = bg - lowestBid;
     const pct  = Math.abs(diff/bg*100).toFixed(1);
     const vsTarget = bgTarget - lowestBid;
-    const targetHtml = `<span style="font-size:11px;color:var(--muted)"> Â· Bogon target: ${fmt$(bgTarget)} ${vsTarget>=0?`<span style="color:#86efac">(â–¼ ${fmt$(vsTarget)} under)</span>`:`<span style="color:#fca5a5">(â–² ${fmt$(Math.abs(vsTarget))} over)</span>`}</span>`;
+    const targetHtml = `<span style="font-size:11px;color:var(--muted)"> · Bogon target: ${fmt$(bgTarget)} ${vsTarget>=0?`<span style="color:#86efac">(▼ ${fmt$(vsTarget)} under)</span>`:`<span style="color:#fca5a5">(▲ ${fmt$(Math.abs(vsTarget))} over)</span>`}</span>`;
     varianceHtml = diff >= 0
-      ? `<span class="budget-variance bv-under">Lowest bid â–¼ ${fmt$(diff)} under budget (${pct}%)</span>${targetHtml}`
-      : `<span class="budget-variance bv-over">Lowest bid â–² ${fmt$(Math.abs(diff))} over budget (${pct}%)</span>${targetHtml}`;
+      ? `<span class="budget-variance bv-under">Lowest bid ▼ ${fmt$(diff)} under budget (${pct}%)</span>${targetHtml}`
+      : `<span class="budget-variance bv-over">Lowest bid ▲ ${fmt$(Math.abs(diff))} over budget (${pct}%)</span>${targetHtml}`;
   } else if (bg) {
     varianceHtml = `<span style="font-size:11px;color:var(--muted)">Bogon target (5% below): <strong style="color:#f59e0b">${fmt$(bgTarget)}</strong></span>`;
   }
@@ -1304,15 +1301,15 @@ function renderScope(scope, quotes) {
       <div class="budget-bar-label">Budget Guidance</div>
       <div class="budget-input-wrap">
         <span style="color:var(--muted);font-size:13px">$</span>
-        <input type="number" id="budget-input" value="${bg||''}" placeholder="Enter BEP budget estimateâ€¦"
+        <input type="number" id="budget-input" value="${bg||''}" placeholder="Enter BEP budget estimate…"
           style="max-width:180px" min="0" step="1000"
           onkeydown="if(event.key==='Enter')saveBudgetGuidance('${scope.id}',this.value)" />
         <button class="btn btn-secondary btn-sm" onclick="saveBudgetGuidance('${scope.id}',document.getElementById('budget-input').value)">Set</button>
       </div>
       ${varianceHtml}
       <div style="margin-left:auto">
-        <button class="btn btn-teal btn-sm" onclick="generateRFQ('${scope.id}')">ðŸ“„ Generate RFQ Document</button>
-        <button class="btn btn-secondary btn-sm" onclick="generateSOW('${scope.id}')">ðŸ“‹ Generate SOW</button>
+        <button class="btn btn-teal btn-sm" onclick="generateRFQ('${scope.id}')">📄 Generate RFQ Document</button>
+        <button class="btn btn-secondary btn-sm" onclick="generateSOW('${scope.id}')">📋 Generate SOW</button>
       </div>
     </div>`;
 
@@ -1327,7 +1324,7 @@ function renderScope(scope, quotes) {
         <h1>${sc.icon} ${esc(sc.label)}</h1>
         <div class="page-subtitle">${esc(_projectName||'')}</div>
       </div>
-      <button class="btn btn-secondary btn-sm" onclick="openProject('${_projectId}','${safeJs(_projectName||'')}')">â† Project</button>
+      <button class="btn btn-secondary btn-sm" onclick="openProject('${_projectId}','${safeJs(_projectName||'')}')">← Project</button>
     </div>
     <div class="stepper">${stepperHtml}</div>
     ${statusActions}
@@ -1345,9 +1342,9 @@ function renderScope(scope, quotes) {
         const missing = reqItems.filter(i=>!(items.find(x=>x.key===i.key)?.amount>0)).map(i=>i.label);
         if (missing.length) gaps.push({supplier:s.name, missing});
       });
-      if (!gaps.length) return `<div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12px;color:#22c55e;font-weight:700">âœ… All required line items filled for both suppliers</div>`;
+      if (!gaps.length) return `<div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12px;color:#22c55e;font-weight:700">✅ All required line items filled for both suppliers</div>`;
       return `<div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:12px 16px;margin-bottom:20px">
-        <div style="font-size:11px;font-weight:700;color:#f59e0b;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">âš  Quote Gaps â€” Missing Required Line Items</div>
+        <div style="font-size:11px;font-weight:700;color:#f59e0b;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">⚠ Quote Gaps — Missing Required Line Items</div>
         ${gaps.map(g=>`<div style="font-size:12px;margin-bottom:4px"><strong style="color:var(--text)">${esc(g.supplier)}:</strong> <span style="color:var(--muted)">${g.missing.map(m=>esc(m)).join(', ')}</span></div>`).join('')}
       </div>`;
     })()}
@@ -1361,24 +1358,24 @@ function renderScope(scope, quotes) {
     </div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div style="font-size:14px;font-weight:700">ðŸ“Š Quote Comparison</div>
-        ${(culverQ||carnQ)?`<button class="btn btn-secondary btn-sm" onclick="exportComparisonPDF()">â¬‡ Export PDF</button>`:''}
+        <div style="font-size:14px;font-weight:700">📊 Quote Comparison</div>
+        ${(culverQ||carnQ)?`<button class="btn btn-secondary btn-sm" onclick="exportComparisonPDF()">⬇ Export PDF</button>`:''}
       </div>
       <div id="comparison">${compHtml}</div>
     </div>
     <div class="card" style="margin-top:20px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div style="font-size:14px;font-weight:700">ðŸ—’ Negotiation Log</div>
+        <div style="font-size:14px;font-weight:700">🗒 Negotiation Log</div>
         <span style="font-size:11px;color:var(--muted)">${(scope.negotiation_notes||[]).length} entr${(scope.negotiation_notes||[]).length===1?'y':'ies'}</span>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:16px">
-        <textarea id="neg-log-input" placeholder="Log a call, concession, re-quote request, or decisionâ€¦"
+        <textarea id="neg-log-input" placeholder="Log a call, concession, re-quote request, or decision…"
           style="flex:1;background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:10px 12px;font-size:13px;font-family:inherit;resize:vertical;min-height:70px;line-height:1.5"></textarea>
-        <button class="btn btn-primary btn-sm" style="align-self:flex-end" onclick="saveNegLog('${scope.id}')">Add â†’</button>
+        <button class="btn btn-primary btn-sm" style="align-self:flex-end" onclick="saveNegLog('${scope.id}')">Add →</button>
       </div>
       <div id="neg-log-list" style="display:flex;flex-direction:column;gap:8px">
         ${(scope.negotiation_notes||[]).length===0
-          ? `<div style="font-size:12px;color:var(--muted);text-align:center;padding:12px 0">No entries yet â€” log your first supplier interaction above.</div>`
+          ? `<div style="font-size:12px;color:var(--muted);text-align:center;padding:12px 0">No entries yet — log your first supplier interaction above.</div>`
           : [...(scope.negotiation_notes||[])].reverse().map(n=>`
             <div style="background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:10px 14px">
               <div style="font-size:10px;color:var(--muted);margin-bottom:5px">${esc(new Date(n.ts).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}))}</div>
@@ -1392,9 +1389,9 @@ function renderScope(scope, quotes) {
   updateMilestoneTotal();
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // PDF EXPORT
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 async function exportComparisonPDF() {
   try {
     const [scope]  = await q('rfq_scopes','select',{eq:['id',_scopeId]});
@@ -1422,8 +1419,8 @@ async function exportComparisonPDF() {
       const cLow = ca>0&&cb>0&&ca<cb, cbLow = ca>0&&cb>0&&cb<ca;
       return `<tr>
         <td>${esc(i.label)}</td>
-        <td style="text-align:right;${cLow?'font-weight:700;color:#16a34a':''}">${ca>0?fmt$(ca):'â€”'}</td>
-        <td style="text-align:right;${cbLow?'font-weight:700;color:#16a34a':''}">${cb>0?fmt$(cb):'â€”'}</td>
+        <td style="text-align:right;${cLow?'font-weight:700;color:#16a34a':''}">${ca>0?fmt$(ca):'—'}</td>
+        <td style="text-align:right;${cbLow?'font-weight:700;color:#16a34a':''}">${cb>0?fmt$(cb):'—'}</td>
       </tr>`;
     }).join('');
 
@@ -1431,12 +1428,12 @@ async function exportComparisonPDF() {
     const html = `
       <div class="print-header">
         <div>
-          <div style="font-size:20px;font-weight:700;color:#0f172a">${esc(sc.icon)} ${esc(sc.label)} â€” Quote Comparison</div>
-          <div style="font-size:13px;color:#64748b;margin-top:4px">${esc(_projectName||'')} &nbsp;Â·&nbsp; Generated ${today}</div>
+          <div style="font-size:20px;font-weight:700;color:#0f172a">${esc(sc.icon)} ${esc(sc.label)} — Quote Comparison</div>
+          <div style="font-size:13px;color:#64748b;margin-top:4px">${esc(_projectName||'')} &nbsp;·&nbsp; Generated ${today}</div>
         </div>
         <div style="text-align:right">
           <div style="font-size:11px;color:#64748b">SpecBridge</div>
-          <div style="font-size:11px;color:${competed?'#16a34a':'#d97706'};font-weight:700;margin-top:3px">${competed?'COMPETED â€” 2 Quotes':'SINGLE SOURCE âš '}</div>
+          <div style="font-size:11px;color:${competed?'#16a34a':'#d97706'};font-weight:700;margin-top:3px">${competed?'COMPETED — 2 Quotes':'SINGLE SOURCE ⚠'}</div>
         </div>
       </div>
       <table>
@@ -1449,21 +1446,21 @@ async function exportComparisonPDF() {
           ${rows}
           <tr style="font-weight:700;background:#f8fafc">
             <td>TOTAL</td>
-            <td style="text-align:right;${ct>0&&ct<=nct?'color:#16a34a':''}">${ct>0?fmt$(ct):'â€”'}</td>
-            <td style="text-align:right;${nct>0&&nct<=ct?'color:#16a34a':''}">${nct>0?fmt$(nct):'â€”'}</td>
+            <td style="text-align:right;${ct>0&&ct<=nct?'color:#16a34a':''}">${ct>0?fmt$(ct):'—'}</td>
+            <td style="text-align:right;${nct>0&&nct<=ct?'color:#16a34a':''}">${nct>0?fmt$(nct):'—'}</td>
           </tr>
           ${bg?`<tr style="background:#fefce8"><td>Budget Guidance (BEP Internal)</td><td colspan="2" style="text-align:right;font-weight:700">${fmt$(bg)}</td></tr>`:''}
-          ${awarded?`<tr style="background:#f0fdf4"><td>âœ“ Awarded</td><td colspan="2" style="text-align:right;font-weight:700;color:#16a34a">${esc(awarded.supplier_name)} â€” ${fmt$(awarded.total_amount)}</td></tr>`:''}
+          ${awarded?`<tr style="background:#f0fdf4"><td>✓ Awarded</td><td colspan="2" style="text-align:right;font-weight:700;color:#16a34a">${esc(awarded.supplier_name)} — ${fmt$(awarded.total_amount)}</td></tr>`:''}
         </tbody>
       </table>
       <div>
         ${savings>0?`<div class="print-metric"><div class="print-metric-label">Competitive Savings</div><div class="print-metric-val" style="color:#16a34a">${fmt$(savings)}</div><div style="font-size:11px;color:#64748b;margin-top:3px">${savingsPct}% lower bid vs higher</div></div>`:''}
-        ${marketAvg?`<div class="print-metric"><div class="print-metric-label">Market Defensible Position</div><div class="print-metric-val" style="color:#d97706">${fmt$(marketAvg)}</div><div style="font-size:11px;color:#64748b;margin-top:3px">Blended avg â€” use for customer pricing</div></div>`:''}
+        ${marketAvg?`<div class="print-metric"><div class="print-metric-label">Market Defensible Position</div><div class="print-metric-val" style="color:#d97706">${fmt$(marketAvg)}</div><div style="font-size:11px;color:#64748b;margin-top:3px">Blended avg — use for customer pricing</div></div>`:''}
         ${headroom?`<div class="print-metric"><div class="print-metric-label">Negotiation Headroom</div><div class="print-metric-val" style="color:#0284c7">${fmt$(headroom)}</div><div style="font-size:11px;color:#64748b;margin-top:3px">Room to push down to low bid</div></div>`:''}
-        ${profitP?`<div class="print-metric" style="border-color:#a855f7"><div class="print-metric-label">Profit Protection (2%)</div><div class="print-metric-val" style="color:#a855f7">${fmt$(profitP)}</div><div style="font-size:11px;color:#64748b;margin-top:3px">BEP policy â€” push back on supplier</div></div>`:''}
+        ${profitP?`<div class="print-metric" style="border-color:#a855f7"><div class="print-metric-label">Profit Protection (2%)</div><div class="print-metric-val" style="color:#a855f7">${fmt$(profitP)}</div><div style="font-size:11px;color:#64748b;margin-top:3px">BEP policy — push back on supplier</div></div>`:''}
       </div>
       <div class="print-footer">
-        <span>SpecBridge â€” Install Quote Capture & Competitive Sourcing</span>
+        <span>SpecBridge — Install Quote Capture & Competitive Sourcing</span>
         <span>${today}</span>
       </div>`;
 
@@ -1479,9 +1476,9 @@ function closePrintComparison() {
   document.body.classList.remove('printing-comparison');
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // NEGOTIATION LOG
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 async function saveNegLog(scopeId) {
   const inp = document.getElementById('neg-log-input');
   const text = (inp?.value||'').trim();
@@ -1496,9 +1493,9 @@ async function saveNegLog(scopeId) {
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // BUDGET GUIDANCE
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 async function saveBudgetGuidance(scopeId, val) {
   const num = parseFloat(val);
   if (!num || num <= 0) { toast('Enter a valid budget amount','error'); return; }
@@ -1509,40 +1506,40 @@ async function saveBudgetGuidance(scopeId, val) {
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // STATUS ACTIONS
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 function buildStatusActions(scope) {
   const trans = {
-    draft:           {label:'Mark RFQ as Sent â†’',       next:'rfq_sent',        cls:'btn-primary'},
-    rfq_sent:        {label:'Mark Quotes Received â†’',   next:'quotes_received', cls:'btn-warning'},
-    quotes_received: {label:'Submit for AE Review â†’',   next:'ae_review',       cls:'btn-warning'},
-    on_hold:         {label:'Reactivate â†’ Draft',        next:'draft',           cls:'btn-secondary'},
+    draft:           {label:'Mark RFQ as Sent →',       next:'rfq_sent',        cls:'btn-primary'},
+    rfq_sent:        {label:'Mark Quotes Received →',   next:'quotes_received', cls:'btn-warning'},
+    quotes_received: {label:'Submit for AE Review →',   next:'ae_review',       cls:'btn-warning'},
+    on_hold:         {label:'Reactivate → Draft',        next:'draft',           cls:'btn-secondary'},
     awarded:         null,
     killed:          null,
     ae_review:       null,
   };
   const t = trans[scope.status];
   const holdBtn = !['on_hold','awarded','killed'].includes(scope.status)
-    ? `<button class="btn btn-secondary btn-sm" onclick="advanceScope('${scope.id}','on_hold')">â¸ On Hold</button>` : '';
+    ? `<button class="btn btn-secondary btn-sm" onclick="advanceScope('${scope.id}','on_hold')">⏸ On Hold</button>` : '';
 
   // AE Review: special approve + kill buttons
   if (scope.status === 'ae_review') {
     return `
       <div style="background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.25);border-radius:8px;padding:14px 18px;margin-bottom:22px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <div style="flex:1;min-width:180px">
-          <div style="font-size:11px;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">âš™ AE Review Pending</div>
+          <div style="font-size:11px;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">⚙ AE Review Pending</div>
           <div style="font-size:12px;color:var(--muted)">Awaiting Applications Engineering approval to proceed to award</div>
         </div>
-        <button class="btn btn-success btn-sm" onclick="aeApprove('${scope.id}',null)">âœ“ Approve â†’ Award</button>
-        <button class="btn btn-sm" style="background:rgba(248,113,113,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.3)" onclick="advanceScope('${scope.id}','killed')">âœ• Kill Scope</button>
+        <button class="btn btn-success btn-sm" onclick="aeApprove('${scope.id}',null)">✓ Approve → Award</button>
+        <button class="btn btn-sm" style="background:rgba(248,113,113,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.3)" onclick="advanceScope('${scope.id}','killed')">✕ Kill Scope</button>
         ${holdBtn}
         <span class="badge ${STATUS[scope.status].badge}">${STATUS[scope.status].label}</span>
       </div>`;
   }
   if (scope.status === 'killed') {
     return `<div style="display:flex;gap:8px;margin-bottom:22px;align-items:center;flex-wrap:wrap">
-      <button class="btn btn-secondary btn-sm" onclick="advanceScope('${scope.id}','draft')">â†º Reopen â†’ Draft</button>
+      <button class="btn btn-secondary btn-sm" onclick="advanceScope('${scope.id}','draft')">↺ Reopen → Draft</button>
       <span class="badge badge-red">Killed</span>
     </div>`;
   }
@@ -1555,9 +1552,9 @@ function buildStatusActions(scope) {
     </div>`;
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // QUOTE FORM (with payment terms)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 function buildQuoteForm(scope, existingQ, supplier) {
   const sc    = SCOPES[_scopeType];
   const items = existingQ ? (existingQ.line_items||[]) : [];
@@ -1572,7 +1569,7 @@ function buildQuoteForm(scope, existingQ, supplier) {
     <tr>
       <td class="li-label">${esc(i.label)}</td>
       <td class="li-amt-cell"><input type="number" class="amt-input" id="li-${i.key}" value="${getAmt(i.key)}" placeholder="0" min="0" step="0.01" oninput="calcTotal()" /></td>
-      <td class="li-notes-cell"><input type="text" class="notes-input" id="ln-${i.key}" value="${getNotes(i.key)}" placeholder="unit rate, hrs, notesâ€¦" /></td>
+      <td class="li-notes-cell"><input type="text" class="notes-input" id="ln-${i.key}" value="${getNotes(i.key)}" placeholder="unit rate, hrs, notes…" /></td>
     </tr>`).join('');
 
   const optRows = optItems.length ? `
@@ -1581,11 +1578,11 @@ function buildQuoteForm(scope, existingQ, supplier) {
     <tr>
       <td class="li-label li-optional">${esc(i.label)}</td>
       <td class="li-amt-cell"><input type="number" class="amt-input" id="li-${i.key}" value="${getAmt(i.key)}" placeholder="0" min="0" step="0.01" oninput="calcTotal()" /></td>
-      <td class="li-notes-cell"><input type="text" class="notes-input" id="ln-${i.key}" value="${getNotes(i.key)}" placeholder="rateâ€¦" /></td>
+      <td class="li-notes-cell"><input type="text" class="notes-input" id="ln-${i.key}" value="${getNotes(i.key)}" placeholder="rate…" /></td>
     </tr>`).join('')}` : '';
 
-  const awardedBanner = existingQ&&existingQ.is_awarded ? `<div class="awarded-banner">âœ“ This quote has been awarded</div>` : '';
-  const initTotal = existingQ&&existingQ.total_amount ? fmt$(existingQ.total_amount) : 'â€”';
+  const awardedBanner = existingQ&&existingQ.is_awarded ? `<div class="awarded-banner">✓ This quote has been awarded</div>` : '';
+  const initTotal = existingQ&&existingQ.total_amount ? fmt$(existingQ.total_amount) : '—';
 
   // Payment terms section
   const ptOptions = ['Net 30','Net 60','Net 90','2/10 Net 30','Milestone-based','Other'];
@@ -1593,12 +1590,12 @@ function buildQuoteForm(scope, existingQ, supplier) {
 
   const paymentTermsHtml = `
     <div class="payment-terms-section">
-      <div class="payment-terms-title">ðŸ’³ Commercial / Payment Terms</div>
+      <div class="payment-terms-title">💳 Commercial / Payment Terms</div>
       <div class="payment-grid">
         <div class="form-group">
           <label for="pt-terms">Payment Terms</label>
           <select id="pt-terms">
-            <option value="">Selectâ€¦</option>
+            <option value="">Select…</option>
             ${ptSel}
           </select>
         </div>
@@ -1612,7 +1609,7 @@ function buildQuoteForm(scope, existingQ, supplier) {
         </div>
       </div>
       <div style="margin-top:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px">ðŸ’¼ Payment Milestone Schedule â€” Working Capital</div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px">💼 Payment Milestone Schedule — Working Capital</div>
         <div style="background:#0d1117;border:1px solid var(--border);border-radius:8px;overflow:hidden">
           <table style="width:100%;border-collapse:collapse">
             <thead><tr style="background:#111420">
@@ -1637,12 +1634,12 @@ function buildQuoteForm(scope, existingQ, supplier) {
                 <td style="padding:8px 12px">
                   <input type="text" id="${m.note_key}" value="${esc(m.note_def)}"
                     style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px;padding:2px 0"
-                    placeholder="Trigger conditionâ€¦" />
+                    placeholder="Trigger condition…" />
                 </td>
               </tr>`).join('')}
               <tr style="border-top:2px solid var(--border);background:#111420">
                 <td style="padding:8px 12px;font-size:12px;font-weight:700">TOTAL</td>
-                <td style="padding:8px 12px;text-align:center;font-weight:700" id="ms-total-pct">â€”</td>
+                <td style="padding:8px 12px;text-align:center;font-weight:700" id="ms-total-pct">—</td>
                 <td style="padding:8px 12px;font-size:11px;color:var(--muted)" id="ms-wc-note">Enter percentages above</td>
               </tr>
             </tbody>
@@ -1653,17 +1650,17 @@ function buildQuoteForm(scope, existingQ, supplier) {
         <div class="form-group">
           <label for="pt-incoterms">Incoterms</label>
           <select id="pt-incoterms">
-            <option value="">Selectâ€¦</option>
-            ${['DDP â€” Delivered Duty Paid, installed on site','FCA â€” Free Carrier','EXW â€” Ex Works','CPT â€” Carriage Paid To','Other'].map(o=>`<option value="${o}" ${(pt.incoterms||'').startsWith(o.split(' ')[0])?'selected':''}>${o}</option>`).join('')}
+            <option value="">Select…</option>
+            ${['DDP — Delivered Duty Paid, installed on site','FCA — Free Carrier','EXW — Ex Works','CPT — Carriage Paid To','Other'].map(o=>`<option value="${o}" ${(pt.incoterms||'').startsWith(o.split(' ')[0])?'selected':''}>${o}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
           <label for="pt-validity">Quote Validity Period</label>
-          <input type="text" id="pt-validity" value="${esc(pt.validity||'')}" placeholder="e.g. 30 days, 60 daysâ€¦" />
+          <input type="text" id="pt-validity" value="${esc(pt.validity||'')}" placeholder="e.g. 30 days, 60 days…" />
         </div>
         <div class="form-group">
           <label for="pt-notes">Commercial Notes</label>
-          <input type="text" id="pt-notes" value="${esc(pt.notes||'')}" placeholder="e.g. Prevailing wage, bonding, insurance requirementsâ€¦" />
+          <input type="text" id="pt-notes" value="${esc(pt.notes||'')}" placeholder="e.g. Prevailing wage, bonding, insurance requirements…" />
         </div>
       </div>
     </div>`;
@@ -1704,8 +1701,8 @@ function updateMilestoneTotal() {
     el.style.color = tot===100 ? '#22c55e' : tot>100 ? '#f87171' : '#f59e0b';
   }
   if (note) {
-    if (tot===100) note.textContent = 'âœ“ Milestones sum to 100% â€” working capital schedule complete';
-    else if (tot>0) note.textContent = (100-tot) + '% unallocated â€” milestones must sum to 100%';
+    if (tot===100) note.textContent = '✓ Milestones sum to 100% — working capital schedule complete';
+    else if (tot>0) note.textContent = (100-tot) + '% unallocated — milestones must sum to 100%';
     else note.textContent = 'Enter percentages above';
   }
 }
@@ -1718,7 +1715,7 @@ function calcTotal() {
     if (el && el.value) total += parseFloat(el.value)||0;
   });
   const el = document.getElementById('running-total');
-  if (el) el.textContent = total>0 ? fmt$(total) : 'â€”';
+  if (el) el.textContent = total>0 ? fmt$(total) : '—';
 }
 
 function clearForm() {
@@ -1739,7 +1736,7 @@ function switchTab(id) {
 async function saveQuote(scopeId, supplierName) {
   const sc = SCOPES[_scopeType];
   const btn = document.getElementById('save-btn');
-  if (btn) { btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Savingâ€¦'; }
+  if (btn) { btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Saving…'; }
   try {
     const lineItems = sc.items.map(i => {
       const el = document.getElementById('li-'+i.key);
@@ -1779,7 +1776,7 @@ async function saveQuote(scopeId, supplierName) {
     const [scope]   = await q('rfq_scopes','select',{eq:['id',scopeId]});
     if (updatedQs.length>=2 && scope.status==='rfq_sent') {
       await q('rfq_scopes','update',{data:{status:'quotes_received'},eq:['id',scopeId]});
-      toast('Both quotes saved â€” status auto-advanced to Quotes In','info');
+      toast('Both quotes saved — status auto-advanced to Quotes In','info');
     } else {
       toast(`${supplierName} quote saved`,'success');
     }
@@ -1793,14 +1790,14 @@ async function saveQuote(scopeId, supplierName) {
 async function advanceScope(scopeId, newStatus) {
   try {
     await q('rfq_scopes','update',{data:{status:newStatus},eq:['id',scopeId]});
-    toast(`Status â†’ ${STATUS[newStatus].label}`,'info');
+    toast(`Status → ${STATUS[newStatus].label}`,'info');
     await loadScopeDetail();
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // COMPARISON (with budget & market rate analysis)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 function buildComparison(scope, culverQ, carnQ) {
   const sc = SCOPES[_scopeType];
   const culverItems = culverQ.line_items||[];
@@ -1815,8 +1812,8 @@ function buildComparison(scope, culverQ, carnQ) {
     const cbLow = ca>0&&cb>0&&cb<ca;
     return `<tr>
       <td class="comp-item-col">${esc(i.label)}</td>
-      <td class="comp-amt ${cLow?'comp-lower':''}">${ca>0?fmt$(ca):'â€”'}</td>
-      <td class="comp-amt ${cbLow?'comp-lower':''}">${cb>0?fmt$(cb):'â€”'}</td>
+      <td class="comp-amt ${cLow?'comp-lower':''}">${ca>0?fmt$(ca):'—'}</td>
+      <td class="comp-amt ${cbLow?'comp-lower':''}">${cb>0?fmt$(cb):'—'}</td>
     </tr>`;
   }).join('');
 
@@ -1830,9 +1827,9 @@ function buildComparison(scope, culverQ, carnQ) {
 
   const awardBtn = (xq) => {
     if (awarded) return awarded.id===xq.id
-      ? `<div style="color:#86efac;font-size:12px;font-weight:700">âœ“ Awarded</div>`
+      ? `<div style="color:#86efac;font-size:12px;font-weight:700">✓ Awarded</div>`
       : `<div style="color:var(--muted);font-size:11px">Not awarded</div>`;
-    return `<button class="btn btn-success btn-xs" onclick="awardQuote('${xq.id}','${scope.id}')">Award â†’</button>`;
+    return `<button class="btn btn-success btn-xs" onclick="awardQuote('${xq.id}','${scope.id}')">Award →</button>`;
   };
 
   // Payment terms comparison row
@@ -1858,7 +1855,7 @@ function buildComparison(scope, culverQ, carnQ) {
     const cDiff = ct>0 ? bg-ct : null;
     const nDiff = nct>0 ? bg-nct : null;
     const vClass = (d) => d===null?'':(d>=0?'style="color:#86efac;font-weight:700"':'style="color:#fca5a5;font-weight:700"');
-    const vTxt = (d) => d===null?'â€”':(d>=0?`â–¼ ${fmt$(d)} under`:`â–² ${fmt$(Math.abs(d))} over`);
+    const vTxt = (d) => d===null?'—':(d>=0?`▼ ${fmt$(d)} under`:`▲ ${fmt$(Math.abs(d))} over`);
     return `
     <tr style="background:#111420">
       <td class="comp-item-col" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)">vs. Budget (${fmt$(bg)})</td>
@@ -1881,7 +1878,7 @@ function buildComparison(scope, culverQ, carnQ) {
       <div class="market-rate-item">
         <div class="market-rate-item-label">Market Defensible Position</div>
         <div class="market-rate-item-val" style="color:var(--warning)">${fmt$(marketAvg)}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:3px">Blended avg â€” use for customer pricing</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">Blended avg — use for customer pricing</div>
       </div>
       <div class="market-rate-item">
         <div class="market-rate-item-label">Market High</div>
@@ -1893,7 +1890,7 @@ function buildComparison(scope, culverQ, carnQ) {
         <div style="font-size:10px;color:var(--muted);margin-top:3px">BEP internal estimate</div>
       </div>
       <div class="market-rate-item" style="border-color:rgba(245,158,11,0.4)">
-        <div class="market-rate-item-label" style="color:#f59e0b">Bogon Target (âˆ’5%)</div>
+        <div class="market-rate-item-label" style="color:#f59e0b">Bogon Target (−5%)</div>
         <div class="market-rate-item-val" style="color:#f59e0b">${fmt$(bg*0.95)}</div>
         <div style="font-size:10px;color:var(--muted);margin-top:3px">Must beat this to protect margin</div>
       </div>`:''}
@@ -1902,17 +1899,17 @@ function buildComparison(scope, culverQ, carnQ) {
   const bothQuoted = ct > 0 && nct > 0;
   const compSourcingBanner = bothQuoted
     ? `<div style="display:flex;align-items:center;gap:10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 16px;margin-bottom:14px">
-        <span style="font-size:16px">âœ…</span>
+        <span style="font-size:16px">✅</span>
         <div>
-          <div style="font-size:11px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:0.06em">Competed â€” 2 Quotes Received</div>
+          <div style="font-size:11px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:0.06em">Competed — 2 Quotes Received</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px">Scope is competitively sourced. Pricing reflects market defensible position.</div>
         </div>
       </div>`
     : ct > 0 || nct > 0
       ? `<div style="display:flex;align-items:center;gap:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 16px;margin-bottom:14px">
-          <span style="font-size:16px">âš ï¸</span>
+          <span style="font-size:16px">⚠️</span>
           <div>
-            <div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.06em">Single Source â€” 1 Quote Only</div>
+            <div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.06em">Single Source — 1 Quote Only</div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px">Scope is not competed. Obtain a second quote to establish a market defensible position.</div>
           </div>
         </div>`
@@ -1948,7 +1945,7 @@ function buildComparison(scope, culverQ, carnQ) {
     ${savings>0?`
     <div class="savings-box">
       <div>
-        <div class="savings-box-label">Competitive savings â€” lower bid vs. higher bid</div>
+        <div class="savings-box-label">Competitive savings — lower bid vs. higher bid</div>
         <div class="savings-box-pct">${savingsPct}% saved by awarding to lower bidder</div>
       </div>
       <div class="savings-box-amt">${fmt$(savings)}</div>
@@ -1968,7 +1965,7 @@ function buildComparison(scope, culverQ, carnQ) {
       <div style="flex:1;min-width:200px;background:#0d1117;border:1px solid #1e2535;border-radius:8px;padding:14px 18px">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:6px">Negotiation Headroom</div>
         <div style="font-size:22px;font-weight:700;color:#38bdf8">${fmt$(headroom)}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">${headroomPct}% gap â€” room to push market defensible position down to low bid</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">${headroomPct}% gap — room to push market defensible position down to low bid</div>
       </div>` : ''}
       ${profitProtect ? `
       <div style="flex:1;min-width:200px;background:#0d1117;border:1px solid rgba(168,85,247,0.35);border-radius:8px;padding:14px 18px">
@@ -1980,9 +1977,9 @@ function buildComparison(scope, culverQ, carnQ) {
     })()}`;
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // SOW GENERATION
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 async function generateSOW(scopeId) {
   try {
     const [scope]  = await q('rfq_scopes','select',{eq:['id',scopeId]});
@@ -2035,7 +2032,7 @@ async function generateSOW(scopeId) {
             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:10px">Issued To</div>
             ${supplier
               ? `<div><strong>${esc(supplier.name)}</strong></div><div style="color:#64748b;margin-top:4px">Attn: ${esc(supplier.contact)}</div>`
-              : `<div style="color:#94a3b8;font-style:italic">Supplier TBD â€” award scope first</div>`}
+              : `<div style="color:#94a3b8;font-style:italic">Supplier TBD — award scope first</div>`}
             <div style="margin-top:10px">
               <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:6px">Issued By</div>
               <div>Burke Equipment Partners</div>
@@ -2065,16 +2062,16 @@ async function generateSOW(scopeId) {
             <tbody>${lineItemRows}</tbody>
             ${awarded?.total_amount?`<tfoot><tr style="background:#f0fdf4;font-weight:700"><td colspan="3" style="padding:10px 8px;border:1px solid #e2e8f0">TOTAL</td><td style="padding:10px 8px;border:1px solid #e2e8f0;text-align:right">${fmt$(awarded.total_amount)}</td></tr></tfoot>`:''}
           </table>
-          ${bg?`<div style="margin-top:8px;font-size:11px;color:#64748b">Budget guidance (internal): ${fmt$(bg)} Â· Bogon target (âˆ’5%): <strong>${fmt$(bg*0.95)}</strong></div>`:''}
+          ${bg?`<div style="margin-top:8px;font-size:11px;color:#64748b">Budget guidance (internal): ${fmt$(bg)} · Bogon target (−5%): <strong>${fmt$(bg*0.95)}</strong></div>`:''}
         </div>
 
         <div style="margin-bottom:24px">
           <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e2e8f0">3. Commercial Terms</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px">
-            <div><strong>Incoterms:</strong> DDP (Delivered Duty Paid â€” installed on site)</div>
+            <div><strong>Incoterms:</strong> DDP (Delivered Duty Paid — installed on site)</div>
             <div><strong>Quotation Validity:</strong> ${awarded?.payment_terms?.validity||'30 days from submission'}</div>
             <div><strong>Currency:</strong> USD</div>
-            <div><strong>Payment Terms:</strong> ${awarded?.payment_terms?.terms||'Net 30 â€” per BEP standard'}</div>
+            <div><strong>Payment Terms:</strong> ${awarded?.payment_terms?.terms||'Net 30 — per BEP standard'}</div>
           </div>
         </div>
 
@@ -2083,23 +2080,23 @@ async function generateSOW(scopeId) {
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:16px">
             <div>
               <div style="border-bottom:1px solid #cbd5e1;margin-bottom:6px;height:32px"></div>
-              <div style="font-size:11px;color:#64748b">Burke Equipment Partners â€” Authorized Signature</div>
+              <div style="font-size:11px;color:#64748b">Burke Equipment Partners — Authorized Signature</div>
               <div style="font-size:11px;color:#94a3b8;margin-top:2px">Name / Title / Date</div>
             </div>
             <div>
               <div style="border-bottom:1px solid #cbd5e1;margin-bottom:6px;height:32px"></div>
-              <div style="font-size:11px;color:#64748b">Supplier â€” Authorized Signature</div>
+              <div style="font-size:11px;color:#64748b">Supplier — Authorized Signature</div>
               <div style="font-size:11px;color:#94a3b8;margin-top:2px">Name / Title / Date</div>
             </div>
           </div>
         </div>
         <div style="border-top:1px solid #e2e8f0;padding-top:12px;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between">
-          <span>SpecBridge â€” Generated ${today}</span>
-          <span>CONFIDENTIAL â€” Burke Equipment Partners internal use</span>
+          <span>SpecBridge — Generated ${today}</span>
+          <span>CONFIDENTIAL — Burke Equipment Partners internal use</span>
         </div>
       </div>`;
 
-    openModal(`SOW â€” ${sc.label}`, sowHtml, `<button class="btn btn-primary btn-sm" onclick="window.print()">ðŸ–¨ Print / Save PDF</button><button class="btn btn-secondary btn-sm" onclick="closeModal()">Close</button>`);
+    openModal(`SOW — ${sc.label}`, sowHtml, `<button class="btn btn-primary btn-sm" onclick="window.print()">🖨 Print / Save PDF</button><button class="btn btn-secondary btn-sm" onclick="closeModal()">Close</button>`);
   } catch(e) { toast('SOW error: '+e.message,'error'); }
 }
 
@@ -2114,9 +2111,9 @@ async function awardQuote(quoteId, scopeId) {
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // RFQ DOCUMENT GENERATION
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 async function generateRFQ(scopeId) {
   try {
     const [scope]  = await q('rfq_scopes','select',{eq:['id',scopeId]});
@@ -2138,7 +2135,7 @@ async function generateRFQ(scopeId) {
       </tr>`).join('');
 
     const optRows = sc.items.filter(i=>!i.req).length ? `
-      <tr class="rfq-opt-header"><td colspan="4">Optional / Rate Card Items â€” include if applicable</td></tr>
+      <tr class="rfq-opt-header"><td colspan="4">Optional / Rate Card Items — include if applicable</td></tr>
       ${sc.items.filter(i=>!i.req).map((i,idx)=>`
       <tr>
         <td style="text-align:center;width:36px;color:#64748b">${String.fromCharCode(65+idx)}</td>
@@ -2151,8 +2148,8 @@ async function generateRFQ(scopeId) {
       <div class="rfq-doc">
         <div class="rfq-doc-header">
           <div>
-            <div class="rfq-doc-logo">Spec<span>Bridge</span> Â· Burke-Porter Engineering</div>
-            <div class="rfq-doc-title">Request for Quotation â€” Installation Scope</div>
+            <div class="rfq-doc-logo">Spec<span>Bridge</span> · Burke-Porter Engineering</div>
+            <div class="rfq-doc-title">Request for Quotation — Installation Scope</div>
           </div>
           <div class="rfq-doc-meta-right">
             <strong>Issue Date</strong>${today}
@@ -2167,12 +2164,12 @@ async function generateRFQ(scopeId) {
             <div class="rfq-info-grid">
               <div class="rfq-info-pair"><span class="rk">Project Name</span><span class="rv">${esc(proj.name)}</span></div>
               <div class="rfq-info-pair"><span class="rk">Customer</span><span class="rv">${esc(proj.customer)}</span></div>
-              <div class="rfq-info-pair"><span class="rk">JO Number(s)</span><span class="rv">${esc(proj.jo_numbers||'â€”')}</span></div>
-              <div class="rfq-info-pair"><span class="rk">Site Address</span><span class="rv">${esc(proj.site_address||'â€”')}</span></div>
-              <div class="rfq-info-pair"><span class="rk">BEP Project Manager</span><span class="rv">${esc(proj.pm_name||'â€”')}</span></div>
-              <div class="rfq-info-pair"><span class="rk">BEP Buyer</span><span class="rv">${esc(proj.buyer_name||'â€”')}</span></div>
+              <div class="rfq-info-pair"><span class="rk">JO Number(s)</span><span class="rv">${esc(proj.jo_numbers||'—')}</span></div>
+              <div class="rfq-info-pair"><span class="rk">Site Address</span><span class="rv">${esc(proj.site_address||'—')}</span></div>
+              <div class="rfq-info-pair"><span class="rk">BEP Project Manager</span><span class="rv">${esc(proj.pm_name||'—')}</span></div>
+              <div class="rfq-info-pair"><span class="rk">BEP Buyer</span><span class="rv">${esc(proj.buyer_name||'—')}</span></div>
               <div class="rfq-info-pair"><span class="rk">Target Install Date</span><span class="rv">${fmtDate(proj.target_install_date)}</span></div>
-              <div class="rfq-info-pair"><span class="rk">Machine Description</span><span class="rv">${esc(proj.machine_description||'â€”')}</span></div>
+              <div class="rfq-info-pair"><span class="rk">Machine Description</span><span class="rv">${esc(proj.machine_description||'—')}</span></div>
             </div>
           </div>
 
@@ -2212,7 +2209,7 @@ async function generateRFQ(scopeId) {
           <div class="rfq-section">
             <div class="rfq-section-title">Commercial Requirements</div>
             <div class="rfq-terms-box">
-              <p><strong>Incoterms:</strong> DDP â€” Delivered Duty Paid, installed on site. Supplier is responsible for transport, unloading, and full installation at the site address above.</p>
+              <p><strong>Incoterms:</strong> DDP — Delivered Duty Paid, installed on site. Supplier is responsible for transport, unloading, and full installation at the site address above.</p>
               <p><strong>Payment Terms:</strong> Please state your required payment terms, including any deposit percentage, milestone schedule, and final payment timing.</p>
               <p><strong>Quote Validity:</strong> Please state the validity period for your quotation. Minimum 30 days from the date of submission is required.</p>
               <p><strong>Insurance:</strong> Supplier shall maintain general liability insurance of not less than $2,000,000 per occurrence. Certificate of insurance to be provided prior to mobilization.</p>
@@ -2245,7 +2242,7 @@ async function generateRFQ(scopeId) {
               </div>
               <div class="rfq-sign-block">
                 <div class="label">BEP Acknowledgment</div>
-                <div style="font-size:12px;color:#475569;margin-bottom:8px">For BEP internal use â€” quote received and reviewed by procurement.</div>
+                <div style="font-size:12px;color:#475569;margin-bottom:8px">For BEP internal use — quote received and reviewed by procurement.</div>
                 <div class="rfq-sign-line"></div>
                 <div style="font-size:11px;color:#94a3b8">BEP Buyer / Procurement</div>
                 <div class="rfq-sign-line" style="margin-top:16px"></div>
@@ -2258,8 +2255,8 @@ async function generateRFQ(scopeId) {
 
         </div>
         <div class="rfq-footer">
-          <span>Burke-Porter Engineering Â· SpecBridge Procurement Â· Confidential</span>
-          <span>RFQ-${esc((proj.jo_numbers||'').replace(/\s/g,''))}-${_scopeType.toUpperCase().slice(0,4)} Â· Generated ${today}</span>
+          <span>Burke-Porter Engineering · SpecBridge Procurement · Confidential</span>
+          <span>RFQ-${esc((proj.jo_numbers||'').replace(/\s/g,''))}-${_scopeType.toUpperCase().slice(0,4)} · Generated ${today}</span>
         </div>
       </div>`;
 
@@ -2269,9 +2266,9 @@ async function generateRFQ(scopeId) {
         <input type="date" id="rfq-deadline-input" value="${scope.rfq_deadline||''}" style="max-width:160px;font-size:12px;padding:5px 8px" />
         <button class="btn btn-secondary btn-sm" onclick="saveRFQDeadline('${scope.id}')">Save Deadline</button>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="window.print()">ðŸ–¨ Print / Save as PDF</button>`;
+      <button class="btn btn-primary btn-sm" onclick="window.print()">🖨 Print / Save as PDF</button>`;
 
-    openModal(`RFQ Document â€” ${sc.label}`, rfqHtml, footer);
+    openModal(`RFQ Document — ${sc.label}`, rfqHtml, footer);
   } catch(e) {
     toast('Error generating RFQ: '+e.message,'error');
   }
@@ -2286,9 +2283,9 @@ async function saveRFQDeadline(scopeId) {
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // SAVINGS
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 async function loadSavings() {
   try {
     const projects = await q('rfq_projects','select',{order:['created_at',false]});
@@ -2315,15 +2312,14 @@ async function loadSavings() {
     // Business case banner
     const bcBanner = (totalSavings>0||totalProfitP>0) ? `
       <div style="background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(56,189,248,0.06));border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:20px 24px;margin-bottom:24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
-        <div style="font-size:28px">ðŸ“Š</div>
+        <div style="font-size:28px">📊</div>
         <div style="flex:1;min-width:220px">
-          <div style="font-size:13px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Business Case â€” Competitive Sourcing ROI</div>
-          <div style="font-size:13px;color:var(--muted);line-height:1.5">${competed.length} scope${competed.length!==1?'s':''} competed across ${projects.length} project${projects.length!==1?'s':''}${totalSavings>0?` Â· <strong style="color:#22c55e">${fmt$(totalSavings)}</strong> captured in competitive savings`:''}</div>
+          <div style="font-size:13px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Business Case — Competitive Sourcing ROI</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.5">${competed.length} scope${competed.length!==1?'s':''} competed across ${projects.length} project${projects.length!==1?'s':''}${totalSavings>0?` · <strong style="color:#22c55e">${fmt$(totalSavings)}</strong> captured in competitive savings`:''}</div>
         </div>
         ${totalProfitP>0?`<div style="text-align:right"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Profit Protection Target</div><div style="font-size:24px;font-weight:700;color:#a855f7">${fmt$(totalProfitP)}</div><div style="font-size:10px;color:var(--muted)">2% BEP policy push-back</div></div>`:''}
       </div>` : '';
 
-    document.getElementById('savings-content-top').innerHTML = heroHtml + bcBanner;
     document.getElementById('savings-metrics').innerHTML = `
       <div class="card metric-card"><div class="metric-value" style="color:var(--success);font-size:${totalAwarded>0?'18':'26'}px">${fmt$(totalAwarded)}</div><div class="metric-label">Total Awarded</div></div>
       <div class="card metric-card"><div class="metric-value" style="color:var(--success);font-size:${totalSavings>0?'18':'26'}px">${fmt$(totalSavings)}</div><div class="metric-label">Competitive Savings</div></div>
@@ -2332,13 +2328,13 @@ async function loadSavings() {
         <div class="metric-value" style="color:${singleSource.length>0?'var(--warning)':'var(--success)'}">
           ${competed.length}<span style="font-size:14px;color:var(--muted)">/${scopesWithQ.length}</span>
         </div>
-        <div class="metric-label">Scopes Competed${singleSource.length>0?` Â· <span style="color:var(--warning)">${singleSource.length} single-source</span>`:''}</div>
+        <div class="metric-label">Scopes Competed${singleSource.length>0?` · <span style="color:var(--warning)">${singleSource.length} single-source</span>`:''}</div>
       </div>`;
 
     if (!quotes.length) {
       document.getElementById('savings-content').innerHTML = bcBanner + `
         <div class="card empty-state">
-          <div class="empty-icon">ðŸ’°</div>
+          <div class="empty-icon">💰</div>
           <div class="empty-text">No quotes yet</div>
           <div class="empty-sub">Enter quotes from both suppliers to see competitive savings</div>
         </div>`;
@@ -2373,13 +2369,13 @@ async function loadSavings() {
             : '';
         return `<tr>
           <td>${sc.icon} ${esc(sc.label)}<br><div style="margin-top:3px">${srcBadge}</div></td>
-          <td class="sv-right">${cq?.total_amount?fmt$(cq.total_amount):'<span class="sv-muted">â€”</span>'}</td>
-          <td class="sv-right">${nq?.total_amount?fmt$(nq.total_amount):'<span class="sv-muted">â€”</span>'}</td>
-          <td class="sv-right ${aw?'sv-green':''}">${aw?.total_amount?fmt$(aw.total_amount):'<span class="sv-muted">â€”</span>'}</td>
-          <td class="sv-right">${bg?`${fmt$(bg)}<br><span style="font-size:10px;color:#f59e0b">Bogon: ${fmt$(bgTarget)}</span>`:'<span class="sv-muted">â€”</span>'}</td>
-          <td class="sv-right">${bvAmt!==null?`<span style="font-weight:700;color:${bvAmt>=0?'#86efac':'#fca5a5'}">${bvAmt>=0?'â–¼ '+fmt$(bvAmt)+' under':'â–² '+fmt$(Math.abs(bvAmt))+' over'}</span>`:'<span class="sv-muted">â€”</span>'}</td>
-          <td class="sv-right ${sav>0?'sv-green':''}">${sav>0?fmt$(sav)+(savPct?` <span style="font-size:10px;opacity:0.7">(${savPct}% spread)</span>`:''):'<span class="sv-muted">â€”</span>'}</td>
-          <td class="sv-right" style="color:#a855f7">${profP?fmt$(profP)+'<br><span style="font-size:10px;opacity:0.7">push 2% back</span>':'<span class="sv-muted">â€”</span>'}</td>
+          <td class="sv-right">${cq?.total_amount?fmt$(cq.total_amount):'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right">${nq?.total_amount?fmt$(nq.total_amount):'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right ${aw?'sv-green':''}">${aw?.total_amount?fmt$(aw.total_amount):'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right">${bg?`${fmt$(bg)}<br><span style="font-size:10px;color:#f59e0b">Bogon: ${fmt$(bgTarget)}</span>`:'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right">${bvAmt!==null?`<span style="font-weight:700;color:${bvAmt>=0?'#86efac':'#fca5a5'}">${bvAmt>=0?'▼ '+fmt$(bvAmt)+' under':'▲ '+fmt$(Math.abs(bvAmt))+' over'}</span>`:'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right ${sav>0?'sv-green':''}">${sav>0?fmt$(sav)+(savPct?` <span style="font-size:10px;opacity:0.7">(${savPct}% spread)</span>`:''):'<span class="sv-muted">—</span>'}</td>
+          <td class="sv-right" style="color:#a855f7">${profP?fmt$(profP)+'<br><span style="font-size:10px;opacity:0.7">push 2% back</span>':'<span class="sv-muted">—</span>'}</td>
         </tr>`;
       }).filter(Boolean).join('');
       if (!tableRows) return '';
@@ -2392,7 +2388,7 @@ async function loadSavings() {
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
             <div>
               <div style="font-size:15px;font-weight:700">${esc(p.name)}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:3px">${esc(p.customer)}${p.region?` Â· ${esc(p.region)}`:''}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:3px">${esc(p.customer)}${p.region?` · ${esc(p.region)}`:''}</div>
             </div>
             <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
               ${projAwarded?`<div style="text-align:right"><div style="font-size:10px;color:var(--muted)">Awarded</div><div style="font-size:14px;font-weight:700;color:#22c55e">${fmt$(projAwarded)}</div></div>`:''}
@@ -2405,8 +2401,8 @@ async function loadSavings() {
               <th>Scope</th>
               <th class="sv-right">Culver Dev.</th>
               <th class="sv-right">NWI</th>
-              <th class="sv-right">Awarded âœ“</th>
-              <th class="sv-right">Budget Â· Bogon (âˆ’5%)</th>
+              <th class="sv-right">Awarded ✓</th>
+              <th class="sv-right">Budget · Bogon (−5%)</th>
               <th class="sv-right">vs. Budget</th>
               <th class="sv-right">Comp. Savings</th>
               <th class="sv-right" style="color:#a855f7">Profit Prot. (2%)</th>
@@ -2431,12 +2427,12 @@ async function loadSavings() {
               if (!totAw && !totSav) return '';
               return '<tfoot><tr style="background:rgba(255,255,255,0.03);font-weight:700;border-top:2px solid var(--border)">' +
                 '<td style="padding:8px;font-size:12px;color:var(--muted)">PROJECT TOTAL</td>' +
-                '<td class="sv-right" style="padding:8px;font-size:12px">' + (totCulverOnly?fmt$(totCulverOnly):'â€”') + '</td>' +
-                '<td class="sv-right" style="padding:8px;font-size:12px">' + (totNWIOnly?fmt$(totNWIOnly):'â€”') + '</td>' +
-                '<td class="sv-right" style="padding:8px;font-size:13px;color:#22c55e">' + (totAw?fmt$(totAw):'â€”') + '</td>' +
+                '<td class="sv-right" style="padding:8px;font-size:12px">' + (totCulverOnly?fmt$(totCulverOnly):'—') + '</td>' +
+                '<td class="sv-right" style="padding:8px;font-size:12px">' + (totNWIOnly?fmt$(totNWIOnly):'—') + '</td>' +
+                '<td class="sv-right" style="padding:8px;font-size:13px;color:#22c55e">' + (totAw?fmt$(totAw):'—') + '</td>' +
                 '<td colspan="2" style="padding:8px"></td>' +
-                '<td class="sv-right" style="padding:8px;font-size:12px;color:#22c55e">' + (totSav?fmt$(totSav):'â€”') + '</td>' +
-                '<td class="sv-right" style="padding:8px;font-size:12px;color:#a855f7">' + (totPP?fmt$(totPP):'â€”') + '</td>' +
+                '<td class="sv-right" style="padding:8px;font-size:12px;color:#22c55e">' + (totSav?fmt$(totSav):'—') + '</td>' +
+                '<td class="sv-right" style="padding:8px;font-size:12px;color:#a855f7">' + (totPP?fmt$(totPP):'—') + '</td>' +
               '</tr></tfoot>';
             })()}
           </table>
@@ -2446,12 +2442,12 @@ async function loadSavings() {
     const legend = `
       <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:11px;color:var(--muted);display:flex;gap:20px;flex-wrap:wrap;line-height:1.6">
         <div style="font-weight:700;color:var(--text);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;width:100%;margin-bottom:2px">How to read this table</div>
-        <div><strong style="color:var(--text)">Awarded âœ“</strong> â€” the quote selected for execution</div>
-        <div><strong style="color:var(--text)">Budget Â· Bogon (âˆ’5%)</strong> â€” internal estimate from Bruges; Bogon = budget minus 5%, the threshold BEP must beat to protect margin</div>
-        <div><strong style="color:#86efac">â–¼ under / <span style="color:#fca5a5">â–² over</span></strong> â€” awarded amount vs. your budget; green = came in under budget</div>
-        <div><strong style="color:var(--text)">Comp. Savings</strong> â€” dollar spread between the two bids; captures value created by competitive sourcing</div>
-        <div><strong style="color:#a855f7">Profit Prot. (2%)</strong> â€” per BEP policy: push supplier 2% on material costs; this column shows the recovery target</div>
-        <div><strong style="color:#22c55e">COMPETED</strong> = 2 quotes received &nbsp;Â·&nbsp; <strong style="color:#f59e0b">SINGLE SRC</strong> = 1 quote only (flag for governance)</div>
+        <div><strong style="color:var(--text)">Awarded ✓</strong> — the quote selected for execution</div>
+        <div><strong style="color:var(--text)">Budget · Bogon (−5%)</strong> — internal estimate from Bruges; Bogon = budget minus 5%, the threshold BEP must beat to protect margin</div>
+        <div><strong style="color:#86efac">▼ under / <span style="color:#fca5a5">▲ over</span></strong> — awarded amount vs. your budget; green = came in under budget</div>
+        <div><strong style="color:var(--text)">Comp. Savings</strong> — dollar spread between the two bids; captures value created by competitive sourcing</div>
+        <div><strong style="color:#a855f7">Profit Prot. (2%)</strong> — per BEP policy: push supplier 2% on material costs; this column shows the recovery target</div>
+        <div><strong style="color:#22c55e">COMPETED</strong> = 2 quotes received &nbsp;·&nbsp; <strong style="color:#f59e0b">SINGLE SRC</strong> = 1 quote only (flag for governance)</div>
       </div>`;
     document.getElementById('savings-content').innerHTML = bcBanner + (rows ? legend + rows :
       `<div class="card" style="color:var(--muted);text-align:center;padding:48px">No comparative data yet. Enter quotes for both suppliers to see savings.</div>`);
@@ -2460,9 +2456,9 @@ async function loadSavings() {
   }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // DASHBOARD DRILLDOWN
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 let _dashCache = { projects:[], scopes:[], quotes:[] };
 let _ddActiveTab = 'flight';
 const SCOPE_COLORS = {
@@ -2515,7 +2511,7 @@ function showDDTab(tab) {
     el.innerHTML = Object.entries(byProj).map(([pid,ss])=>{
       const p = projMap[pid]||{name:'Unknown'};
       const rows = ss.map(s=>{
-        const sc = SCOPES[s.scope_type]||{icon:'ðŸ“‹',label:s.scope_type};
+        const sc = SCOPES[s.scope_type]||{icon:'📋',label:s.scope_type};
         const st = STATUS[s.status]||{label:s.status,badge:'badge-gray'};
         const sq = quotes.filter(q=>q.scope_id===s.id);
         const quoteAmts = sq.filter(q=>q.total_amount>0).map(q=>
@@ -2524,7 +2520,7 @@ function showDDTab(tab) {
         const deadline = s.rfq_deadline ? (()=>{
           const days = Math.round((new Date(s.rfq_deadline)-new Date())/(1000*60*60*24));
           const col = days<0?'#f87171':days<=7?'#f59e0b':'var(--muted)';
-          return '<span style="font-size:11px;color:'+col+';margin-left:8px">' + (days<0?'âš  '+Math.abs(days)+'d overdue':days===0?'âš  Due today':'â± '+days+'d left') + '</span>';
+          return '<span style="font-size:11px;color:'+col+';margin-left:8px">' + (days<0?'⚠ '+Math.abs(days)+'d overdue':days===0?'⚠ Due today':'⏱ '+days+'d left') + '</span>';
         })() : '';
         return '<div class="dd-scope-row">' +
           '<span style="font-size:16px">' + sc.icon + '</span>' +
@@ -2536,7 +2532,7 @@ function showDDTab(tab) {
         '</div>';
       }).join('');
       return '<div class="dd-proj-group">' +
-        '<div class="dd-proj-label">ðŸ“ ' + esc(p.name) + ' Â· ' + esc(p.customer||'') + '</div>' +
+        '<div class="dd-proj-label">📁 ' + esc(p.name) + ' · ' + esc(p.customer||'') + '</div>' +
         rows +
       '</div>';
     }).join('');
@@ -2554,7 +2550,7 @@ function showDDTab(tab) {
     const rows = Object.entries(byProj).map(([pid,ss])=>{
       const p = projMap[pid]||{name:'Unknown'};
       const scopeRows = ss.map(s=>{
-        const sc = SCOPES[s.scope_type]||{icon:'ðŸ“‹',label:s.scope_type};
+        const sc = SCOPES[s.scope_type]||{icon:'📋',label:s.scope_type};
         const aq = quotes.find(q=>q.scope_id===s.id&&q.is_awarded);
         const allQ = quotes.filter(q=>q.scope_id===s.id&&(q.total_amount||0)>0);
         const competed = allQ.length>=2;
@@ -2570,20 +2566,20 @@ function showDDTab(tab) {
             '<div style="font-size:13px;font-weight:600">' + sc.icon + ' ' + esc(sc.label) + '</div>' +
             '<div style="font-size:11px;color:var(--muted);margin-top:2px">' +
               (aq ? 'Awarded to <strong style="color:var(--text)">' + esc(aq.supplier_name) + '</strong>' : 'No quote marked') +
-              (competed ? ' <span style="color:#86efac;margin-left:6px">COMPETED âœ“</span>' : ' <span style="color:#f59e0b;margin-left:6px">SINGLE SOURCE</span>') +
+              (competed ? ' <span style="color:#86efac;margin-left:6px">COMPETED ✓</span>' : ' <span style="color:#f59e0b;margin-left:6px">SINGLE SOURCE</span>') +
             '</div>' +
           '</div>' +
           '<div style="text-align:right">' +
             '<div style="font-weight:700;font-size:14px;color:var(--success)">' + fmt$(aAmt) + '</div>' +
             (savings>0?'<div style="font-size:11px;color:#86efac">saved ' + fmt$(savings) + '</div>':'') +
-            (vsBudget!==null?'<div style="font-size:11px;color:' + (vsBudget<=0?'#86efac':'#f87171') + '">' + (vsBudget<=0?'â–¼':'+') + fmt$(Math.abs(vsBudget)) + ' vs budget</div>':'') +
+            (vsBudget!==null?'<div style="font-size:11px;color:' + (vsBudget<=0?'#86efac':'#f87171') + '">' + (vsBudget<=0?'▼':'+') + fmt$(Math.abs(vsBudget)) + ' vs budget</div>':'') +
           '</div>' +
         '</div>';
       }).join('');
       const projTotal = ss.reduce((sum,s)=>{const aq=quotes.find(q=>q.scope_id===s.id&&q.is_awarded);return sum+(aq?.total_amount||0);},0);
       return '<div class="dd-proj-group">' +
         '<div class="dd-proj-label" style="display:flex;justify-content:space-between">' +
-          '<span>ðŸ“ ' + esc(p.name) + ' Â· ' + esc(p.customer||'') + '</span>' +
+          '<span>📁 ' + esc(p.name) + ' · ' + esc(p.customer||'') + '</span>' +
           '<span style="color:var(--success)">' + fmt$(projTotal) + '</span>' +
         '</div>' +
         scopeRows +
@@ -2675,14 +2671,14 @@ function showDDTab(tab) {
 
     const supplierBar = grandTotal>0 ?
       '<div style="margin-bottom:14px">' +
-        '<div style="font-size:11px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Supplier Split â€” Awarded Value</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Supplier Split — Awarded Value</div>' +
         '<div style="display:flex;height:18px;border-radius:4px;overflow:hidden;gap:2px">' +
           (culverTotal>0?'<div style="width:'+culverPct+'%;background:#4f7cff;border-radius:3px 0 0 3px" title="Culver: '+fmt$(culverTotal)+'"></div>':'') +
           (nwiTotal>0?'<div style="width:'+nwiPct+'%;background:#a855f7;border-radius:0 3px 3px 0" title="NWI: '+fmt$(nwiTotal)+'"></div>':'') +
         '</div>' +
         '<div style="display:flex;gap:16px;margin-top:5px;font-size:11px;color:var(--muted)">' +
-          (culverTotal>0?'<span><span style="color:#4f7cff">â– </span> Culver ' + fmt$(culverTotal) + ' (' + culverPct + '%)</span>':'') +
-          (nwiTotal>0?'<span><span style="color:#a855f7">â– </span> NWI ' + fmt$(nwiTotal) + ' (' + nwiPct + '%)</span>':'') +
+          (culverTotal>0?'<span><span style="color:#4f7cff">■</span> Culver ' + fmt$(culverTotal) + ' (' + culverPct + '%)</span>':'') +
+          (nwiTotal>0?'<span><span style="color:#a855f7">■</span> NWI ' + fmt$(nwiTotal) + ' (' + nwiPct + '%)</span>':'') +
         '</div>' +
       '</div>' : '';
 
@@ -2708,27 +2704,27 @@ function showDDTab(tab) {
   }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// AE APPROVE (gated â€” quote must be awarded first)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
+// AE APPROVE (gated — quote must be awarded first)
+// ══════════════════════════════════════════════════
 async function aeApprove(scopeId, refreshFn) {
   try {
     const quotes = await q('rfq_quotes','select',{eq:['scope_id',scopeId]});
     const hasAwarded = quotes.some(x=>x.is_awarded && (x.total_amount||0)>0);
     if (!hasAwarded) {
-      toast('No awarded quote â€” click Award â†’ next to the winning quote first, then approve','error');
+      toast('No awarded quote — click Award → next to the winning quote first, then approve','error');
       return;
     }
     await q('rfq_scopes','update',{data:{status:'awarded'},eq:['id',scopeId]});
-    toast('Scope approved and awarded âœ“','success');
+    toast('Scope approved and awarded ✓','success');
     if (typeof refreshFn === 'function') refreshFn();
     else await loadScopeDetail();
   } catch(e) { toast('AE approve error: '+e.message,'error'); }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // AE REVIEW QUEUE PAGE
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 async function loadAEReview() {
   const el = document.getElementById('ae-review-content');
   el.innerHTML = '<div class="card empty-state"><div class="spinner spinner-lg" style="margin:0 auto 14px"></div></div>';
@@ -2741,10 +2737,10 @@ async function loadAEReview() {
     if (badge) { badge.textContent = aeScopes.length; badge.style.display = aeScopes.length ? 'inline' : 'none'; }
     document.getElementById('ae-queue-subtitle').textContent = aeScopes.length
       ? aeScopes.length + ' scope' + (aeScopes.length>1?'s':'') + ' awaiting AE approval'
-      : 'All clear â€” no scopes pending review';
+      : 'All clear — no scopes pending review';
 
     if (!aeScopes.length) {
-      el.innerHTML = '<div class="card empty-state"><div class="empty-icon">âœ…</div><div class="empty-text">AE Queue Empty</div><div class="empty-sub">No scopes currently pending Applications Engineering approval</div></div>';
+      el.innerHTML = '<div class="card empty-state"><div class="empty-icon">✅</div><div class="empty-text">AE Queue Empty</div><div class="empty-sub">No scopes currently pending Applications Engineering approval</div></div>';
       return;
     }
 
@@ -2755,7 +2751,7 @@ async function loadAEReview() {
 
     el.innerHTML = aeScopes.map(scope => {
       const proj     = projMap[scope.project_id]||{};
-      const sc       = SCOPES[scope.scope_type]||{label:scope.scope_type, icon:'ðŸ“‹', items:[]};
+      const sc       = SCOPES[scope.scope_type]||{label:scope.scope_type, icon:'📋', items:[]};
       const sq       = quotes.filter(x=>x.scope_id===scope.id);
       const culverQ  = sq.find(x=>x.supplier_name==='Culver Development')||{};
       const nwiQ     = sq.find(x=>x.supplier_name==='NWI')||{};
@@ -2775,12 +2771,12 @@ async function loadAEReview() {
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
             <div>
               <span style="font-weight:600;font-size:14px">${esc(x.supplier_name)}</span>
-              ${x.is_awarded?'<span style="color:#86efac;font-size:11px;font-weight:700;margin-left:8px">âœ“ AWARDED</span>':''}
+              ${x.is_awarded?'<span style="color:#86efac;font-size:11px;font-weight:700;margin-left:8px">✓ AWARDED</span>':''}
             </div>
             <div style="display:flex;align-items:center;gap:10px">
               <span style="font-weight:700;font-size:16px">${fmt$(x.total_amount)}</span>
               ${!x.is_awarded&&(x.total_amount||0)>0
-                ? '<button class="btn btn-success btn-xs" onclick="awardQuoteFromQueue(\''+x.id+'\',\''+scope.id+'\')">Award â†’</button>'
+                ? '<button class="btn btn-success btn-xs" onclick="awardQuoteFromQueue(\''+x.id+'\',\''+scope.id+'\')">Award →</button>'
                 : ''}
             </div>
           </div>`).join('');
@@ -2800,13 +2796,13 @@ async function loadAEReview() {
             <div style="font-weight:700;color:var(--success)">${fmt$(savings)}</div>
           </div>`:''}
           ${bg?`<div style="text-align:center;padding:10px;background:var(--bg-card);border-radius:6px;border:1px solid rgba(245,158,11,0.3)">
-            <div style="font-size:10px;color:#f59e0b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Bogon (âˆ’5%)</div>
+            <div style="font-size:10px;color:#f59e0b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Bogon (−5%)</div>
             <div style="font-weight:700;color:#f59e0b">${fmt$(bg*0.95)}</div>
           </div>`:''}
         </div>` : '';
 
       const warnMsg = !awarded
-        ? `<div style="font-size:12px;color:#f59e0b;margin-top:10px;padding:8px 12px;background:rgba(245,158,11,0.08);border-radius:4px;border-left:3px solid #f59e0b">âš  No winning quote selected â€” click <strong>Award â†’</strong> next to the preferred supplier, then Approve</div>`
+        ? `<div style="font-size:12px;color:#f59e0b;margin-top:10px;padding:8px 12px;background:rgba(245,158,11,0.08);border-radius:4px;border-left:3px solid #f59e0b">⚠ No winning quote selected — click <strong>Award →</strong> next to the preferred supplier, then Approve</div>`
         : '';
 
       return `
@@ -2815,16 +2811,16 @@ async function loadAEReview() {
             <div>
               <div style="font-size:17px;font-weight:700">${esc(sc.icon)} ${esc(sc.label)}</div>
               <div style="font-size:12px;color:var(--muted);margin-top:3px">
-                <span style="color:var(--accent);cursor:pointer" onclick="openProject('${proj.id}','${safeJs(proj.name||'')}')">ðŸ”— ${esc(proj.name||'Unknown Project')}</span>
-                ${proj.customer?' Â· '+esc(proj.customer):''}
-                ${proj.jo_numbers?' Â· JO: '+esc(proj.jo_numbers):''}
+                <span style="color:var(--accent);cursor:pointer" onclick="openProject('${proj.id}','${safeJs(proj.name||'')}')">🔗 ${esc(proj.name||'Unknown Project')}</span>
+                ${proj.customer?' · '+esc(proj.customer):''}
+                ${proj.jo_numbers?' · JO: '+esc(proj.jo_numbers):''}
               </div>
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <span class="badge badge-purple">AE Review</span>
               ${bothQuoted
-                ? '<span class="badge" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3)">COMPETED âœ“</span>'
-                : '<span class="badge badge-yellow">SINGLE SOURCE âš </span>'}
+                ? '<span class="badge" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3)">COMPETED ✓</span>'
+                : '<span class="badge badge-yellow">SINGLE SOURCE ⚠</span>'}
             </div>
           </div>
 
@@ -2833,10 +2829,10 @@ async function loadAEReview() {
           ${metricsRow}
 
           <div style="display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);flex-wrap:wrap;align-items:center">
-            <button class="btn btn-success btn-sm" onclick="aeApprove('${scope.id}',loadAEReview)">âœ“ Approve â†’ Award</button>
-            <button class="btn btn-sm" style="background:rgba(248,113,113,0.12);color:#f87171;border:1px solid rgba(248,113,113,0.3)" onclick="aeKillFromQueue('${scope.id}')">âœ• Kill Scope</button>
-            <button class="btn btn-secondary btn-sm" onclick="aeHoldFromQueue('${scope.id}')">â¸ On Hold</button>
-            <button class="btn btn-secondary btn-sm" onclick="openProject('${proj.id}','${safeJs(proj.name||'')}')">ðŸ” Open Project â†’</button>
+            <button class="btn btn-success btn-sm" onclick="aeApprove('${scope.id}',loadAEReview)">✓ Approve → Award</button>
+            <button class="btn btn-sm" style="background:rgba(248,113,113,0.12);color:#f87171;border:1px solid rgba(248,113,113,0.3)" onclick="aeKillFromQueue('${scope.id}')">✕ Kill Scope</button>
+            <button class="btn btn-secondary btn-sm" onclick="aeHoldFromQueue('${scope.id}')">⏸ On Hold</button>
+            <button class="btn btn-secondary btn-sm" onclick="openProject('${proj.id}','${safeJs(proj.name||'')}')">🔍 Open Project →</button>
           </div>
         </div>`;
     }).join('');
@@ -2851,7 +2847,7 @@ async function awardQuoteFromQueue(quoteId, scopeId) {
     const all = await q('rfq_quotes','select',{eq:['scope_id',scopeId]});
     for (const x of all) await q('rfq_quotes','update',{data:{is_awarded:false},eq:['id',x.id]});
     await q('rfq_quotes','update',{data:{is_awarded:true},eq:['id',quoteId]});
-    toast('Quote marked as winner â€” now click Approve to finalize','success');
+    toast('Quote marked as winner — now click Approve to finalize','success');
     await loadAEReview();
   } catch(e) { toast('Error awarding quote: '+e.message,'error'); }
 }
@@ -2872,16 +2868,16 @@ async function aeHoldFromQueue(scopeId) {
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 // INIT
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════
 loadDashboard();
 </script>
 
-  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• ADMIN PAGE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+  <!-- ═══════════════════════════════ ADMIN PAGE ═══════════════════════════════ -->
   <div id="page-admin" class="page">
     <div style="max-width:900px;margin:0 auto;padding:2rem;">
-      <h1 style="font-size:22px;font-weight:800;color:#f1f5f9;margin-bottom:4px;">âš™ Admin â€” Entities &amp; Suppliers</h1>
+      <h1 style="font-size:22px;font-weight:800;color:#f1f5f9;margin-bottom:4px;">⚙ Admin — Entities &amp; Suppliers</h1>
       <p style="font-size:13px;color:#64748b;margin-bottom:1.5rem;">Manage rollout entities and preferred supplier rosters for competitive bidding</p>
 
       <!-- Entities -->
@@ -2889,29 +2885,29 @@ loadDashboard();
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
           <div>
             <div style="font-size:14px;font-weight:700;color:#f1f5f9;">T&amp;M Rollout Entities</div>
-            <div style="font-size:11px;color:#475569;margin-top:2px;">Same tool, zero re-development â€” add an entity and it's live</div>
+            <div style="font-size:11px;color:#475569;margin-top:2px;">Same tool, zero re-development — add an entity and it's live</div>
           </div>
           <button onclick="document.getElementById('add-entity-form').style.display='block';document.getElementById('new-entity-name').focus();" style="background:#3b82f6;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;">+ Add Entity</button>
         </div>
         <div id="entity-list">
           <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:6px;">
             <div style="width:10px;height:10px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>
-            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#f1f5f9;">BEP Grand Rapids</div><div style="font-size:11px;color:#64748b;">Burke Porter Â· Grand Rapids, MI Â· Pilot entity</div></div>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#f1f5f9;">BEP Grand Rapids</div><div style="font-size:11px;color:#64748b;">Burke Porter · Grand Rapids, MI · Pilot entity</div></div>
             <span style="font-size:10px;background:#14532d;color:#4ade80;padding:2px 10px;border-radius:20px;font-weight:700;">ACTIVE</span>
           </div>
           <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:6px;">
             <div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></div>
-            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#f1f5f9;">BEP Brugge</div><div style="font-size:11px;color:#64748b;">Burke Porter Â· Brugge, Belgium Â· Scale 1 â€” Month 3</div></div>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#f1f5f9;">BEP Brugge</div><div style="font-size:11px;color:#64748b;">Burke Porter · Brugge, Belgium · Scale 1 — Month 3</div></div>
             <span style="font-size:10px;background:#451a03;color:#f59e0b;padding:2px 10px;border-radius:20px;font-weight:700;">PENDING</span>
           </div>
           <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:6px;">
             <div style="width:10px;height:10px;border-radius:50%;background:#475569;flex-shrink:0;"></div>
-            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#94a3b8;">EPIC</div><div style="font-size:11px;color:#475569;">T&amp;M Â· Scale 2 â€” Month 5</div></div>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#94a3b8;">EPIC</div><div style="font-size:11px;color:#475569;">T&amp;M · Scale 2 — Month 5</div></div>
             <span style="font-size:10px;background:#1e293b;color:#475569;padding:2px 10px;border-radius:20px;font-weight:700;border:1px solid #334155;">PLANNED</span>
           </div>
           <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:6px;">
             <div style="width:10px;height:10px;border-radius:50%;background:#475569;flex-shrink:0;"></div>
-            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#94a3b8;">Kleinknecht</div><div style="font-size:11px;color:#475569;">Germany Â· Scale 3 â€” Month 7</div></div>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#94a3b8;">Kleinknecht</div><div style="font-size:11px;color:#475569;">Germany · Scale 3 — Month 7</div></div>
             <span style="font-size:10px;background:#1e293b;color:#475569;padding:2px 10px;border-radius:20px;font-weight:700;border:1px solid #334155;">PLANNED</span>
           </div>
         </div>
@@ -2921,7 +2917,7 @@ loadDashboard();
             <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Entity Name</label><input id="new-entity-name" type="text" placeholder="e.g. Galileo" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
             <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Location</label><input id="new-entity-loc" type="text" placeholder="e.g. Turin, Italy" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
             <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Brand / Parent</label><input id="new-entity-brand" type="text" placeholder="e.g. T&M Division" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
-            <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Rollout Phase</label><input id="new-entity-phase" type="text" placeholder="e.g. Scale 4 â€” Month 9" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
+            <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Rollout Phase</label><input id="new-entity-phase" type="text" placeholder="e.g. Scale 4 — Month 9" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
           </div>
           <div style="display:flex;gap:8px;">
             <button onclick="adminAddEntity()" style="background:#3b82f6;color:white;border:none;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:600;cursor:pointer;">Add Entity</button>
@@ -2934,8 +2930,8 @@ loadDashboard();
       <div style="background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:1.25rem 1.5rem;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
           <div>
-            <div style="font-size:14px;font-weight:700;color:#f1f5f9;">Preferred Suppliers â€” BEP Grand Rapids</div>
-            <div style="font-size:11px;color:#475569;margin-top:2px;">Suppliers available for competitive quoting â€” minimum 2 per scope for governance compliance</div>
+            <div style="font-size:14px;font-weight:700;color:#f1f5f9;">Preferred Suppliers — BEP Grand Rapids</div>
+            <div style="font-size:11px;color:#475569;margin-top:2px;">Suppliers available for competitive quoting — minimum 2 per scope for governance compliance</div>
           </div>
           <button onclick="document.getElementById('add-supplier-form').style.display='block';document.getElementById('new-sup-name').focus();" style="background:#3b82f6;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;">+ Add Supplier</button>
         </div>
@@ -2948,19 +2944,19 @@ loadDashboard();
         <div id="supplier-list">
           <div style="display:grid;grid-template-columns:2fr 2fr 1.2fr 1fr;gap:0;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:5px;align-items:center;">
             <div><div style="font-size:13px;font-weight:600;color:#f1f5f9;">Culver Development</div><div style="font-size:11px;color:#64748b;">Sterling Heights, MI</div></div>
-            <div style="font-size:12px;color:#94a3b8;">Scott Culver Â· sculver@culverteam.com</div>
+            <div style="font-size:12px;color:#94a3b8;">Scott Culver · sculver@culverteam.com</div>
             <div><span style="font-size:10px;background:#1e3a5f;color:#60a5fa;padding:2px 8px;border-radius:20px;">Steel / Crane</span></div>
             <div><span style="font-size:10px;background:#14532d;color:#4ade80;padding:2px 8px;border-radius:20px;font-weight:700;">PREFERRED</span></div>
           </div>
           <div style="display:grid;grid-template-columns:2fr 2fr 1.2fr 1fr;gap:0;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:5px;align-items:center;">
             <div><div style="font-size:13px;font-weight:600;color:#f1f5f9;">NWI</div><div style="font-size:11px;color:#64748b;">Contact TBD</div></div>
-            <div style="font-size:12px;color:#94a3b8;">â€”</div>
+            <div style="font-size:12px;color:#94a3b8;">—</div>
             <div><span style="font-size:10px;background:#1e3a5f;color:#60a5fa;padding:2px 8px;border-radius:20px;">All Scopes</span></div>
             <div><span style="font-size:10px;background:#14532d;color:#4ade80;padding:2px 8px;border-radius:20px;font-weight:700;">PREFERRED</span></div>
           </div>
           <div style="display:grid;grid-template-columns:2fr 2fr 1.2fr 1fr;gap:0;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:5px;align-items:center;">
             <div><div style="font-size:13px;font-weight:600;color:#f1f5f9;">Kirk Mechanical</div><div style="font-size:11px;color:#64748b;">Service &amp; Install</div></div>
-            <div style="font-size:12px;color:#94a3b8;">â€”</div>
+            <div style="font-size:12px;color:#94a3b8;">—</div>
             <div><span style="font-size:10px;background:#2d1b4e;color:#a78bfa;padding:2px 8px;border-radius:20px;">Mechanical</span></div>
             <div><span style="font-size:10px;background:#14532d;color:#4ade80;padding:2px 8px;border-radius:20px;font-weight:700;">PREFERRED</span></div>
           </div>
@@ -2969,7 +2965,7 @@ loadDashboard();
           <div style="font-size:13px;font-weight:600;color:#f1f5f9;margin-bottom:10px;">New Preferred Supplier</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
             <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Company Name</label><input id="new-sup-name" type="text" placeholder="e.g. ABC Industrial" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
-            <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Primary Contact</label><input id="new-sup-contact" type="text" placeholder="Name Â· email" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
+            <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Primary Contact</label><input id="new-sup-contact" type="text" placeholder="Name · email" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
             <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Location</label><input id="new-sup-loc" type="text" placeholder="City, State" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;box-sizing:border-box;"></div>
             <div><label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Scope Category</label>
               <select id="new-sup-cat" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:7px 10px;color:#f1f5f9;font-size:13px;">
@@ -2995,7 +2991,7 @@ loadDashboard();
       if (!name) return;
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:6px;';
-      const sub = [brand, loc, phase].filter(Boolean).join(' Â· ');
+      const sub = [brand, loc, phase].filter(Boolean).join(' · ');
       row.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></div>'
         + '<div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#f1f5f9;">' + name + '</div>'
         + '<div style="font-size:11px;color:#64748b;">' + sub + '</div></div>'
@@ -3015,7 +3011,7 @@ loadDashboard();
       const row = document.createElement('div');
       row.style.cssText = 'display:grid;grid-template-columns:2fr 2fr 1.2fr 1fr;gap:0;padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:5px;align-items:center;';
       row.innerHTML = '<div><div style="font-size:13px;font-weight:600;color:#f1f5f9;">' + name + '</div><div style="font-size:11px;color:#64748b;">' + loc + '</div></div>'
-        + '<div style="font-size:12px;color:#94a3b8;">' + (contact||'â€”') + '</div>'
+        + '<div style="font-size:12px;color:#94a3b8;">' + (contact||'—') + '</div>'
         + '<div><span style="font-size:10px;background:' + cc + ';padding:2px 8px;border-radius:20px;">' + cat + '</span></div>'
         + '<div><span style="font-size:10px;background:#14532d;color:#4ade80;padding:2px 8px;border-radius:20px;font-weight:700;">PREFERRED</span></div>';
       document.getElementById('supplier-list').appendChild(row);
@@ -3025,8 +3021,3 @@ loadDashboard();
   </script>
 </body>
 </html>
-
-
-
-
-
