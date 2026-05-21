@@ -654,9 +654,9 @@ let _activeTab      = 'dhgriffin';
 // STATIC CONFIG
 // ══════════════════════════════════════════════════
 const SUPPLIERS = [
-  { id: 'dhgriffin', name: 'D.H. Griffin Contracting', contact: 'Greg Campbell'  },
-  { id: 'culver',    name: 'Culver',                    contact: 'Scott Culver'   },
-  { id: 'nwi',       name: 'NWI',                       contact: 'Contact TBD'    },
+  { id: 'dhgriffin', name: 'D.H. Griffin Contracting', contact: 'Greg Campbell', preferred: true  },
+  { id: 'culver',    name: 'Culver',                    contact: 'Scott Culver',  preferred: false },
+  { id: 'nwi',       name: 'NWI',                       contact: 'Contact TBD',   preferred: false },
 ];
 
 const STATUS = {
@@ -1119,7 +1119,7 @@ async function loadProjectDetail(projectId) {
       const pillHtml = SUPPLIERS.map(s => {
         const qp = sq.find(x=>x.supplier_name===s.name);
         const cls = qp ? (qp.is_awarded?'awarded':'filled') : '';
-        return `<span class="quote-pill ${cls}">${qp&&qp.is_awarded?'✓ ':qp?'● ':'○ '}${esc(s.name)} ${qp&&qp.total_amount?fmt$(qp.total_amount):(qp?'Partial':'—')}</span>`;
+        return `<span class="quote-pill ${cls}">${qp&&qp.is_awarded?'✓ ':qp?'● ':'○ '}${esc(s.name)}${s.preferred?' ⭐':''} ${qp&&qp.total_amount?fmt$(qp.total_amount):(qp?'Partial':'—')}</span>`;
       }).join('');
 
       const budgetHtml = scope&&scope.budget_guidance
@@ -1263,7 +1263,7 @@ function renderScope(scope, quotes) {
 
   const tabsHtml = SUPPLIERS.map(s => {
     const hasQ = !!quotes.find(x=>x.supplier_name===s.name);
-    return `<button class="sup-tab ${_activeTab===s.id?'active':''}" onclick="switchTab('${s.id}')">${esc(s.name)} <span style="font-size:11px;color:var(--muted)">${esc(s.contact)}</span>${hasQ?' ✓':''}</button>`;
+    return `<button class="sup-tab ${_activeTab===s.id?'active':''}" onclick="switchTab('${s.id}')">${esc(s.name)}${s.preferred?' <span style="font-size:9px;font-weight:700;color:#22c55e;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:3px;padding:1px 4px;vertical-align:middle">PREFERRED</span>':''} <span style="font-size:11px;color:var(--muted)">${esc(s.contact)}</span>${hasQ?' ✓':''}</button>`;
   }).join('');
 
   // Budget guidance bar
