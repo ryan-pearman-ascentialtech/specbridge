@@ -1271,7 +1271,7 @@ function renderScope(scope, quotes) {
 
   // Budget guidance bar
   const bg = scope.budget_guidance ? Number(scope.budget_guidance) : null;
-  const bgTarget = bg ? bg * 0.95 : null; // Bogon: 5% below budget is the actual target
+  const bgTarget = bg ? bg * 0.95 : null; // Cost Target: 5% below budget is the negotiation floor
   const awardedQ = quotes.find(x=>x.is_awarded);
   const quotesWithAmounts = quotes.filter(x=>x.total_amount>0);
   let varianceHtml = '';
@@ -1279,7 +1279,7 @@ function renderScope(scope, quotes) {
     const diff = bg - awardedQ.total_amount;
     const pct  = Math.abs(diff/bg*100).toFixed(1);
     const vsTarget = bgTarget - (awardedQ.total_amount||0);
-    const targetHtml = `<span style="font-size:11px;color:var(--muted)"> · Bogon target: ${fmt$(bgTarget)} ${vsTarget>=0?`<span style="color:#86efac">(▼ ${fmt$(vsTarget)} under target)</span>`:`<span style="color:#fca5a5">(▲ ${fmt$(Math.abs(vsTarget))} over target)</span>`}</span>`;
+    const targetHtml = `<span style="font-size:11px;color:var(--muted)"> · Cost target: ${fmt$(bgTarget)} ${vsTarget>=0?`<span style="color:#86efac">(▼ ${fmt$(vsTarget)} under target)</span>`:`<span style="color:#fca5a5">(▲ ${fmt$(Math.abs(vsTarget))} over target)</span>`}</span>`;
     varianceHtml = diff >= 0
       ? `<span class="budget-variance bv-under">▼ ${fmt$(diff)} under budget (${pct}%)</span>${targetHtml}`
       : `<span class="budget-variance bv-over">▲ ${fmt$(Math.abs(diff))} over budget (${pct}%)</span>${targetHtml}`;
@@ -1288,12 +1288,12 @@ function renderScope(scope, quotes) {
     const diff = bg - lowestBid;
     const pct  = Math.abs(diff/bg*100).toFixed(1);
     const vsTarget = bgTarget - lowestBid;
-    const targetHtml = `<span style="font-size:11px;color:var(--muted)"> · Bogon target: ${fmt$(bgTarget)} ${vsTarget>=0?`<span style="color:#86efac">(▼ ${fmt$(vsTarget)} under)</span>`:`<span style="color:#fca5a5">(▲ ${fmt$(Math.abs(vsTarget))} over)</span>`}</span>`;
+    const targetHtml = `<span style="font-size:11px;color:var(--muted)"> · Cost target: ${fmt$(bgTarget)} ${vsTarget>=0?`<span style="color:#86efac">(▼ ${fmt$(vsTarget)} under)</span>`:`<span style="color:#fca5a5">(▲ ${fmt$(Math.abs(vsTarget))} over)</span>`}</span>`;
     varianceHtml = diff >= 0
       ? `<span class="budget-variance bv-under">Lowest bid ▼ ${fmt$(diff)} under budget (${pct}%)</span>${targetHtml}`
       : `<span class="budget-variance bv-over">Lowest bid ▲ ${fmt$(Math.abs(diff))} over budget (${pct}%)</span>${targetHtml}`;
   } else if (bg) {
-    varianceHtml = `<span style="font-size:11px;color:var(--muted)">Bogon target (5% below): <strong style="color:#f59e0b">${fmt$(bgTarget)}</strong></span>`;
+    varianceHtml = `<span style="font-size:11px;color:var(--muted)">Cost target (5% below): <strong style="color:#f59e0b">${fmt$(bgTarget)}</strong></span>`;
   }
 
   const budgetBarHtml = `
@@ -1877,7 +1877,7 @@ function buildComparison(scope, allQuotes) {
     '<div class="market-rate-item"><div class="market-rate-item-label">Market Defensible Position</div><div class="market-rate-item-val" style="color:var(--warning)">'+fmt$(marketAvg)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Blended avg — use for customer pricing</div></div>' +
     '<div class="market-rate-item"><div class="market-rate-item-label">Market High</div><div class="market-rate-item-val" style="color:var(--muted)">'+fmt$(marketHigh)+'</div></div>' +
     (bg ? '<div class="market-rate-item" style="border-color:var(--accent)"><div class="market-rate-item-label" style="color:var(--accent)">Budget Guidance</div><div class="market-rate-item-val" style="color:var(--accent)">'+fmt$(bg)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">BEP internal estimate</div></div>' +
-      '<div class="market-rate-item" style="border-color:rgba(245,158,11,0.4)"><div class="market-rate-item-label" style="color:#f59e0b">Bogon Target (−5%)</div><div class="market-rate-item-val" style="color:#f59e0b">'+fmt$(bg*0.95)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Must beat this to protect margin</div></div>' : '') +
+      '<div class="market-rate-item" style="border-color:rgba(245,158,11,0.4)"><div class="market-rate-item-label" style="color:#f59e0b">Cost Target (−5%)</div><div class="market-rate-item-val" style="color:#f59e0b">'+fmt$(bg*0.95)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Must beat this to protect margin</div></div>' : '') +
     '</div>' : '';
 
   const headroom = marketAvg && marketLow ? marketAvg-marketLow : null;
@@ -1985,7 +1985,7 @@ async function generateSOW(scopeId) {
             <tbody>${lineItemRows}</tbody>
             ${awarded?.total_amount?`<tfoot><tr style="background:#f0fdf4;font-weight:700"><td colspan="3" style="padding:10px 8px;border:1px solid #e2e8f0">TOTAL</td><td style="padding:10px 8px;border:1px solid #e2e8f0;text-align:right">${fmt$(awarded.total_amount)}</td></tr></tfoot>`:''}
           </table>
-          ${bg?`<div style="margin-top:8px;font-size:11px;color:#64748b">Budget guidance (internal): ${fmt$(bg)} · Bogon target (−5%): <strong>${fmt$(bg*0.95)}</strong></div>`:''}
+          ${bg?`<div style="margin-top:8px;font-size:11px;color:#64748b">Budget guidance (internal): ${fmt$(bg)} · Cost target (−5%): <strong>${fmt$(bg*0.95)}</strong></div>`:''}
         </div>
 
         <div style="margin-bottom:24px">
@@ -2296,7 +2296,7 @@ async function loadSavings() {
           '<td>'+sc.icon+' '+esc(sc.label)+'<br><div style="margin-top:3px">'+srcBadge+'</div></td>' +
           supCells +
           '<td class="sv-right '+(aw?'sv-green':'')+'">'+( aw?.total_amount?fmt$(aw.total_amount):'<span class="sv-muted">—</span>')+'</td>' +
-          '<td class="sv-right">'+(bg?fmt$(bg)+'<br><span style="font-size:10px;color:#f59e0b">Bogon: '+fmt$(bgTarget)+'</span>':'<span class="sv-muted">—</span>')+'</td>' +
+          '<td class="sv-right">'+(bg?fmt$(bg)+'<br><span style="font-size:10px;color:#f59e0b">Target: '+fmt$(bgTarget)+'</span>':'<span class="sv-muted">—</span>')+'</td>' +
           '<td class="sv-right">'+(bvAmt!==null?'<span style="font-weight:700;color:'+(bvAmt>=0?'#86efac':'#fca5a5')+'">'+(bvAmt>=0?'▼ '+fmt$(bvAmt)+' under':'▲ '+fmt$(Math.abs(bvAmt))+' over')+'</span>':'<span class="sv-muted">—</span>')+'</td>' +
           '<td class="sv-right '+(sav>0?'sv-green':'')+'">'+( sav>0?fmt$(sav)+(savPct?' <span style="font-size:10px;opacity:0.7">('+savPct+'% spread)</span>':''):'<span class="sv-muted">—</span>')+'</td>' +
           '<td class="sv-right" style="color:#a855f7">'+(profP?fmt$(profP)+'<br><span style="font-size:10px;opacity:0.7">push 2% back</span>':'<span class="sv-muted">—</span>')+'</td>' +
@@ -2325,7 +2325,7 @@ async function loadSavings() {
               <th>Scope</th>
               ${SUPPLIERS.map(s=>'<th class="sv-right">'+esc(s.name.split(' ').slice(0,2).join(' '))+'</th>').join('')}
               <th class="sv-right">Awarded ✓</th>
-              <th class="sv-right">Budget · Bogon (−5%)</th>
+              <th class="sv-right">Budget · Cost Target (−5%)</th>
               <th class="sv-right">vs. Budget</th>
               <th class="sv-right">Comp. Savings</th>
               <th class="sv-right" style="color:#a855f7">Profit Prot. (2%)</th>
@@ -2363,7 +2363,7 @@ async function loadSavings() {
       <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:11px;color:var(--muted);display:flex;gap:20px;flex-wrap:wrap;line-height:1.6">
         <div style="font-weight:700;color:var(--text);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;width:100%;margin-bottom:2px">How to read this table</div>
         <div><strong style="color:var(--text)">Awarded ✓</strong> — the quote selected for execution</div>
-        <div><strong style="color:var(--text)">Budget · Bogon (−5%)</strong> — internal estimate from Bruges; Bogon = budget minus 5%, the threshold BEP must beat to protect margin</div>
+        <div><strong style="color:var(--text)">Budget · Cost Target (−5%)</strong> — internal budget estimate; Cost Target = budget minus 5%, the threshold BEP must beat to protect margin</div>
         <div><strong style="color:#86efac">▼ under / <span style="color:#fca5a5">▲ over</span></strong> — awarded amount vs. your budget; green = came in under budget</div>
         <div><strong style="color:var(--text)">Comp. Savings</strong> — dollar spread between the two bids; captures value created by competitive sourcing</div>
         <div><strong style="color:#a855f7">Profit Prot. (2%)</strong> — per BEP policy: push supplier 2% on material costs; this column shows the recovery target</div>
@@ -2713,7 +2713,7 @@ async function loadAEReview() {
             <div style="font-weight:700;color:var(--success)">${fmt$(savings)}</div>
           </div>`:''}
           ${bg?`<div style="text-align:center;padding:10px;background:var(--bg-card);border-radius:6px;border:1px solid rgba(245,158,11,0.3)">
-            <div style="font-size:10px;color:#f59e0b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Bogon (−5%)</div>
+            <div style="font-size:10px;color:#f59e0b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Cost Target (−5%)</div>
             <div style="font-weight:700;color:#f59e0b">${fmt$(bg*0.95)}</div>
           </div>`:''}
         </div>` : '';
