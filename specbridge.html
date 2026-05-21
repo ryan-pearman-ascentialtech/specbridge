@@ -1318,6 +1318,24 @@ function renderScope(scope, quotes) {
   const compHtml      = (quotesWithAmounts.length >= 2) ? buildComparison(scope, quotesWithAmounts) :
     `<div style="color:var(--muted);font-size:13px;padding:8px 0">Comparison appears once quotes from 2+ suppliers are saved.</div>`;
 
+  // Line item validation banner
+  const validationBanner = scope.line_items_validated
+    ? '<div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:10px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
+        '<div>' +
+          '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#22c55e">✅ AE Validated</span>' +
+          (scope.validated_by ? '<span style="font-size:12px;color:var(--muted);margin-left:8px">by ' + esc(scope.validated_by) + '</span>' : '') +
+          (scope.validated_at ? '<span style="font-size:12px;color:var(--muted);margin-left:6px">· ' + new Date(scope.validated_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + '</span>' : '') +
+        '</div>' +
+        '<button class="btn btn-ghost btn-xs" onclick="validateLineItems('' + scope.id + '',true)" style="font-size:11px;color:var(--muted)">Reset to Draft</button>' +
+      '</div>'
+    : '<div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:10px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
+        '<div>' +
+          '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#f59e0b">⚠ DRAFT</span>' +
+          '<span style="font-size:12px;color:var(--muted);margin-left:8px">Line items pending Applications Engineering review</span>' +
+        '</div>' +
+        '<button class="btn btn-primary btn-xs" onclick="validateLineItems('' + scope.id + '',false)">Mark AE Validated ✓</button>' +
+      '</div>';
+
   document.getElementById('scope-detail-content').innerHTML = `
     <div class="page-header">
       <div>
@@ -1328,6 +1346,7 @@ function renderScope(scope, quotes) {
     </div>
     <div class="stepper">${stepperHtml}</div>
     ${statusActions}
+    ${validationBanner}
     ${budgetBarHtml}
     ${ctxHtml}
     ${(()=>{
@@ -1555,6 +1574,21 @@ async function saveBudgetGuidance(scopeId, val) {
   try {
     await q('rfq_scopes','update',{data:{budget_guidance:num},eq:['id',scopeId]});
     toast(`Budget guidance set to ${fmt$(num)}`,'success');
+    await loadScopeDetail();
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
+// ══════════════════════════════════════════════════
+// LINE ITEM VALIDATION
+// ══════════════════════════════════════════════════
+async function validateLineItems(scopeId, reset) {
+  // reset=true → revert to DRAFT; reset=false → mark AE Validated
+  try {
+    const data = reset
+      ? { line_items_validated: false, validated_by: null, validated_at: null }
+      : { line_items_validated: true,  validated_by: 'AE', validated_at: new Date().toISOString() };
+    await q('rfq_scopes','update',{data, eq:['id',scopeId]});
+    toast(reset ? 'Scope reset to DRAFT' : 'Line items marked AE Validated ✓', reset ? 'info' : 'success');
     await loadScopeDetail();
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
@@ -2779,6 +2813,47 @@ async function loadAEReview() {
         ? `<div style="font-size:12px;color:#f59e0b;margin-top:10px;padding:8px 12px;background:rgba(245,158,11,0.08);border-radius:4px;border-left:3px solid #f59e0b">⚠ No winning quote selected — click <strong>Award →</strong> next to the preferred supplier, then Approve</div>`
         : '';
 
+      // ── Best in Class negotiation intelligence ──
+      const bicQuotes = sq.filter(x=>x.total_amount>0);
+      const bicLowest = bicQuotes.length ? bicQuotes.reduce((a,b)=>a.total_amount<b.total_amount?a:b) : null;
+      const bicPref   = awarded || bicQuotes.find(x=>{ const s=SUPPLIERS.find(y=>y.name===x.supplier_name); return s&&s.preferred; });
+      const bicHtml   = (()=>{
+        if (!bicLowest || bicQuotes.length < 2) return '';
+        if (bicPref && bicPref.id === bicLowest.id) return (
+          '<div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:14px 16px;margin-top:14px">' +
+            '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#22c55e;margin-bottom:4px">🏆 Best in Class</div>' +
+            '<div style="font-size:13px;color:var(--text)">Preferred/awarded supplier <strong>' + esc(bicLowest.supplier_name) + '</strong> already holds the lowest bid at <strong>' + fmt$(bicLowest.total_amount) + '</strong> — no negotiation gap.</div>' +
+          '</div>'
+        );
+        const gap    = bicPref ? bicPref.total_amount - bicLowest.total_amount : null;
+        const gapPct = (gap && bicPref) ? (gap/bicPref.total_amount*100).toFixed(1) : null;
+        const recTxt = gap > 0
+          ? 'Present ' + esc(bicLowest.supplier_name) + "'s bid of " + fmt$(bicLowest.total_amount) + ' to ' + esc(bicPref?bicPref.supplier_name:'preferred supplier') + ' before awarding — potential ' + fmt$(gap) + ' (' + gapPct + '%) reduction.'
+          : 'Market lowest bid is ' + fmt$(bicLowest.total_amount) + ' from ' + esc(bicLowest.supplier_name) + '.';
+        return (
+          '<div style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.25);border-radius:8px;padding:14px 16px;margin-top:14px">' +
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:10px">' +
+              '<div>' +
+                '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#a78bfa;margin-bottom:6px">🏆 Best in Class — Negotiation Intel</div>' +
+                '<div style="font-size:12px;color:var(--muted);margin-bottom:2px">Lowest Market Bid</div>' +
+                '<div style="font-size:15px;font-weight:700;color:var(--text)">' + fmt$(bicLowest.total_amount) + ' <span style="font-size:12px;font-weight:400;color:var(--muted)">— ' + esc(bicLowest.supplier_name) + '</span></div>' +
+              '</div>' +
+              (gap>0 ? (
+                '<div style="text-align:right;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:6px;padding:8px 14px">' +
+                  '<div style="font-size:10px;color:var(--muted);margin-bottom:2px">Gap to ' + esc(bicPref?bicPref.supplier_name:'Preferred') + '</div>' +
+                  '<div style="font-size:16px;font-weight:700;color:#fca5a5">▲ ' + fmt$(gap) + '</div>' +
+                  '<div style="font-size:11px;color:var(--muted)">' + gapPct + '% above lowest bid</div>' +
+                '</div>'
+              ) : '') +
+            '</div>' +
+            '<div style="padding:10px 12px;background:rgba(0,0,0,0.2);border-radius:6px;border-left:3px solid #a78bfa">' +
+              '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#a78bfa;margin-bottom:4px">💬 Draft Negotiation Recommendation</div>' +
+              '<div style="font-size:12px;color:var(--text);line-height:1.5">' + recTxt + '</div>' +
+            '</div>' +
+          '</div>'
+        );
+      })();
+
       return `
         <div class="card" style="margin-bottom:18px;border:1px solid rgba(168,85,247,0.3)">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
@@ -2801,6 +2876,7 @@ async function loadAEReview() {
           <div style="margin-bottom:4px">${quoteRows}</div>
           ${warnMsg}
           ${metricsRow}
+          ${bicHtml}
 
           <div style="display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);flex-wrap:wrap;align-items:center">
             <button class="btn btn-success btn-sm" onclick="aeApprove('${scope.id}',loadAEReview)">✓ Approve → Award</button>
