@@ -1326,14 +1326,14 @@ function renderScope(scope, quotes) {
           (scope.validated_by ? '<span style="font-size:12px;color:var(--muted);margin-left:8px">by ' + esc(scope.validated_by) + '</span>' : '') +
           (scope.validated_at ? '<span style="font-size:12px;color:var(--muted);margin-left:6px">· ' + new Date(scope.validated_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + '</span>' : '') +
         '</div>' +
-        '<button class="btn btn-ghost btn-xs" onclick="validateLineItems('' + scope.id + '',true)" style="font-size:11px;color:var(--muted)">Reset to Draft</button>' +
+        '<button class="btn btn-ghost btn-xs" onclick="validateLineItems(\'' + scope.id + '\',true)" style="font-size:11px;color:var(--muted)">Reset to Draft</button>' +
       '</div>'
     : '<div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:10px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
         '<div>' +
           '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#f59e0b">⚠ DRAFT</span>' +
           '<span style="font-size:12px;color:var(--muted);margin-left:8px">Line items pending Applications Engineering review</span>' +
         '</div>' +
-        '<button class="btn btn-primary btn-xs" onclick="validateLineItems('' + scope.id + '',false)">Mark AE Validated ✓</button>' +
+        '<button class="btn btn-primary btn-xs" onclick="validateLineItems(\'' + scope.id + '\',false)">Mark AE Validated ✓</button>' +
       '</div>';
 
   document.getElementById('scope-detail-content').innerHTML = `
