@@ -648,14 +648,15 @@ let _projectName    = null;
 let _projectData    = null;
 let _scopeId        = null;
 let _scopeType      = null;
-let _activeTab      = 'culver';
+let _activeTab      = 'dhgriffin';
 
 // ══════════════════════════════════════════════════
 // STATIC CONFIG
 // ══════════════════════════════════════════════════
 const SUPPLIERS = [
-  { id: 'culver',   name: 'Culver Development', contact: 'Scott Culver'  },
-  { id: 'nwi',      name: 'NWI',                contact: 'Contact TBD'   },
+  { id: 'dhgriffin', name: 'D.H. Griffin Contracting', contact: 'Greg Campbell'  },
+  { id: 'culver',    name: 'Culver',                    contact: 'Scott Culver'   },
+  { id: 'nwi',       name: 'NWI',                       contact: 'Contact TBD'    },
 ];
 
 const STATUS = {
@@ -1067,12 +1068,10 @@ async function loadProjectDetail(projectId) {
       const scope2 = scopes.find(s=>s.scope_type===st);
       const sq2    = scope2 ? (qByScope[scope2.id]||[]) : [];
       const aw     = sq2.find(x=>x.is_awarded);
-      const culver2 = sq2.find(x=>x.supplier_name==='Culver Development');
-      const nwi2    = sq2.find(x=>x.supplier_name==='NWI');
-      const ct2 = culver2?.total_amount||0, nct2 = nwi2?.total_amount||0;
-      if (sq2.filter(x=>x.total_amount>0).length >= 2) scopesCompeted++;
+      const quotedAmts2 = sq2.filter(x=>x.total_amount>0).map(x=>x.total_amount);
+      if (quotedAmts2.length >= 2) scopesCompeted++;
       if (aw?.total_amount) { totalAwarded += aw.total_amount; totalProfitProtect += aw.total_amount * 0.02; }
-      if (ct2>0 && nct2>0) { totalHeadroom += Math.abs(ct2-nct2)/2; }
+      if (quotedAmts2.length >= 2) { totalHeadroom += (Math.max(...quotedAmts2)-Math.min(...quotedAmts2))/2; }
     });
     const rollupHtml = (totalAwarded>0 || scopesCompeted>0) ? `
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
@@ -1106,8 +1105,6 @@ async function loadProjectDetail(projectId) {
       const sc      = SCOPES[st];
       const ss      = scope ? (STATUS[scope.status]||STATUS.draft) : STATUS.draft;
       const sq      = scope ? (qByScope[scope.id]||[]) : [];
-      const culverQ = sq.find(x=>x.supplier_name==='Culver Development');
-      const carnQ   = sq.find(x=>x.supplier_name==='NWI');
       const awardedQ= sq.find(x=>x.is_awarded);
 
       if (sc.pending) return `
@@ -1120,7 +1117,7 @@ async function loadProjectDetail(projectId) {
         </div>`;
 
       const pillHtml = SUPPLIERS.map(s => {
-        const qp = s.id==='culver' ? culverQ : carnQ;
+        const qp = sq.find(x=>x.supplier_name===s.name);
         const cls = qp ? (qp.is_awarded?'awarded':'filled') : '';
         return `<span class="quote-pill ${cls}">${qp&&qp.is_awarded?'✓ ':qp?'● ':'○ '}${esc(s.name)} ${qp&&qp.total_amount?fmt$(qp.total_amount):(qp?'Partial':'—')}</span>`;
       }).join('');
@@ -1260,13 +1257,12 @@ function renderScope(scope, quotes) {
     </div>` : '';
 
   // Scope completeness detail
-  const culverQ  = quotes.find(x=>x.supplier_name==='Culver Development');
-  const carnQ    = quotes.find(x=>x.supplier_name==='NWI');
-  const activeQ  = _activeTab==='culver' ? culverQ : carnQ;
-  const activeS  = SUPPLIERS.find(s=>s.id===_activeTab);
+  // Dynamic supplier tab lookup
+  const activeS  = SUPPLIERS.find(s=>s.id===_activeTab) || SUPPLIERS[0];
+  const activeQ  = quotes.find(x=>x.supplier_name===activeS.name);
 
   const tabsHtml = SUPPLIERS.map(s => {
-    const hasQ = s.id==='culver' ? !!culverQ : !!carnQ;
+    const hasQ = !!quotes.find(x=>x.supplier_name===s.name);
     return `<button class="sup-tab ${_activeTab===s.id?'active':''}" onclick="switchTab('${s.id}')">${esc(s.name)} <span style="font-size:11px;color:var(--muted)">${esc(s.contact)}</span>${hasQ?' ✓':''}</button>`;
   }).join('');
 
@@ -1274,6 +1270,7 @@ function renderScope(scope, quotes) {
   const bg = scope.budget_guidance ? Number(scope.budget_guidance) : null;
   const bgTarget = bg ? bg * 0.95 : null; // Bogon: 5% below budget is the actual target
   const awardedQ = quotes.find(x=>x.is_awarded);
+  const quotesWithAmounts = quotes.filter(x=>x.total_amount>0);
   let varianceHtml = '';
   if (bg && awardedQ && awardedQ.total_amount) {
     const diff = bg - awardedQ.total_amount;
@@ -1283,8 +1280,8 @@ function renderScope(scope, quotes) {
     varianceHtml = diff >= 0
       ? `<span class="budget-variance bv-under">▼ ${fmt$(diff)} under budget (${pct}%)</span>${targetHtml}`
       : `<span class="budget-variance bv-over">▲ ${fmt$(Math.abs(diff))} over budget (${pct}%)</span>${targetHtml}`;
-  } else if (bg && culverQ && carnQ) {
-    const lowestBid = Math.min(culverQ.total_amount||Infinity, carnQ.total_amount||Infinity);
+  } else if (bg && quotesWithAmounts.length >= 2) {
+    const lowestBid = Math.min(...quotesWithAmounts.map(x=>x.total_amount));
     const diff = bg - lowestBid;
     const pct  = Math.abs(diff/bg*100).toFixed(1);
     const vsTarget = bgTarget - lowestBid;
@@ -1315,8 +1312,8 @@ function renderScope(scope, quotes) {
 
   const statusActions = buildStatusActions(scope);
   const quoteForm     = buildQuoteForm(scope, activeQ, activeS);
-  const compHtml      = (culverQ && carnQ) ? buildComparison(scope, culverQ, carnQ) :
-    `<div style="color:var(--muted);font-size:13px;padding:8px 0">Comparison appears once quotes from both suppliers are saved.</div>`;
+  const compHtml      = (quotesWithAmounts.length >= 2) ? buildComparison(scope, quotesWithAmounts) :
+    `<div style="color:var(--muted);font-size:13px;padding:8px 0">Comparison appears once quotes from 2+ suppliers are saved.</div>`;
 
   document.getElementById('scope-detail-content').innerHTML = `
     <div class="page-header">
@@ -1397,32 +1394,36 @@ async function exportComparisonPDF() {
     const [scope]  = await q('rfq_scopes','select',{eq:['id',_scopeId]});
     const quotes   = await q('rfq_quotes','select',{eq:['scope_id',_scopeId]});
     const sc       = SCOPES[_scopeType];
-    const culverQ  = quotes.find(x=>x.supplier_name==='Culver Development');
-    const carnQ    = quotes.find(x=>x.supplier_name==='NWI');
     const awarded  = quotes.find(x=>x.is_awarded);
     const bg       = scope.budget_guidance ? Number(scope.budget_guidance) : null;
+    const withAmts = quotes.filter(x=>x.total_amount>0).sort((a,b)=>(b.is_awarded?1:0)-(a.is_awarded?1:0));
 
     const getAmt = (items,key) => { const i=(items||[]).find(x=>x.key===key); return i?(i.amount||0):0; };
-    const ct  = culverQ?.total_amount||0;
-    const nct = carnQ?.total_amount||0;
-    const marketAvg = ct>0&&nct>0 ? (ct+nct)/2 : null;
-    const marketLow = ct>0&&nct>0 ? Math.min(ct,nct) : null;
+    const allAmts   = withAmts.map(x=>x.total_amount||0);
+    const marketLow = allAmts.length ? Math.min(...allAmts) : null;
+    const marketHigh= allAmts.length ? Math.max(...allAmts) : null;
+    const marketAvg = allAmts.length ? allAmts.reduce((s,a)=>s+a,0)/allAmts.length : null;
     const headroom  = marketAvg && marketLow ? marketAvg - marketLow : null;
     const profitP   = awarded?.total_amount ? awarded.total_amount * 0.02 : null;
-    const savings   = ct>0&&nct>0 ? Math.abs(ct-nct) : 0;
-    const savingsPct= Math.max(ct,nct)>0 ? (savings/Math.max(ct,nct)*100).toFixed(1) : 0;
-    const competed  = ct>0 && nct>0;
+    const savings   = allAmts.length>=2 ? marketHigh-marketLow : 0;
+    const savingsPct= marketHigh>0 ? (savings/marketHigh*100).toFixed(1) : 0;
+    const competed  = allAmts.length >= 2;
 
+    const thCols = withAmts.map(q=>`<th style="text-align:right">${esc(q.supplier_name)}</th>`).join('');
     const rows = sc.items.filter(i=>i.req).map(i => {
-      const ca = getAmt(culverQ?.line_items,i.key);
-      const cb = getAmt(carnQ?.line_items,i.key);
-      const cLow = ca>0&&cb>0&&ca<cb, cbLow = ca>0&&cb>0&&cb<ca;
-      return `<tr>
-        <td>${esc(i.label)}</td>
-        <td style="text-align:right;${cLow?'font-weight:700;color:#16a34a':''}">${ca>0?fmt$(ca):'—'}</td>
-        <td style="text-align:right;${cbLow?'font-weight:700;color:#16a34a':''}">${cb>0?fmt$(cb):'—'}</td>
-      </tr>`;
+      const cells = withAmts.map(q => {
+        const a = getAmt(q.line_items,i.key);
+        const isLow = a>0 && allAmts.length>=2 && a===marketLow;
+        return `<td style="text-align:right;${isLow?'font-weight:700;color:#16a34a':''}">${a>0?fmt$(a):'—'}</td>`;
+      }).join('');
+      return `<tr><td>${esc(i.label)}</td>${cells}</tr>`;
     }).join('');
+    const totalCells = withAmts.map(q => {
+      const t = q.total_amount||0;
+      const isLow = t>0 && allAmts.length>=2 && t===marketLow;
+      return `<td style="text-align:right;${isLow?'color:#16a34a':''}">${t>0?fmt$(t):'—'}</td>`;
+    }).join('');
+    const colspan = withAmts.length;
 
     const today = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
     const html = `
@@ -1433,24 +1434,16 @@ async function exportComparisonPDF() {
         </div>
         <div style="text-align:right">
           <div style="font-size:11px;color:#64748b">SpecBridge</div>
-          <div style="font-size:11px;color:${competed?'#16a34a':'#d97706'};font-weight:700;margin-top:3px">${competed?'COMPETED — 2 Quotes':'SINGLE SOURCE ⚠'}</div>
+          <div style="font-size:11px;color:${competed?'#16a34a':'#d97706'};font-weight:700;margin-top:3px">${competed?'COMPETED — '+allAmts.length+' Quotes':'SINGLE SOURCE ⚠'}</div>
         </div>
       </div>
       <table>
-        <thead><tr>
-          <th>Line Item</th>
-          <th style="text-align:right">Culver Development</th>
-          <th style="text-align:right">NWI</th>
-        </tr></thead>
+        <thead><tr><th>Line Item</th>${thCols}</tr></thead>
         <tbody>
           ${rows}
-          <tr style="font-weight:700;background:#f8fafc">
-            <td>TOTAL</td>
-            <td style="text-align:right;${ct>0&&ct<=nct?'color:#16a34a':''}">${ct>0?fmt$(ct):'—'}</td>
-            <td style="text-align:right;${nct>0&&nct<=ct?'color:#16a34a':''}">${nct>0?fmt$(nct):'—'}</td>
-          </tr>
-          ${bg?`<tr style="background:#fefce8"><td>Budget Guidance (BEP Internal)</td><td colspan="2" style="text-align:right;font-weight:700">${fmt$(bg)}</td></tr>`:''}
-          ${awarded?`<tr style="background:#f0fdf4"><td>✓ Awarded</td><td colspan="2" style="text-align:right;font-weight:700;color:#16a34a">${esc(awarded.supplier_name)} — ${fmt$(awarded.total_amount)}</td></tr>`:''}
+          <tr style="font-weight:700;background:#f8fafc"><td>TOTAL</td>${totalCells}</tr>
+          ${bg?`<tr style="background:#fefce8"><td>Budget Guidance (BEP Internal)</td><td colspan="${colspan}" style="text-align:right;font-weight:700">${fmt$(bg)}</td></tr>`:''}
+          ${awarded?`<tr style="background:#f0fdf4"><td>✓ Awarded</td><td colspan="${colspan}" style="text-align:right;font-weight:700;color:#16a34a">${esc(awarded.supplier_name)} — ${fmt$(awarded.total_amount)}</td></tr>`:''}
         </tbody>
       </table>
       <div>
@@ -1798,183 +1791,103 @@ async function advanceScope(scopeId, newStatus) {
 // ══════════════════════════════════════════════════
 // COMPARISON (with budget & market rate analysis)
 // ══════════════════════════════════════════════════
-function buildComparison(scope, culverQ, carnQ) {
-  const sc = SCOPES[_scopeType];
-  const culverItems = culverQ.line_items||[];
-  const carnItems   = carnQ.line_items||[];
-  const getAmt = (items,key) => { const i=items.find(x=>x.key===key); return i?(i.amount||0):0; };
-  const bg = scope.budget_guidance ? Number(scope.budget_guidance) : null;
-
-  const rows = sc.items.filter(i=>i.req).map(i => {
-    const ca = getAmt(culverItems,i.key);
-    const cb = getAmt(carnItems,i.key);
-    const cLow  = ca>0&&cb>0&&ca<cb;
-    const cbLow = ca>0&&cb>0&&cb<ca;
-    return `<tr>
-      <td class="comp-item-col">${esc(i.label)}</td>
-      <td class="comp-amt ${cLow?'comp-lower':''}">${ca>0?fmt$(ca):'—'}</td>
-      <td class="comp-amt ${cbLow?'comp-lower':''}">${cb>0?fmt$(cb):'—'}</td>
-    </tr>`;
-  }).join('');
-
-  const ct  = culverQ.total_amount||0;
-  const nct = carnQ.total_amount||0;
-  const cLowTotal  = ct>0&&nct>0&&ct<=nct;
-  const nLowTotal  = ct>0&&nct>0&&nct<=ct;
-  const savings    = ct>0&&nct>0 ? Math.abs(ct-nct) : 0;
-  const savingsPct = Math.max(ct,nct)>0 ? (savings/Math.max(ct,nct)*100).toFixed(1) : 0;
-  const awarded    = [culverQ,carnQ].find(x=>x.is_awarded);
+function buildComparison(scope, allQuotes) {
+  // allQuotes = array of quotes with total_amount > 0, sorted awarded-first
+  const sorted = [...allQuotes].sort((a,b) => (b.is_awarded?1:0)-(a.is_awarded?1:0));
+  const sc  = SCOPES[_scopeType];
+  const bg  = scope.budget_guidance ? Number(scope.budget_guidance) : null;
+  const getAmt = (items,key) => { const i=(items||[]).find(x=>x.key===key); return i?(i.amount||0):0; };
+  const amts = sorted.map(q=>q.total_amount||0);
+  const allAmts = amts.filter(a=>a>0);
+  const awarded = sorted.find(x=>x.is_awarded);
+  const marketLow = allAmts.length ? Math.min(...allAmts) : null;
+  const marketHigh = allAmts.length ? Math.max(...allAmts) : null;
+  const marketAvg = allAmts.length ? allAmts.reduce((s,a)=>s+a,0)/allAmts.length : null;
+  const savings = allAmts.length>=2 ? marketHigh-marketLow : 0;
+  const savingsPct = marketHigh>0 ? (savings/marketHigh*100).toFixed(1) : 0;
 
   const awardBtn = (xq) => {
     if (awarded) return awarded.id===xq.id
-      ? `<div style="color:#86efac;font-size:12px;font-weight:700">✓ Awarded</div>`
-      : `<div style="color:var(--muted);font-size:11px">Not awarded</div>`;
-    return `<button class="btn btn-success btn-xs" onclick="awardQuote('${xq.id}','${scope.id}')">Award →</button>`;
+      ? '<div style="color:#86efac;font-size:12px;font-weight:700">✓ Awarded</div>'
+      : '<div style="color:var(--muted);font-size:11px">Not awarded</div>';
+    return '<button class="btn btn-success btn-xs" onclick="awardQuote(\''+xq.id+'\',\''+scope.id+'\')">Award →</button>';
   };
 
-  // Payment terms comparison row
-  const culverPT = culverQ.payment_terms||{};
-  const carnPT   = carnQ.payment_terms||{};
-  const ptRow = (culverPT.terms||carnPT.terms||culverPT.deposit_pct||carnPT.deposit_pct) ? `
-    <tr style="border-top:2px solid var(--border)">
-      <td class="comp-item-col" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)">Payment Terms</td>
-      <td class="comp-amt" style="font-size:12px;text-align:left">
-        ${culverPT.terms?`<div>${esc(culverPT.terms)}</div>`:''}
-        ${culverPT.deposit_pct?`<div style="color:var(--muted);font-size:11px">${culverPT.deposit_pct}% deposit</div>`:''}
-        ${culverPT.milestones?`<div style="color:var(--muted);font-size:11px">${esc(culverPT.milestones)}</div>`:''}
-      </td>
-      <td class="comp-amt" style="font-size:12px;text-align:left">
-        ${carnPT.terms?`<div>${esc(carnPT.terms)}</div>`:''}
-        ${carnPT.deposit_pct?`<div style="color:var(--muted);font-size:11px">${carnPT.deposit_pct}% deposit</div>`:''}
-        ${carnPT.milestones?`<div style="color:var(--muted);font-size:11px">${esc(carnPT.milestones)}</div>`:''}
-      </td>
-    </tr>` : '';
+  // Table header columns
+  const thCols = sorted.map(q => {
+    const sup = SUPPLIERS.find(s=>s.name===q.supplier_name);
+    return '<th style="text-align:right">'+esc(q.supplier_name)+'<br><small style="font-weight:400;color:var(--muted)">'+esc(sup?sup.contact:(q.supplier_contact||''))+'</small></th>';
+  }).join('');
+
+  // Line item rows
+  const rows = sc.items.filter(i=>i.req).map(i => {
+    const cells = sorted.map(q => {
+      const a = getAmt(q.line_items, i.key);
+      const isLow = a>0 && allAmts.length>=2 && a===marketLow;
+      return '<td class="comp-amt '+(isLow?'comp-lower':'')+'">'+( a>0?fmt$(a):'—')+'</td>';
+    }).join('');
+    return '<tr><td class="comp-item-col">'+esc(i.label)+'</td>'+cells+'</tr>';
+  }).join('');
+
+  // Total row with award buttons
+  const totalCells = sorted.map(q => {
+    const t = q.total_amount||0;
+    const isLow = t>0 && allAmts.length>=2 && t===marketLow;
+    return '<td class="comp-amt '+(isLow?'comp-lower':'')+'"><div>'+fmt$(t)+'</div><div style="margin-top:8px">'+awardBtn(q)+'</div></td>';
+  }).join('');
 
   // Budget variance row
   const budgetRow = bg ? (() => {
-    const cDiff = ct>0 ? bg-ct : null;
-    const nDiff = nct>0 ? bg-nct : null;
-    const vClass = (d) => d===null?'':(d>=0?'style="color:#86efac;font-weight:700"':'style="color:#fca5a5;font-weight:700"');
-    const vTxt = (d) => d===null?'—':(d>=0?`▼ ${fmt$(d)} under`:`▲ ${fmt$(Math.abs(d))} over`);
-    return `
-    <tr style="background:#111420">
-      <td class="comp-item-col" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)">vs. Budget (${fmt$(bg)})</td>
-      <td class="comp-amt" ${vClass(cDiff)}>${vTxt(cDiff)}</td>
-      <td class="comp-amt" ${vClass(nDiff)}>${vTxt(nDiff)}</td>
-    </tr>`;
+    const vTxt = (d) => d===null?'—':(d>=0?'▼ '+fmt$(d)+' under':'▲ '+fmt$(Math.abs(d))+' over');
+    const vStyle = (d) => d===null?'':(d>=0?'style="color:#86efac;font-weight:700"':'style="color:#fca5a5;font-weight:700"');
+    const bCells = sorted.map(q => {
+      const t = q.total_amount||0;
+      const d = t>0 ? bg-t : null;
+      return '<td class="comp-amt" '+vStyle(d)+'>'+vTxt(d)+'</td>';
+    }).join('');
+    return '<tr style="background:#111420"><td class="comp-item-col" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)">vs. Budget ('+fmt$(bg)+')</td>'+bCells+'</tr>';
   })() : '';
 
-  // Market rate analysis
-  const marketAvg = ct>0&&nct>0 ? (ct+nct)/2 : null;
-  const marketHigh = ct>0&&nct>0 ? Math.max(ct,nct) : null;
-  const marketLow  = ct>0&&nct>0 ? Math.min(ct,nct) : null;
+  // Payment terms row
+  const hasPT = sorted.some(q=>(q.payment_terms||{}).terms||(q.payment_terms||{}).deposit_pct);
+  const ptRow = hasPT ? (() => {
+    const ptCells = sorted.map(q => {
+      const pt = q.payment_terms||{};
+      return '<td class="comp-amt" style="font-size:12px;text-align:left">'+(pt.terms?'<div>'+esc(pt.terms)+'</div>':'')+(pt.deposit_pct?'<div style="color:var(--muted);font-size:11px">'+pt.deposit_pct+'% deposit</div>':'')+'</td>';
+    }).join('');
+    return '<tr style="border-top:2px solid var(--border)"><td class="comp-item-col" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)">Payment Terms</td>'+ptCells+'</tr>';
+  })() : '';
 
-  const marketRateHtml = marketAvg ? `
-    <div class="market-rate-box">
-      <div class="market-rate-item">
-        <div class="market-rate-item-label">Market Low</div>
-        <div class="market-rate-item-val" style="color:var(--success)">${fmt$(marketLow)}</div>
-      </div>
-      <div class="market-rate-item">
-        <div class="market-rate-item-label">Market Defensible Position</div>
-        <div class="market-rate-item-val" style="color:var(--warning)">${fmt$(marketAvg)}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:3px">Blended avg — use for customer pricing</div>
-      </div>
-      <div class="market-rate-item">
-        <div class="market-rate-item-label">Market High</div>
-        <div class="market-rate-item-val" style="color:var(--muted)">${fmt$(marketHigh)}</div>
-      </div>
-      ${bg?`<div class="market-rate-item" style="border-color:var(--accent)">
-        <div class="market-rate-item-label" style="color:var(--accent)">Budget Guidance</div>
-        <div class="market-rate-item-val" style="color:var(--accent)">${fmt$(bg)}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:3px">BEP internal estimate</div>
-      </div>
-      <div class="market-rate-item" style="border-color:rgba(245,158,11,0.4)">
-        <div class="market-rate-item-label" style="color:#f59e0b">Bogon Target (−5%)</div>
-        <div class="market-rate-item-val" style="color:#f59e0b">${fmt$(bg*0.95)}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:3px">Must beat this to protect margin</div>
-      </div>`:''}
-    </div>` : '';
+  const compSourcingBanner = allAmts.length >= 2
+    ? '<div style="display:flex;align-items:center;gap:10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 16px;margin-bottom:14px"><span style="font-size:16px">✅</span><div><div style="font-size:11px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:0.06em">Competed — '+allAmts.length+' Quotes Received</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Scope is competitively sourced. Pricing reflects market defensible position.</div></div></div>'
+    : '<div style="display:flex;align-items:center;gap:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 16px;margin-bottom:14px"><span style="font-size:16px">⚠️</span><div><div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.06em">Single Source — 1 Quote Only</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Scope is not competed. Obtain a second quote to establish a market defensible position.</div></div></div>';
 
-  const bothQuoted = ct > 0 && nct > 0;
-  const compSourcingBanner = bothQuoted
-    ? `<div style="display:flex;align-items:center;gap:10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 16px;margin-bottom:14px">
-        <span style="font-size:16px">✅</span>
-        <div>
-          <div style="font-size:11px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:0.06em">Competed — 2 Quotes Received</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">Scope is competitively sourced. Pricing reflects market defensible position.</div>
-        </div>
-      </div>`
-    : ct > 0 || nct > 0
-      ? `<div style="display:flex;align-items:center;gap:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 16px;margin-bottom:14px">
-          <span style="font-size:16px">⚠️</span>
-          <div>
-            <div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.06em">Single Source — 1 Quote Only</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">Scope is not competed. Obtain a second quote to establish a market defensible position.</div>
-          </div>
-        </div>`
-      : '';
+  const marketRateHtml = marketAvg ? '<div class="market-rate-box">' +
+    '<div class="market-rate-item"><div class="market-rate-item-label">Market Low</div><div class="market-rate-item-val" style="color:var(--success)">'+fmt$(marketLow)+'</div></div>' +
+    '<div class="market-rate-item"><div class="market-rate-item-label">Market Defensible Position</div><div class="market-rate-item-val" style="color:var(--warning)">'+fmt$(marketAvg)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Blended avg — use for customer pricing</div></div>' +
+    '<div class="market-rate-item"><div class="market-rate-item-label">Market High</div><div class="market-rate-item-val" style="color:var(--muted)">'+fmt$(marketHigh)+'</div></div>' +
+    (bg ? '<div class="market-rate-item" style="border-color:var(--accent)"><div class="market-rate-item-label" style="color:var(--accent)">Budget Guidance</div><div class="market-rate-item-val" style="color:var(--accent)">'+fmt$(bg)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">BEP internal estimate</div></div>' +
+      '<div class="market-rate-item" style="border-color:rgba(245,158,11,0.4)"><div class="market-rate-item-label" style="color:#f59e0b">Bogon Target (−5%)</div><div class="market-rate-item-val" style="color:#f59e0b">'+fmt$(bg*0.95)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Must beat this to protect margin</div></div>' : '') +
+    '</div>' : '';
 
-  return `
-    ${compSourcingBanner}
-    <table class="comp-table">
-      <thead>
-        <tr>
-          <th class="comp-item-col">Line Item</th>
-          <th style="text-align:right">Culver Development<br><small style="font-weight:400;color:var(--muted)">Scott Culver</small></th>
-          <th style="text-align:right">NWI<br><small style="font-weight:400;color:var(--muted)">Contact TBD</small></th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows}
-        <tr class="comp-total-row">
-          <td><strong>TOTAL</strong></td>
-          <td class="comp-amt ${cLowTotal?'comp-lower':''}">
-            <div>${fmt$(ct)}</div>
-            <div style="margin-top:8px">${awardBtn(culverQ)}</div>
-          </td>
-          <td class="comp-amt ${nLowTotal?'comp-lower':''}">
-            <div>${fmt$(nct)}</div>
-            <div style="margin-top:8px">${awardBtn(carnQ)}</div>
-          </td>
-        </tr>
-        ${budgetRow}
-        ${ptRow}
-      </tbody>
-    </table>
-    ${savings>0?`
-    <div class="savings-box">
-      <div>
-        <div class="savings-box-label">Competitive savings — lower bid vs. higher bid</div>
-        <div class="savings-box-pct">${savingsPct}% saved by awarding to lower bidder</div>
-      </div>
-      <div class="savings-box-amt">${fmt$(savings)}</div>
-    </div>`:''}
-    ${marketRateHtml}
-    ${(()=>{
-      const lowestQ = marketLow;
-      const headroom = marketAvg && lowestQ ? marketAvg - lowestQ : null;
-      const headroomPct = headroom && marketAvg ? ((headroom/marketAvg)*100).toFixed(1) : null;
-      const awardedAmt  = awarded ? (awarded.total_amount||0) : 0;
-      const profitProtect = awardedAmt > 0 ? awardedAmt * 0.02 : null;
+  const headroom = marketAvg && marketLow ? marketAvg-marketLow : null;
+  const headroomPct = headroom && marketAvg ? ((headroom/marketAvg)*100).toFixed(1) : null;
+  const awardedAmt = awarded ? (awarded.total_amount||0) : 0;
+  const profitProtect = awardedAmt > 0 ? awardedAmt * 0.02 : null;
 
-      if (!headroom && !profitProtect) return '';
-      return `
-    <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
-      ${headroom ? `
-      <div style="flex:1;min-width:200px;background:#0d1117;border:1px solid #1e2535;border-radius:8px;padding:14px 18px">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:6px">Negotiation Headroom</div>
-        <div style="font-size:22px;font-weight:700;color:#38bdf8">${fmt$(headroom)}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">${headroomPct}% gap — room to push market defensible position down to low bid</div>
-      </div>` : ''}
-      ${profitProtect ? `
-      <div style="flex:1;min-width:200px;background:#0d1117;border:1px solid rgba(168,85,247,0.35);border-radius:8px;padding:14px 18px">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:6px">Profit Protection (2% BEP Policy)</div>
-        <div style="font-size:22px;font-weight:700;color:#a855f7">${fmt$(profitProtect)}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">Push supplier ${fmt$(profitProtect)} below awarded total to protect BEP margin</div>
-      </div>` : ''}
-    </div>`;
-    })()}`;
+  const metricsHtml = (headroom||profitProtect) ? '<div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">' +
+    (headroom ? '<div style="flex:1;min-width:200px;background:#0d1117;border:1px solid #1e2535;border-radius:8px;padding:14px 18px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:6px">Negotiation Headroom</div><div style="font-size:22px;font-weight:700;color:#38bdf8">'+fmt$(headroom)+'</div><div style="font-size:11px;color:var(--muted);margin-top:4px">'+headroomPct+'% gap — room to push market defensible position down to low bid</div></div>' : '') +
+    (profitProtect ? '<div style="flex:1;min-width:200px;background:#0d1117;border:1px solid rgba(168,85,247,0.35);border-radius:8px;padding:14px 18px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:6px">Profit Protection (2% BEP Policy)</div><div style="font-size:22px;font-weight:700;color:#a855f7">'+fmt$(profitProtect)+'</div><div style="font-size:11px;color:var(--muted);margin-top:4px">Push supplier '+fmt$(profitProtect)+' below awarded total to protect BEP margin</div></div>' : '') +
+    '</div>' : '';
+
+  return compSourcingBanner +
+    '<table class="comp-table"><thead><tr><th class="comp-item-col">Line Item</th>'+thCols+'</tr></thead><tbody>' +
+    rows +
+    '<tr class="comp-total-row"><td><strong>TOTAL</strong></td>'+totalCells+'</tr>' +
+    budgetRow + ptRow +
+    '</tbody></table>' +
+    (savings>0 ? '<div class="savings-box"><div><div class="savings-box-label">Competitive savings — lower bid vs. higher bid</div><div class="savings-box-pct">'+savingsPct+'% saved by awarding to lower bidder</div></div><div class="savings-box-amt">'+fmt$(savings)+'</div></div>' : '') +
+    marketRateHtml + metricsHtml;
 }
 
 // ══════════════════════════════════════════════════
@@ -1987,7 +1900,7 @@ async function generateSOW(scopeId) {
     const quotes   = await q('rfq_quotes','select',{eq:['scope_id',scopeId]});
     const sc       = SCOPES[_scopeType];
     const awarded  = quotes.find(x=>x.is_awarded);
-    const supplier = awarded ? {name:awarded.supplier_name, contact: awarded.supplier_name==='Culver Development'?'Scott Culver':'Contact TBD'} : null;
+    const supplier = awarded ? {name:awarded.supplier_name, contact: awarded.supplier_contact || (SUPPLIERS.find(s=>s.name===awarded.supplier_name)?.contact||'Contact TBD')} : null;
     const today    = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
     const bg       = scope.budget_guidance ? Number(scope.budget_guidance) : null;
 
@@ -2355,8 +2268,6 @@ async function loadSavings() {
         const amts = sq.map(x=>x.total_amount||0).filter(a=>a>0);
         const sav  = amts.length>=2 ? Math.max(...amts)-Math.min(...amts) : 0;
         const savPct = amts.length>=2 ? (sav/Math.max(...amts)*100).toFixed(1) : null;
-        const cq   = sq.find(x=>x.supplier_name==='Culver Development');
-        const nq   = sq.find(x=>x.supplier_name==='NWI');
         const bg   = scope.budget_guidance ? Number(scope.budget_guidance) : null;
         const bgTarget = bg ? bg * 0.95 : null;
         const bvAmt = bg && aw ? bg-(aw.total_amount||0) : null;
@@ -2367,16 +2278,19 @@ async function loadSavings() {
           : amts.length===1
             ? `<span style="font-size:9px;font-weight:700;color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:3px;padding:1px 5px">SINGLE SRC</span>`
             : '';
-        return `<tr>
-          <td>${sc.icon} ${esc(sc.label)}<br><div style="margin-top:3px">${srcBadge}</div></td>
-          <td class="sv-right">${cq?.total_amount?fmt$(cq.total_amount):'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right">${nq?.total_amount?fmt$(nq.total_amount):'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right ${aw?'sv-green':''}">${aw?.total_amount?fmt$(aw.total_amount):'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right">${bg?`${fmt$(bg)}<br><span style="font-size:10px;color:#f59e0b">Bogon: ${fmt$(bgTarget)}</span>`:'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right">${bvAmt!==null?`<span style="font-weight:700;color:${bvAmt>=0?'#86efac':'#fca5a5'}">${bvAmt>=0?'▼ '+fmt$(bvAmt)+' under':'▲ '+fmt$(Math.abs(bvAmt))+' over'}</span>`:'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right ${sav>0?'sv-green':''}">${sav>0?fmt$(sav)+(savPct?` <span style="font-size:10px;opacity:0.7">(${savPct}% spread)</span>`:''):'<span class="sv-muted">—</span>'}</td>
-          <td class="sv-right" style="color:#a855f7">${profP?fmt$(profP)+'<br><span style="font-size:10px;opacity:0.7">push 2% back</span>':'<span class="sv-muted">—</span>'}</td>
-        </tr>`;
+        const supCells = SUPPLIERS.map(s => {
+          const qx = sq.find(x=>x.supplier_name===s.name);
+          return '<td class="sv-right">' + (qx?.total_amount?fmt$(qx.total_amount):'<span class="sv-muted">—</span>') + '</td>';
+        }).join('');
+        return '<tr>' +
+          '<td>'+sc.icon+' '+esc(sc.label)+'<br><div style="margin-top:3px">'+srcBadge+'</div></td>' +
+          supCells +
+          '<td class="sv-right '+(aw?'sv-green':'')+'">'+( aw?.total_amount?fmt$(aw.total_amount):'<span class="sv-muted">—</span>')+'</td>' +
+          '<td class="sv-right">'+(bg?fmt$(bg)+'<br><span style="font-size:10px;color:#f59e0b">Bogon: '+fmt$(bgTarget)+'</span>':'<span class="sv-muted">—</span>')+'</td>' +
+          '<td class="sv-right">'+(bvAmt!==null?'<span style="font-weight:700;color:'+(bvAmt>=0?'#86efac':'#fca5a5')+'">'+(bvAmt>=0?'▼ '+fmt$(bvAmt)+' under':'▲ '+fmt$(Math.abs(bvAmt))+' over')+'</span>':'<span class="sv-muted">—</span>')+'</td>' +
+          '<td class="sv-right '+(sav>0?'sv-green':'')+'">'+( sav>0?fmt$(sav)+(savPct?' <span style="font-size:10px;opacity:0.7">('+savPct+'% spread)</span>':''):'<span class="sv-muted">—</span>')+'</td>' +
+          '<td class="sv-right" style="color:#a855f7">'+(profP?fmt$(profP)+'<br><span style="font-size:10px;opacity:0.7">push 2% back</span>':'<span class="sv-muted">—</span>')+'</td>' +
+          '</tr>';
       }).filter(Boolean).join('');
       if (!tableRows) return '';
       const projAwarded = pq.filter(x=>x.is_awarded).reduce((s,x)=>s+(x.total_amount||0),0);
@@ -2399,8 +2313,7 @@ async function loadSavings() {
           <table class="sv-table">
             <thead><tr>
               <th>Scope</th>
-              <th class="sv-right">Culver Dev.</th>
-              <th class="sv-right">NWI</th>
+              ${SUPPLIERS.map(s=>'<th class="sv-right">'+esc(s.name.split(' ').slice(0,2).join(' '))+'</th>').join('')}
               <th class="sv-right">Awarded ✓</th>
               <th class="sv-right">Budget · Bogon (−5%)</th>
               <th class="sv-right">vs. Budget</th>
@@ -2409,12 +2322,6 @@ async function loadSavings() {
             </tr></thead>
             <tbody>${tableRows}</tbody>
             ${(()=>{
-              const projScopesForTotals = ps.filter(s=>{
-                const sq=pq.filter(x=>x.scope_id===s.id); return sq.length>0;
-              });
-              const totCulver = pq.filter(x=>x.supplier_name==='Culver Development'&&!x.is_awarded).reduce((s,x)=>s+(x.total_amount||0),0) + pq.filter(x=>x.supplier_name==='Culver Development'&&x.is_awarded).reduce((s,x)=>s+(x.total_amount||0),0);
-              const totCulverOnly = pq.filter(x=>x.supplier_name==='Culver Development').reduce((s,x)=>s+(x.total_amount||0),0);
-              const totNWIOnly = pq.filter(x=>x.supplier_name==='NWI').reduce((s,x)=>s+(x.total_amount||0),0);
               const totAw = pq.filter(x=>x.is_awarded).reduce((s,x)=>s+(x.total_amount||0),0);
               const totSav = SCOPE_ORDER.reduce((sum,st)=>{
                 const s=ps.find(x=>x.scope_type===st); if(!s) return sum;
@@ -2425,10 +2332,13 @@ async function loadSavings() {
               },0);
               const totPP = totAw*0.02;
               if (!totAw && !totSav) return '';
+              const supTotCells = SUPPLIERS.map(s=>{
+                const t=pq.filter(x=>x.supplier_name===s.name).reduce((sum,x)=>sum+(x.total_amount||0),0);
+                return '<td class="sv-right" style="padding:8px;font-size:12px">'+(t?fmt$(t):'—')+'</td>';
+              }).join('');
               return '<tfoot><tr style="background:rgba(255,255,255,0.03);font-weight:700;border-top:2px solid var(--border)">' +
                 '<td style="padding:8px;font-size:12px;color:var(--muted)">PROJECT TOTAL</td>' +
-                '<td class="sv-right" style="padding:8px;font-size:12px">' + (totCulverOnly?fmt$(totCulverOnly):'—') + '</td>' +
-                '<td class="sv-right" style="padding:8px;font-size:12px">' + (totNWIOnly?fmt$(totNWIOnly):'—') + '</td>' +
+                supTotCells +
                 '<td class="sv-right" style="padding:8px;font-size:13px;color:#22c55e">' + (totAw?fmt$(totAw):'—') + '</td>' +
                 '<td colspan="2" style="padding:8px"></td>' +
                 '<td class="sv-right" style="padding:8px;font-size:12px;color:#22c55e">' + (totSav?fmt$(totSav):'—') + '</td>' +
@@ -2619,11 +2529,13 @@ function showDDTab(tab) {
     const maxTotal = Math.max(...projTotals.filter(x=>x.total>0).map(x=>x.total),1);
     const grandTotal = projTotals.reduce((s,x)=>s+x.total,0);
 
-    // Supplier split
-    const culverTotal = quotes.filter(q=>q.is_awarded&&q.supplier_name==='Culver Development').reduce((s,q)=>s+(q.total_amount||0),0);
-    const nwiTotal    = quotes.filter(q=>q.is_awarded&&q.supplier_name==='NWI').reduce((s,q)=>s+(q.total_amount||0),0);
-    const culverPct = grandTotal>0?(culverTotal/grandTotal*100).toFixed(0):0;
-    const nwiPct    = grandTotal>0?(nwiTotal/grandTotal*100).toFixed(0):0;
+    // Supplier split — dynamic across all SUPPLIERS
+    const SUP_COLORS = ['#4f7cff','#22c55e','#a855f7','#f59e0b','#38bdf8','#f87171'];
+    const supSplit = SUPPLIERS.map((s,i) => ({
+      name: s.name,
+      color: SUP_COLORS[i % SUP_COLORS.length],
+      total: quotes.filter(q=>q.is_awarded&&q.supplier_name===s.name).reduce((sum,q)=>sum+(q.total_amount||0),0)
+    })).filter(x=>x.total>0);
 
     // Scope type totals
     const scopeTotals = SCOPE_ORDER.map(st=>{
@@ -2669,16 +2581,14 @@ function showDDTab(tab) {
       '</div>';
     }).join('');
 
-    const supplierBar = grandTotal>0 ?
+    const supplierBar = grandTotal>0 && supSplit.length ?
       '<div style="margin-bottom:14px">' +
         '<div style="font-size:11px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Supplier Split — Awarded Value</div>' +
         '<div style="display:flex;height:18px;border-radius:4px;overflow:hidden;gap:2px">' +
-          (culverTotal>0?'<div style="width:'+culverPct+'%;background:#4f7cff;border-radius:3px 0 0 3px" title="Culver: '+fmt$(culverTotal)+'"></div>':'') +
-          (nwiTotal>0?'<div style="width:'+nwiPct+'%;background:#a855f7;border-radius:0 3px 3px 0" title="NWI: '+fmt$(nwiTotal)+'"></div>':'') +
+          supSplit.map((s,i)=>{const pct=(s.total/grandTotal*100).toFixed(0); return '<div style="width:'+pct+'%;background:'+s.color+';'+(i===0?'border-radius:3px 0 0 3px':i===supSplit.length-1?'border-radius:0 3px 3px 0':'')+'" title="'+esc(s.name)+': '+fmt$(s.total)+'"></div>';}).join('') +
         '</div>' +
-        '<div style="display:flex;gap:16px;margin-top:5px;font-size:11px;color:var(--muted)">' +
-          (culverTotal>0?'<span><span style="color:#4f7cff">■</span> Culver ' + fmt$(culverTotal) + ' (' + culverPct + '%)</span>':'') +
-          (nwiTotal>0?'<span><span style="color:#a855f7">■</span> NWI ' + fmt$(nwiTotal) + ' (' + nwiPct + '%)</span>':'') +
+        '<div style="display:flex;gap:16px;margin-top:5px;font-size:11px;color:var(--muted);flex-wrap:wrap">' +
+          supSplit.map(s=>{const pct=(s.total/grandTotal*100).toFixed(0); return '<span><span style="color:'+s.color+'">■</span> '+esc(s.name.split(' ').slice(0,2).join(' '))+' '+fmt$(s.total)+' ('+pct+'%)</span>';}).join('') +
         '</div>' +
       '</div>' : '';
 
@@ -2753,17 +2663,14 @@ async function loadAEReview() {
       const proj     = projMap[scope.project_id]||{};
       const sc       = SCOPES[scope.scope_type]||{label:scope.scope_type, icon:'📋', items:[]};
       const sq       = quotes.filter(x=>x.scope_id===scope.id);
-      const culverQ  = sq.find(x=>x.supplier_name==='Culver Development')||{};
-      const nwiQ     = sq.find(x=>x.supplier_name==='NWI')||{};
       const awarded  = sq.find(x=>x.is_awarded);
-      const ct       = culverQ.total_amount||0;
-      const nt       = nwiQ.total_amount||0;
       const bg       = scope.budget_guidance ? Number(scope.budget_guidance) : null;
-      const mktAvg   = ct>0&&nt>0 ? (ct+nt)/2 : (ct||nt||0);
-      const lowestQ  = ct>0&&nt>0 ? Math.min(ct,nt) : (ct||nt||0);
-      const headroom = mktAvg>0&&lowestQ>0 ? mktAvg-lowestQ : null;
-      const savings  = ct>0&&nt>0 ? Math.abs(ct-nt) : 0;
-      const bothQuoted = ct>0&&nt>0;
+      const sqAmts   = sq.filter(x=>x.total_amount>0).map(x=>x.total_amount||0);
+      const mktAvg   = sqAmts.length ? sqAmts.reduce((s,a)=>s+a,0)/sqAmts.length : 0;
+      const lowestQ  = sqAmts.length ? Math.min(...sqAmts) : 0;
+      const headroom = sqAmts.length>=2 ? mktAvg-lowestQ : null;
+      const savings  = sqAmts.length>=2 ? Math.max(...sqAmts)-Math.min(...sqAmts) : 0;
+      const bothQuoted = sqAmts.length >= 2;
 
       const quoteRows = sq.length===0
         ? '<div style="color:var(--muted);font-size:12px;padding:8px 0">No quotes on file for this scope yet</div>'
