@@ -1363,6 +1363,49 @@ function renderScope(scope, quotes) {
       </div>
       <div id="comparison">${compHtml}</div>
     </div>
+    ${(()=>{
+      const awarded = quotes.find(x=>x.is_awarded);
+      const nonAw   = quotes.filter(x=>!x.is_awarded && (x.total_amount||0)>0);
+      if (!nonAw.length) return '';
+      const awAmt = awarded?.total_amount||0;
+      const allAmts = quotes.filter(x=>x.total_amount>0).map(x=>x.total_amount||0);
+      const mktAvg = allAmts.length ? allAmts.reduce((s,a)=>s+a,0)/allAmts.length : 0;
+      const cards = nonAw.map(q => {
+        const gap    = awAmt ? q.total_amount - awAmt : null;
+        const gapPct = awAmt ? ((gap/awAmt)*100).toFixed(1) : null;
+        const vsAvg  = mktAvg ? q.total_amount - mktAvg : null;
+        const gapColor = gap>0 ? '#fca5a5' : '#86efac';
+        const existingFb = q.supplier_feedback ? esc(q.supplier_feedback) : '';
+        const draftText = awarded
+          ? 'Thank you for your proposal on the ' + esc(sc.label) + ' scope for Scout Motors S.C. Following a full competitive review, we have awarded this scope to an alternate supplier at ' + fmt$(awAmt) + '. Your submission of ' + fmt$(q.total_amount) + (gap>0?' was '+fmt$(gap)+' ('+gapPct+'%) above the awarded position':' was competitive but did not meet our overall evaluation criteria') + '. We value your continued partnership and encourage your team to review cost structure and completeness for this scope ahead of future opportunities. We look forward to working together competitively on upcoming projects.' : '';
+        return '<div style="background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
+            '<div>' +
+              '<div style="font-size:14px;font-weight:700">' + esc(q.supplier_name) + '</div>' +
+              '<div style="font-size:12px;color:var(--muted);margin-top:2px">Quote: ' + fmt$(q.total_amount) + '</div>' +
+            '</div>' +
+            '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+              (gap!==null ? '<div style="text-align:right;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:6px;padding:6px 12px"><div style="font-size:10px;color:var(--muted);margin-bottom:2px">vs. Awarded</div><div style="font-size:13px;font-weight:700;color:'+gapColor+'">'+(gap>0?'▲ +':gap<0?'▼ ':'')+fmt$(Math.abs(gap))+' ('+Math.abs(gapPct)+'%)</div></div>' : '') +
+              (vsAvg!==null ? '<div style="text-align:right;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:6px;padding:6px 12px"><div style="font-size:10px;color:var(--muted);margin-bottom:2px">vs. Market Avg</div><div style="font-size:13px;font-weight:700;color:'+(vsAvg>0?'#fca5a5':'#86efac')+'">'+(vsAvg>0?'▲ +':'▼ ')+fmt$(Math.abs(vsAvg))+'</div></div>' : '') +
+            '</div>' +
+          '</div>' +
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:6px">Feedback to Supplier</div>' +
+          '<textarea id="fb-' + q.id + '" rows="4" placeholder="Draft competitive feedback for this supplier…" style="width:100%;background:#111420;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:10px 12px;font-size:12px;font-family:inherit;resize:vertical;line-height:1.5;box-sizing:border-box;margin-bottom:8px">' + (existingFb||draftText) + '</textarea>' +
+          '<div style="display:flex;gap:8px">' +
+            '<button class="btn btn-primary btn-sm" onclick="saveFeedback(\'' + q.id + '\')">Save Feedback</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(document.getElementById(\'fb-' + q.id + '\').value).then(()=>toast(\'Copied to clipboard\',\'success\'))">Copy ↗</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      return '<div class="card" style="margin-top:20px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:700">📣 Supplier Feedback</div>' +
+          '<span style="font-size:11px;color:var(--muted)">' + nonAw.length + ' non-awarded supplier' + (nonAw.length!==1?'s':'') + '</span>' +
+        '</div>' +
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5">Send market-level competitive feedback to develop your supplier base. Each draft is pre-populated from the quote data — edit before sending.</div>' +
+        cards +
+      '</div>';
+    })()}
     <div class="card" style="margin-top:20px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <div style="font-size:14px;font-weight:700">🗒 Negotiation Log</div>
@@ -1473,6 +1516,20 @@ function closePrintComparison() {
 }
 
 // ══════════════════════════════════════════════════
+// SUPPLIER FEEDBACK
+// ══════════════════════════════════════════════════
+async function saveFeedback(quoteId) {
+  const ta = document.getElementById('fb-' + quoteId);
+  if (!ta) return;
+  const text = ta.value.trim();
+  try {
+    await q('rfq_quotes','update',{data:{supplier_feedback: text||null}, eq:['id',quoteId]});
+    toast('Feedback saved','success');
+  } catch(e) {
+    toast('Error saving feedback: '+e.message,'error');
+  }
+}
+
 // NEGOTIATION LOG
 // ══════════════════════════════════════════════════
 async function saveNegLog(scopeId) {
