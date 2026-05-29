@@ -561,12 +561,13 @@ let _activeTab      = 'dhgriffin';
 // STATIC CONFIG
 // ══════════════════════════════════════════════════
 const SUPPLIERS = [
-  { id: 'dhgriffin', name: 'D.H. Griffin Contracting', contact: 'Greg Campbell',    preferred: true  },
-  { id: 'culver',    name: 'Culver',                    contact: 'Scott Culver',     preferred: false },
-  { id: 'nwi',       name: 'NWI',                       contact: 'Contact TBD',      preferred: false },
-  { id: 'burkesme',  name: 'Burkes Mechanical & Electrical', contact: 'Contact TBD',  preferred: false },
-  { id: 'rai',       name: 'RAI',                        contact: 'Contact TBD',      preferred: false },
-  { id: 'evansmed',  name: 'Evans & Medelin',            contact: 'Contact TBD',      preferred: false },
+  { id: 'dhgriffin', name: 'D.H. Griffin Contracting',      contact: 'Greg Campbell',   email: 'jgcampbell@dhgriffin.com',   phone: '864-848-1885',  preferred: true  },
+  { id: 'culver',    name: 'Culver',                         contact: 'Scott Culver',    email: '',                           phone: '',              preferred: false },
+  { id: 'barnhart',  name: 'BarnHart Crane & Rigging',       contact: 'Contact TBD',     email: '',                           phone: '',              preferred: false },
+  { id: 'nwi',       name: 'NWI',                            contact: 'Contact TBD',     email: '',                           phone: '',              preferred: false },
+  { id: 'burkesme',  name: 'Burkes Mechanical & Electrical', contact: 'Contact TBD',     email: '',                           phone: '',              preferred: false },
+  { id: 'rai',       name: 'RAI',                            contact: 'Contact TBD',     email: '',                           phone: '',              preferred: false },
+  { id: 'evansmed',  name: 'Evans & Medelin',                contact: 'Contact TBD',     email: '',                           phone: '',              preferred: false },
 ];
 
 const STATUS = {
@@ -1622,6 +1623,7 @@ function buildQuoteForm(scope, existingQ, supplier) {
   const awardedBanner = existingQ&&existingQ.is_awarded ? `<div class="awarded-banner">✓ This quote has been awarded</div>` : '';
   const initTotal = existingQ&&existingQ.total_amount ? fmt$(existingQ.total_amount) : '—';
   const existingNote = existingQ&&existingQ.notes ? esc(existingQ.notes) : '';
+  const existingFeedback = existingQ&&existingQ.supplier_feedback ? esc(existingQ.supplier_feedback) : '';
   const noteBannerHtml = existingNote ? `<div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.25);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;line-height:1.5;color:#f5e47a"><span style="font-weight:700;text-transform:uppercase;letter-spacing:0.05em;font-size:10px;color:#f59e0b;display:block;margin-bottom:4px">⚠ Scope Note</span>${existingNote}</div>` : '';
   const noteFieldHtml = `<div style="margin-bottom:16px"><label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);display:block;margin-bottom:6px">Scope Note / Clarification</label><textarea id="quote-note" rows="2" placeholder="e.g. labor-only, partial scope, inconsistencies flagged…" style="width:100%;background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 12px;font-size:12px;font-family:inherit;resize:vertical;line-height:1.5;box-sizing:border-box">${existingNote}</textarea></div>`;
 
@@ -1722,6 +1724,11 @@ function buildQuoteForm(scope, existingQ, supplier) {
       </tbody>
     </table>
     ${paymentTermsHtml}
+    <div style="margin-top:16px;background:rgba(56,189,248,0.04);border:1px solid rgba(56,189,248,0.15);border-radius:8px;padding:14px 16px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#38bdf8;margin-bottom:8px">Supplier Feedback (internal — not shared with supplier)</div>
+      <textarea id="supplier-feedback" rows="3" placeholder="e.g. Not awarded — pricing 11% above market average, slow response to RFQ. Consider for next competition if pricing sharpens. Key contact responsive." style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:8px 10px;resize:vertical;font-family:inherit">${existingFeedback}</textarea>
+      <div style="font-size:10px;color:var(--muted);margin-top:5px">Used for supplier development — track why a quote was or wasn't awarded to help suppliers sharpen up for future bids</div>
+    </div>
     <div class="quote-bar">
       <div></div>
       <div style="display:flex;gap:8px">
@@ -1808,12 +1815,13 @@ async function saveQuote(scopeId, supplierName) {
 
     const existing = await q('rfq_quotes','select',{eq:['scope_id',scopeId]});
     const prev = existing.find(x=>x.supplier_name===supplierName);
-    const quoteNote = (document.getElementById('quote-note')?.value||'').trim();
+    const quoteNote      = (document.getElementById('quote-note')?.value||'').trim();
+    const feedbackNote   = (document.getElementById('supplier-feedback')?.value||'').trim();
     if (prev) {
-      await q('rfq_quotes','update',{data:{line_items:lineItems,total_amount:total,payment_terms:paymentTerms,submitted_date:submittedDate,notes:quoteNote||null},eq:['id',prev.id]});
+      await q('rfq_quotes','update',{data:{line_items:lineItems,total_amount:total,payment_terms:paymentTerms,submitted_date:submittedDate,notes:quoteNote||null,supplier_feedback:feedbackNote||null},eq:['id',prev.id]});
     } else {
       const s = SUPPLIERS.find(x=>x.name===supplierName);
-      await q('rfq_quotes','insert',{data:{scope_id:scopeId,supplier_name:supplierName,supplier_contact:s?s.contact:null,line_items:lineItems,total_amount:total,payment_terms:paymentTerms,submitted_date:submittedDate,notes:quoteNote||null}});
+      await q('rfq_quotes','insert',{data:{scope_id:scopeId,supplier_name:supplierName,supplier_contact:s?s.contact:null,line_items:lineItems,total_amount:total,payment_terms:paymentTerms,submitted_date:submittedDate,notes:quoteNote||null,supplier_feedback:feedbackNote||null}});
     }
     // Auto-advance to quotes_received if both quotes exist and scope is rfq_sent
     const updatedQs = await q('rfq_quotes','select',{eq:['scope_id',scopeId]});
@@ -1932,14 +1940,28 @@ function buildComparison(scope, allQuotes) {
     (profitProtect ? '<div style="flex:1;min-width:200px;background:#0d1117;border:1px solid rgba(168,85,247,0.35);border-radius:8px;padding:14px 18px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:6px">Profit Protection (2% BEP Policy)</div><div style="font-size:22px;font-weight:700;color:#a855f7">'+fmt$(profitProtect)+'</div><div style="font-size:11px;color:var(--muted);margin-top:4px">Push supplier '+fmt$(profitProtect)+' below awarded total to protect BEP margin</div></div>' : '') +
     '</div>' : '';
 
+  // Supplier feedback strip — internal notes on non-awarded suppliers
+  const feedbackHtml = sorted.filter(q=>q.supplier_feedback).length
+    ? '<div style="margin-top:14px;background:rgba(56,189,248,0.04);border:1px solid rgba(56,189,248,0.12);border-radius:8px;padding:12px 16px">' +
+        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#38bdf8;margin-bottom:10px">Supplier Feedback (internal)</div>' +
+        sorted.filter(q=>q.supplier_feedback).map(q=>
+          '<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);last-child:border-bottom:none">' +
+            '<span style="font-size:11px;font-weight:700;color:var(--text)">' + esc(q.supplier_name) + '</span>' +
+            (q.is_awarded ? ' <span style="font-size:9px;color:#22c55e;font-weight:700">AWARDED</span>' : '') +
+            '<div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5">' + esc(q.supplier_feedback) + '</div>' +
+          '</div>'
+        ).join('') +
+      '</div>'
+    : '';
+
   return compSourcingBanner +
     '<table class="comp-table"><thead><tr><th class="comp-item-col">Line Item</th>'+thCols+'</tr></thead><tbody>' +
     rows +
     '<tr class="comp-total-row"><td><strong>TOTAL</strong></td>'+totalCells+'</tr>' +
     budgetRow + ptRow +
     '</tbody></table>' +
-    (savings>0 ? '<div class="savings-box"><div><div class="savings-box-label">Competitive savings — lower bid vs. higher bid</div><div class="savings-box-pct">'+savingsPct+'% saved by awarding to lower bidder</div></div><div class="savings-box-amt">'+fmt$(savings)+'</div></div>' : '') +
-    marketRateHtml + metricsHtml;
+    (savings>0 ? '<div class="savings-box"><div><div class="savings-box-label">Bid spread — gap between highest and lowest bid</div><div class="savings-box-pct">'+savingsPct+'% spread between bids</div></div><div class="savings-box-amt">'+fmt$(savings)+'</div></div>' : '') +
+    marketRateHtml + metricsHtml + feedbackHtml;
 }
 
 // ══════════════════════════════════════════════════
@@ -1953,7 +1975,10 @@ async function generateSOW(scopeId) {
     const sc       = SCOPES[_scopeType];
     const awarded  = quotes.find(x=>x.is_awarded);
     const spName   = awarded ? esc(awarded.supplier_name) : '___________________________';
-    const spContact= awarded ? esc(SUPPLIERS.find(s=>s.name===awarded.supplier_name)?.contact||'Contact TBD') : '___';
+    const spSup    = SUPPLIERS.find(s=>s.name===(awarded?.supplier_name||''));
+    const spContact= awarded ? esc(spSup?.contact||'Contact TBD') : '___';
+    const spEmail  = spSup?.email || '';
+    const spPhone  = spSup?.phone || '';
     const today    = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
     const sowNo    = 'SOW-' + (proj.jo_numbers||'TBD') + '-' + _scopeType.toUpperCase().replace(/_/g,'-');
 
@@ -2033,7 +2058,7 @@ async function generateSOW(scopeId) {
         '<table style="width:100%;border-collapse:collapse;margin-bottom:20px">' +
           row('Name of Customer', esc(proj.customer||'Scout Motors Assembly LLC')) +
           row('Ascential Technologies Entity', 'Burke Equipment Partners (BEP)') +
-          row('Name of Service Provider', '<strong>' + spName + '</strong>  <span style="font-size:11px;color:#64748b">Attn: ' + spContact + '</span>') +
+          row('Name of Service Provider', '<strong>' + spName + '</strong>  <span style="font-size:11px;color:#64748b">Attn: ' + spContact + (spEmail?' · '+spEmail:'') + (spPhone?' · '+spPhone:'') + '</span>') +
         '</table>' +
 
         // Description / Work Type
