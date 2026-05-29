@@ -494,8 +494,8 @@
   <div class="container">
     <div class="page-header">
       <div>
-        <h1>Savings Dashboard</h1>
-        <div class="page-subtitle">Competitive bidding results across all projects</div>
+        <h1>Sourcing Intelligence</h1>
+        <div class="page-subtitle">Competitive bidding results &amp; procurement value across all projects</div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:1rem 0 0.5rem;padding:1rem 1.25rem;background:#0a1f10;border:1px solid #1e5c2e;border-radius:10px;">
       <div style="text-align:center;"><div style="font-size:10px;color:#5a9e6a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">BEP GR Projects / Year</div><div style="font-size:24px;font-weight:800;color:#4ade80;line-height:1;">~257</div><div style="font-size:10px;color:#5a9e6a;margin-top:4px;">based on live PO log data</div></div>
       <div style="text-align:center;border-left:1px solid #1e5c2e;"><div style="font-size:10px;color:#5a9e6a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">ECN Rate (YTD 2026)</div><div style="font-size:24px;font-weight:800;color:#f97316;line-height:1;">26.7%</div><div style="font-size:10px;color:#5a9e6a;margin-top:4px;">24 ECNs across 90 POs</div></div>
@@ -1512,7 +1512,7 @@ async function exportComparisonPDF() {
         </tbody>
       </table>
       <div>
-        ${savings>0?`<div class="print-metric"><div class="print-metric-label">Competitive Savings</div><div class="print-metric-val" style="color:#16a34a">${fmt$(savings)}</div><div style="font-size:11px;color:#64748b;margin-top:3px">${savingsPct}% lower bid vs higher</div></div>`:''}
+        ${savings>0?`<div class="print-metric"><div class="print-metric-label">Bid Spread (max − min)</div><div class="print-metric-val" style="color:#16a34a">${fmt$(savings)}</div><div style="font-size:11px;color:#64748b;margin-top:3px">${savingsPct}% spread between bids</div></div>`:''}
         ${marketAvg?`<div class="print-metric"><div class="print-metric-label">Market Defensible Position</div><div class="print-metric-val" style="color:#d97706">${fmt$(marketAvg)}</div><div style="font-size:11px;color:#64748b;margin-top:3px">Blended avg — use for customer pricing</div></div>`:''}
         ${headroom?`<div class="print-metric"><div class="print-metric-label">Negotiation Headroom</div><div class="print-metric-val" style="color:#0284c7">${fmt$(headroom)}</div><div style="font-size:11px;color:#64748b;margin-top:3px">Room to push down to low bid</div></div>`:''}
         ${profitP?`<div class="print-metric" style="border-color:#a855f7"><div class="print-metric-label">Profit Protection (2%)</div><div class="print-metric-val" style="color:#a855f7">${fmt$(profitP)}</div><div style="font-size:11px;color:#64748b;margin-top:3px">BEP policy — push back on supplier</div></div>`:''}
@@ -2404,36 +2404,54 @@ async function loadSavings() {
 
     const awardedQs      = quotes.filter(x=>x.is_awarded);
     const totalAwarded   = awardedQs.reduce((s,x)=>s+(x.total_amount||0),0);
-    const totalProfitP   = totalAwarded * 0.02;
     const scopesWithQ    = scopes.filter(s=>quotes.some(x=>x.scope_id===s.id&&x.total_amount>0));
     const competed       = scopesWithQ.filter(s=>quotes.filter(x=>x.scope_id===s.id&&x.total_amount>0).length>=2);
     const singleSource   = scopesWithQ.filter(s=>quotes.filter(x=>x.scope_id===s.id&&x.total_amount>0).length===1);
-    const totalSavings   = competed.reduce((sum,s)=>{
+    // Bid spread: honest label — spread between highest and lowest bid received (value created by getting multiple quotes)
+    const totalBidSpread = competed.reduce((sum,s)=>{
       const amts = quotes.filter(x=>x.scope_id===s.id&&x.total_amount>0).map(x=>x.total_amount);
       return amts.length>=2 ? sum+(Math.max(...amts)-Math.min(...amts)) : sum;
     },0);
+    // Single-source risk: dollar value of awarded POs that had no competition (procurement gap)
+    const singleSourceRisk = singleSource.reduce((sum,s)=>{
+      const aw = awardedQs.find(x=>x.scope_id===s.id);
+      return sum + (aw?.total_amount||0);
+    },0);
+    // Budget variance: awarded vs. AE budget estimate (only where both exist)
     const budgetedScopes = scopes.filter(s=>s.budget_guidance&&awardedQs.some(x=>x.scope_id===s.id));
     const totalBudgeted  = budgetedScopes.reduce((s,x)=>s+Number(x.budget_guidance||0),0);
     const totalAwardedBg = budgetedScopes.reduce((sum,s)=>{
       const aw=awardedQs.find(x=>x.scope_id===s.id); return sum+(aw?.total_amount||0);
     },0);
     const budgetVariance = totalBudgeted - totalAwardedBg;
+    const totalNegTarget = totalAwarded * 0.02; // 2% BEP push-back policy
 
-    // Business case banner
-    const bcBanner = (totalSavings>0||totalProfitP>0) ? `
-      <div style="background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(56,189,248,0.06));border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:20px 24px;margin-bottom:24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
-        <div style="font-size:28px">📊</div>
-        <div style="flex:1;min-width:220px">
-          <div style="font-size:13px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Business Case — Competitive Sourcing ROI</div>
-          <div style="font-size:13px;color:var(--muted);line-height:1.5">${competed.length} scope${competed.length!==1?'s':''} competed across ${projects.length} project${projects.length!==1?'s':''}${totalSavings>0?` · <strong style="color:#22c55e">${fmt$(totalSavings)}</strong> captured in competitive savings`:''}</div>
-        </div>
-        ${totalProfitP>0?`<div style="text-align:right"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Profit Protection Target</div><div style="font-size:24px;font-weight:700;color:#a855f7">${fmt$(totalProfitP)}</div><div style="font-size:10px;color:var(--muted)">2% BEP policy push-back</div></div>`:''}
+    // Business case banner — grounded in Mark/Dave/Ryan value pillars
+    const bcPillars = [
+      competed.length>0 ? '<span style="color:#22c55e;font-weight:700">📋 ' + competed.length + ' scope' + (competed.length!==1?'s':'') + ' competitively sourced</span>' : null,
+      totalBidSpread>0  ? '<span style="color:#38bdf8;font-weight:700">📉 ' + fmt$(totalBidSpread) + ' bid spread captured</span>' : null,
+      singleSourceRisk>0 ? '<span style="color:#f59e0b;font-weight:700">⚠ ' + fmt$(singleSourceRisk) + ' single-source risk exposure</span>' : null,
+      budgetVariance>0  ? '<span style="color:#a855f7;font-weight:700">🎯 ' + fmt$(budgetVariance) + ' under budget</span>' : null,
+    ].filter(Boolean);
+    const bcBanner = bcPillars.length ? `
+      <div style="background:linear-gradient(135deg,rgba(34,197,94,0.06),rgba(56,189,248,0.04));border:1px solid rgba(34,197,94,0.18);border-radius:12px;padding:18px 22px;margin-bottom:24px">
+        <div style="font-size:11px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">Procurement Value Story — ${projects.length} Project${projects.length!==1?'s':''} · ${scopesWithQ.length} Scope${scopesWithQ.length!==1?'s':''}</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;line-height:1.6">${bcPillars.join('<span style="color:var(--border)"> · </span>')}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">Competitive spread is a powerful story to stakeholders. Getting multiple bids on installation — historically unmanaged by procurement — creates a measurable dollar value and a market-defensible position before customer proposal.</div>
       </div>` : '';
 
     document.getElementById('savings-metrics').innerHTML = `
       <div class="card metric-card"><div class="metric-value" style="color:var(--success);font-size:${totalAwarded>0?'18':'26'}px">${fmt$(totalAwarded)}</div><div class="metric-label">Total Awarded</div></div>
-      <div class="card metric-card"><div class="metric-value" style="color:var(--success);font-size:${totalSavings>0?'18':'26'}px">${fmt$(totalSavings)}</div><div class="metric-label">Competitive Savings</div></div>
-      <div class="card metric-card"><div class="metric-value" style="color:#a855f7;font-size:${totalProfitP>0?'18':'26'}px">${fmt$(totalProfitP)}</div><div class="metric-label">Profit Protection (2%)</div></div>
+      <div class="card metric-card">
+        <div class="metric-value" style="color:#38bdf8;font-size:${totalBidSpread>0?'18':'26'}px">${fmt$(totalBidSpread)}</div>
+        <div class="metric-label">Bid Spread (max − min)</div>
+        ${totalBidSpread>0&&totalAwarded>0?'<div style="font-size:10px;color:var(--muted);margin-top:3px">'+(totalBidSpread/totalAwarded*100).toFixed(1)+'% of awarded total</div>':''}
+      </div>
+      <div class="card metric-card">
+        <div class="metric-value" style="color:${singleSourceRisk>0?'var(--warning)':'var(--success)'};font-size:${singleSourceRisk>0?'18':'26'}px">${singleSourceRisk>0?fmt$(singleSourceRisk):'—'}</div>
+        <div class="metric-label">Single-Source Risk</div>
+        ${singleSource.length>0?'<div style="font-size:10px;color:var(--warning);margin-top:3px">'+singleSource.length+' scope'+( singleSource.length!==1?'s':'')+' w/o competition</div>':'<div style="font-size:10px;color:var(--success);margin-top:3px">All scopes competed ✓</div>'}
+      </div>
       <div class="card metric-card">
         <div class="metric-value" style="color:${singleSource.length>0?'var(--warning)':'var(--success)'}">
           ${competed.length}<span style="font-size:14px;color:var(--muted)">/${scopesWithQ.length}</span>
@@ -2444,9 +2462,9 @@ async function loadSavings() {
     if (!quotes.length) {
       document.getElementById('savings-content').innerHTML = bcBanner + `
         <div class="card empty-state">
-          <div class="empty-icon">💰</div>
+          <div class="empty-icon">📊</div>
           <div class="empty-text">No quotes yet</div>
-          <div class="empty-sub">Enter quotes from both suppliers to see competitive savings</div>
+          <div class="empty-sub">Enter quotes from 2+ suppliers to see bid spread and sourcing intelligence</div>
         </div>`;
       return;
     }
@@ -2463,12 +2481,12 @@ async function loadSavings() {
         const sc   = SCOPES[st];
         const aw   = sq.find(x=>x.is_awarded);
         const amts = sq.map(x=>x.total_amount||0).filter(a=>a>0);
-        const sav  = amts.length>=2 ? Math.max(...amts)-Math.min(...amts) : 0;
-        const savPct = amts.length>=2 ? (sav/Math.max(...amts)*100).toFixed(1) : null;
+        const spread  = amts.length>=2 ? Math.max(...amts)-Math.min(...amts) : 0;
+        const spreadPct = amts.length>=2&&Math.max(...amts)>0 ? (spread/Math.max(...amts)*100).toFixed(1) : null;
         const bg   = scope.budget_guidance ? Number(scope.budget_guidance) : null;
         const bgTarget = bg ? bg * 0.95 : null;
         const bvAmt = bg && aw ? bg-(aw.total_amount||0) : null;
-        const profP = aw?.total_amount ? aw.total_amount*0.02 : null;
+        const negTarget = aw?.total_amount ? aw.total_amount*0.02 : null; // BEP 2% push policy
         const competed2 = amts.length >= 2;
         const srcBadge = competed2
           ? `<span style="font-size:9px;font-weight:700;color:#22c55e;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:3px;padding:1px 5px">COMPETED</span>`
@@ -2485,8 +2503,8 @@ async function loadSavings() {
           '<td class="sv-right '+(aw?'sv-green':'')+'">'+( aw?.total_amount?fmt$(aw.total_amount):'<span class="sv-muted">—</span>')+'</td>' +
           '<td class="sv-right">'+(bg?fmt$(bg)+'<br><span style="font-size:10px;color:#f59e0b">Target: '+fmt$(bgTarget)+'</span>':'<span class="sv-muted">—</span>')+'</td>' +
           '<td class="sv-right">'+(bvAmt!==null?'<span style="font-weight:700;color:'+(bvAmt>=0?'#86efac':'#fca5a5')+'">'+(bvAmt>=0?'▼ '+fmt$(bvAmt)+' under':'▲ '+fmt$(Math.abs(bvAmt))+' over')+'</span>':'<span class="sv-muted">—</span>')+'</td>' +
-          '<td class="sv-right '+(sav>0?'sv-green':'')+'">'+( sav>0?fmt$(sav)+(savPct?' <span style="font-size:10px;opacity:0.7">('+savPct+'% spread)</span>':''):'<span class="sv-muted">—</span>')+'</td>' +
-          '<td class="sv-right" style="color:#a855f7">'+(profP?fmt$(profP)+'<br><span style="font-size:10px;opacity:0.7">push 2% back</span>':'<span class="sv-muted">—</span>')+'</td>' +
+          '<td class="sv-right '+(spread>0?'sv-green':'')+'">'+( spread>0?fmt$(spread)+(spreadPct?' <span style="font-size:10px;opacity:0.7">('+spreadPct+'% spread)</span>':''):'<span class="sv-muted">—</span>')+'</td>' +
+          '<td class="sv-right" style="color:#a855f7">'+(negTarget?fmt$(negTarget)+'<br><span style="font-size:10px;opacity:0.7">2% push target</span>':'<span class="sv-muted">—</span>')+'</td>' +
           '</tr>';
       }).filter(Boolean).join('');
       if (!tableRows) return '';
@@ -2503,7 +2521,7 @@ async function loadSavings() {
             </div>
             <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
               ${projAwarded?`<div style="text-align:right"><div style="font-size:10px;color:var(--muted)">Awarded</div><div style="font-size:14px;font-weight:700;color:#22c55e">${fmt$(projAwarded)}</div></div>`:''}
-              ${projProfP>0?`<div style="text-align:right"><div style="font-size:10px;color:var(--muted)">Profit Prot.</div><div style="font-size:14px;font-weight:700;color:#a855f7">${fmt$(projProfP)}</div></div>`:''}
+              ${projProfP>0?`<div style="text-align:right"><div style="font-size:10px;color:var(--muted)">Neg. Target (2%)</div><div style="font-size:14px;font-weight:700;color:#a855f7">${fmt$(projProfP)}</div></div>`:''}
               <div style="text-align:right"><div style="font-size:10px;color:var(--muted)">Sourcing</div><div style="font-size:13px;font-weight:700;color:${projCompeted===projScopes.length?'#22c55e':'#f59e0b'}">${projCompeted}/${projScopes.length} competed</div></div>
             </div>
           </div>
@@ -2512,15 +2530,15 @@ async function loadSavings() {
               <th>Scope</th>
               ${SUPPLIERS.map(s=>'<th class="sv-right">'+esc(s.name.split(' ').slice(0,2).join(' '))+'</th>').join('')}
               <th class="sv-right">Awarded ✓</th>
-              <th class="sv-right">Budget · Cost Target (−5%)</th>
+              <th class="sv-right">Budget · Target (−5%)</th>
               <th class="sv-right">vs. Budget</th>
-              <th class="sv-right">Comp. Savings</th>
-              <th class="sv-right" style="color:#a855f7">Profit Prot. (2%)</th>
+              <th class="sv-right">Bid Spread</th>
+              <th class="sv-right" style="color:#a855f7">Neg. Target (2%)</th>
             </tr></thead>
             <tbody>${tableRows}</tbody>
             ${(()=>{
               const totAw = pq.filter(x=>x.is_awarded).reduce((s,x)=>s+(x.total_amount||0),0);
-              const totSav = SCOPE_ORDER.reduce((sum,st)=>{
+              const totSpread = SCOPE_ORDER.reduce((sum,st)=>{
                 const s=ps.find(x=>x.scope_type===st); if(!s) return sum;
                 const sq2=pq.filter(x=>x.scope_id===s.id&&(x.total_amount||0)>0);
                 if(sq2.length<2) return sum;
@@ -2538,7 +2556,7 @@ async function loadSavings() {
                 supTotCells +
                 '<td class="sv-right" style="padding:8px;font-size:13px;color:#22c55e">' + (totAw?fmt$(totAw):'—') + '</td>' +
                 '<td colspan="2" style="padding:8px"></td>' +
-                '<td class="sv-right" style="padding:8px;font-size:12px;color:#22c55e">' + (totSav?fmt$(totSav):'—') + '</td>' +
+                '<td class="sv-right" style="padding:8px;font-size:12px;color:#38bdf8">' + (totSpread?fmt$(totSpread):'—') + '</td>' +
                 '<td class="sv-right" style="padding:8px;font-size:12px;color:#a855f7">' + (totPP?fmt$(totPP):'—') + '</td>' +
               '</tr></tfoot>';
             })()}
@@ -2547,14 +2565,14 @@ async function loadSavings() {
     }).filter(Boolean).join('');
 
     const legend = `
-      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:11px;color:var(--muted);display:flex;gap:20px;flex-wrap:wrap;line-height:1.6">
+      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:11px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;line-height:1.6">
         <div style="font-weight:700;color:var(--text);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;width:100%;margin-bottom:2px">How to read this table</div>
-        <div><strong style="color:var(--text)">Awarded ✓</strong> — the quote selected for execution</div>
-        <div><strong style="color:var(--text)">Budget · Cost Target (−5%)</strong> — internal budget estimate; Cost Target = budget minus 5%, the threshold BEP must beat to protect margin</div>
-        <div><strong style="color:#86efac">▼ under / <span style="color:#fca5a5">▲ over</span></strong> — awarded amount vs. your budget; green = came in under budget</div>
-        <div><strong style="color:var(--text)">Comp. Savings</strong> — dollar spread between the two bids; captures value created by competitive sourcing</div>
-        <div><strong style="color:#a855f7">Profit Prot. (2%)</strong> — per BEP policy: push supplier 2% on material costs; this column shows the recovery target</div>
-        <div><strong style="color:#22c55e">COMPETED</strong> = 2 quotes received &nbsp;·&nbsp; <strong style="color:#f59e0b">SINGLE SRC</strong> = 1 quote only (flag for governance)</div>
+        <div><strong style="color:var(--text)">Awarded ✓</strong> — quote selected for execution; drives SOW and PO</div>
+        <div><strong style="color:var(--text)">Budget · Target (−5%)</strong> — AE's preliminary estimate; Target = budget −5%, the bogey BEP must beat before awarding</div>
+        <div><strong style="color:#86efac">▼ under</strong> / <strong style="color:#fca5a5">▲ over</strong> — awarded amount vs. AE budget; green = genuine budget saving</div>
+        <div><strong style="color:#38bdf8">Bid Spread</strong> — dollar gap between highest and lowest bid received; this is the competitive spread Mark calls a "powerful story to stakeholders." It is the value created by sourcing the scope competitively rather than single-source</div>
+        <div><strong style="color:#a855f7">Neg. Target (2%)</strong> — BEP deal desk policy: push supplier 2% on material costs after award; this column shows the target dollar recovery, not a captured saving</div>
+        <div><strong style="color:#22c55e">COMPETED</strong> = 2+ quotes received &nbsp;·&nbsp; <strong style="color:#f59e0b">SINGLE SRC</strong> = 1 quote only — procurement gap, no competitive leverage</div>
       </div>`;
     document.getElementById('savings-content').innerHTML = bcBanner + (rows ? legend + rows :
       `<div class="card" style="color:var(--muted);text-align:center;padding:48px">No comparative data yet. Enter quotes for both suppliers to see savings.</div>`);
@@ -2699,8 +2717,8 @@ function showDDTab(tab) {
           '<div style="font-size:20px;font-weight:700;color:var(--success);margin-top:4px">' + fmt$(totalAmt) + '</div>' +
         '</div>' +
         '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:12px 18px;flex:1;min-width:120px">' +
-          '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em">Competitive Savings</div>' +
-          '<div style="font-size:20px;font-weight:700;color:#86efac;margin-top:4px">' + fmt$(totalSaved) + '</div>' +
+          '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em">Bid Spread</div>' +
+          '<div style="font-size:20px;font-weight:700;color:#38bdf8;margin-top:4px">' + fmt$(totalSaved) + '</div>' +
         '</div>' +
         '<div style="background:rgba(79,124,255,0.08);border:1px solid rgba(79,124,255,0.2);border-radius:8px;padding:12px 18px;flex:1;min-width:120px">' +
           '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em">Scopes Awarded</div>' +
@@ -2896,8 +2914,8 @@ async function loadAEReview() {
             <div style="font-weight:700;color:var(--success)">${fmt$(headroom)}</div>
           </div>`:''}
           ${savings>0?`<div style="text-align:center;padding:10px;background:var(--bg-card);border-radius:6px;border:1px solid var(--border)">
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Comp. Savings</div>
-            <div style="font-weight:700;color:var(--success)">${fmt$(savings)}</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Bid Spread</div>
+            <div style="font-weight:700;color:#38bdf8">${fmt$(savings)}</div>
           </div>`:''}
           ${bg?`<div style="text-align:center;padding:10px;background:var(--bg-card);border-radius:6px;border:1px solid rgba(245,158,11,0.3)">
             <div style="font-size:10px;color:#f59e0b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Cost Target (−5%)</div>
