@@ -500,8 +500,8 @@
     </div>
 
     <div class="metrics-row" id="savings-metrics">
-      <div class="card metric-card"><div class="spinner spinner-lg" style="margin:0 auto"></div></div>
-      <div class="card metric-card"></div><div class="card metric-card"></div><div class="card metric-card"></div>
+      <div class="card metric-card" style="grid-column:span 2"><div class="spinner spinner-lg" style="margin:0 auto"></div></div>
+      <div class="card metric-card"></div><div class="card metric-card"></div>
     </div>
     <div id="savings-content">
       <div class="card empty-state"><div class="spinner spinner-lg" style="margin:0 auto 14px"></div></div>
@@ -1203,6 +1203,9 @@ function renderScope(scope, quotes) {
     varianceHtml = `<span style="font-size:11px;color:var(--muted)">Cost target (5% below): <strong style="color:#f59e0b">${fmt$(bgTarget)}</strong></span>`;
   }
 
+  const negRed = scope.negotiated_reduction ? Number(scope.negotiated_reduction) : null;
+  const preSrc = scope.sourced_before_proposal; // true / false / null
+
   const budgetBarHtml = `
     <div class="budget-bar">
       <div class="budget-bar-label">Budget Guidance</div>
@@ -1217,6 +1220,26 @@ function renderScope(scope, quotes) {
       <div style="margin-left:auto">
         <button class="btn btn-teal btn-sm" onclick="generateRFQ('${scope.id}')">📄 Generate RFQ Document</button>
         <button class="btn btn-secondary btn-sm" onclick="generateSOW('${scope.id}')">📋 Generate SOW</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;background:rgba(56,189,248,0.04);border:1px solid rgba(56,189,248,0.15);border-radius:8px;padding:12px 16px;margin-top:8px;align-items:center">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#38bdf8;min-width:120px">Sourcing Intelligence</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <label style="font-size:12px;color:var(--muted)">Negotiated Reduction</label>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span style="color:var(--muted);font-size:12px">$</span>
+          <input type="number" id="neg-red-input" value="${negRed||''}" placeholder="0"
+            style="max-width:120px;font-size:12px;padding:4px 8px" min="0" step="100"
+            onkeydown="if(event.key==='Enter')saveNegotiatedReduction('${scope.id}',this.value)" />
+          <button class="btn btn-secondary btn-xs" onclick="saveNegotiatedReduction('${scope.id}',document.getElementById('neg-red-input').value)">Set</button>
+        </div>
+        ${negRed ? '<span style="font-size:11px;color:#38bdf8;font-weight:700">▼ ' + fmt$(negRed) + ' pushed down after BIC feedback</span>' : '<span style="font-size:11px;color:var(--muted)">Delta between supplier\'s original ask and final awarded price</span>'}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap">
+        <label style="font-size:12px;color:var(--muted)">Sourced before proposal?</label>
+        <button class="btn btn-xs ${preSrc===true?'btn-primary':'btn-ghost'}" onclick="savePresourceFlag('${scope.id}',true)" style="${preSrc===true?'':'border:1px solid var(--border)'}">✓ Yes</button>
+        <button class="btn btn-xs ${preSrc===false?'btn-danger':'btn-ghost'}" onclick="savePresourceFlag('${scope.id}',false)" style="${preSrc===false?'':'border:1px solid var(--border)'}">✗ No</button>
+        ${preSrc===true?'<span style="font-size:10px;color:#22c55e">Margin protected at proposal</span>':preSrc===false?'<span style="font-size:10px;color:#f59e0b">Post-award sourcing — margin risk</span>':'<span style="font-size:10px;color:var(--muted)">Not set</span>'}
       </div>
     </div>`;
 
@@ -1481,6 +1504,27 @@ async function saveBudgetGuidance(scopeId, val) {
   try {
     await q('rfq_scopes','update',{data:{budget_guidance:num},eq:['id',scopeId]});
     toast(`Budget guidance set to ${fmt$(num)}`,'success');
+    await loadScopeDetail();
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
+// ══════════════════════════════════════════════════
+// NEGOTIATED REDUCTION
+// ══════════════════════════════════════════════════
+async function saveNegotiatedReduction(scopeId, val) {
+  const num = parseFloat(val);
+  if (isNaN(num) || num < 0) { toast('Enter a valid dollar amount','error'); return; }
+  try {
+    await q('rfq_scopes','update',{data:{negotiated_reduction: num||null},eq:['id',scopeId]});
+    toast(num ? `Negotiated reduction set to ${fmt$(num)}` : 'Negotiated reduction cleared','success');
+    await loadScopeDetail();
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
+async function savePresourceFlag(scopeId, val) {
+  try {
+    await q('rfq_scopes','update',{data:{sourced_before_proposal: val},eq:['id',scopeId]});
+    toast(val ? 'Marked: sourced before proposal ✓' : 'Marked: post-award sourcing','info');
     await loadScopeDetail();
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
@@ -2306,7 +2350,7 @@ async function saveRFQDeadline(scopeId) {
 async function loadSavings() {
   try {
     const projects = await q('rfq_projects','select',{order:['created_at',false]});
-    const scopes   = await q('rfq_scopes','select');
+    const scopes   = await q('rfq_scopes','select'); // includes negotiated_reduction, sourced_before_proposal
     const quotes   = await q('rfq_quotes','select');
 
     const awardedQs      = quotes.filter(x=>x.is_awarded);
@@ -2332,13 +2376,21 @@ async function loadSavings() {
     },0);
     const budgetVariance = totalBudgeted - totalAwardedBg;
     const totalNegTarget = totalAwarded * 0.02; // 2% BEP push-back policy
+    // Negotiated reduction: sum of actual push-downs captured after BIC feedback
+    const totalNegReduction = scopes.reduce((s,x)=>s+(x.negotiated_reduction||0),0);
+    // Pre-source stats
+    const scopesWithPresourceFlag = scopes.filter(s=>s.sourced_before_proposal!==null&&s.sourced_before_proposal!==undefined);
+    const preSourcingCount = scopesWithPresourceFlag.filter(s=>s.sourced_before_proposal===true).length;
+    const postAwardCount   = scopesWithPresourceFlag.filter(s=>s.sourced_before_proposal===false).length;
 
     // Business case banner — grounded in Mark/Dave/Ryan value pillars
     const bcPillars = [
       competed.length>0 ? '<span style="color:#22c55e;font-weight:700">📋 ' + competed.length + ' scope' + (competed.length!==1?'s':'') + ' competitively sourced</span>' : null,
-      totalBidSpread>0  ? '<span style="color:#38bdf8;font-weight:700">📉 ' + fmt$(totalBidSpread) + ' bid spread captured</span>' : null,
-      singleSourceRisk>0 ? '<span style="color:#f59e0b;font-weight:700">⚠ ' + fmt$(singleSourceRisk) + ' single-source risk exposure</span>' : null,
-      budgetVariance>0  ? '<span style="color:#a855f7;font-weight:700">🎯 ' + fmt$(budgetVariance) + ' under budget</span>' : null,
+      totalBidSpread>0  ? '<span style="color:#38bdf8;font-weight:700">📉 ' + fmt$(totalBidSpread) + ' bid spread</span>' : null,
+      totalNegReduction>0 ? '<span style="color:#22c55e;font-weight:700">💰 ' + fmt$(totalNegReduction) + ' negotiated reduction (captured)</span>' : null,
+      singleSourceRisk>0 ? '<span style="color:#f59e0b;font-weight:700">⚠ ' + fmt$(singleSourceRisk) + ' single-source risk</span>' : null,
+      preSourcingCount>0 ? '<span style="color:#a855f7;font-weight:700">🛡 ' + preSourcingCount + ' scope' + (preSourcingCount!==1?'s':'') + ' pre-sourced before proposal</span>' : null,
+      budgetVariance>0  ? '<span style="color:#86efac;font-weight:700">🎯 ' + fmt$(budgetVariance) + ' under budget</span>' : null,
     ].filter(Boolean);
     const bcBanner = bcPillars.length ? `
       <div style="background:linear-gradient(135deg,rgba(34,197,94,0.06),rgba(56,189,248,0.04));border:1px solid rgba(34,197,94,0.18);border-radius:12px;padding:18px 22px;margin-bottom:24px">
@@ -2348,22 +2400,30 @@ async function loadSavings() {
       </div>` : '';
 
     document.getElementById('savings-metrics').innerHTML = `
-      <div class="card metric-card"><div class="metric-value" style="color:var(--success);font-size:${totalAwarded>0?'18':'26'}px">${fmt$(totalAwarded)}</div><div class="metric-label">Total Awarded</div></div>
-      <div class="card metric-card">
-        <div class="metric-value" style="color:#38bdf8;font-size:${totalBidSpread>0?'18':'26'}px">${fmt$(totalBidSpread)}</div>
-        <div class="metric-label">Bid Spread (max − min)</div>
-        ${totalBidSpread>0&&totalAwarded>0?'<div style="font-size:10px;color:var(--muted);margin-top:3px">'+(totalBidSpread/totalAwarded*100).toFixed(1)+'% of awarded total</div>':''}
+      <div class="card metric-card" style="grid-column:span 2;background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(56,189,248,0.03));border-color:rgba(56,189,248,0.3)">
+        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+          <div class="metric-value" style="color:#38bdf8;font-size:${totalBidSpread>0?'32':'32'}px;line-height:1">${totalBidSpread>0?fmt$(totalBidSpread):'—'}</div>
+          ${totalBidSpread>0&&totalAwarded>0?'<div style="font-size:12px;color:#38bdf8;opacity:0.7">'+(totalBidSpread/totalAwarded*100).toFixed(1)+'% spread</div>':''}
+        </div>
+        <div class="metric-label" style="font-size:12px;margin-top:6px">Bid Spread — competitive value created by sourcing</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Gap between highest &amp; lowest bid received · the core business case</div>
+        ${totalNegReduction>0?'<div style="margin-top:8px;font-size:11px;font-weight:700;color:#22c55e">+ '+fmt$(totalNegReduction)+' negotiated reduction captured via BIC push-down</div>':''}
       </div>
       <div class="card metric-card">
-        <div class="metric-value" style="color:${singleSourceRisk>0?'var(--warning)':'var(--success)'};font-size:${singleSourceRisk>0?'18':'26'}px">${singleSourceRisk>0?fmt$(singleSourceRisk):'—'}</div>
+        <div class="metric-value" style="color:${singleSourceRisk>0?'var(--warning)':'var(--success)'};font-size:${singleSourceRisk>0?'20':'26'}px">${singleSourceRisk>0?fmt$(singleSourceRisk):'$0'}</div>
         <div class="metric-label">Single-Source Risk</div>
-        ${singleSource.length>0?'<div style="font-size:10px;color:var(--warning);margin-top:3px">'+singleSource.length+' scope'+( singleSource.length!==1?'s':'')+' w/o competition</div>':'<div style="font-size:10px;color:var(--success);margin-top:3px">All scopes competed ✓</div>'}
+        <div style="font-size:10px;margin-top:4px;color:${singleSourceRisk>0?'var(--warning)':'var(--success)'}">
+          ${singleSource.length>0?singleSource.length+' scope'+(singleSource.length!==1?'s':'')+' without competition':'All scopes competed ✓'}
+        </div>
+        ${postAwardCount>0?'<div style="font-size:10px;color:#f59e0b;margin-top:3px">'+postAwardCount+' scope'+(postAwardCount!==1?'s':'')+' sourced post-award</div>':''}
       </div>
       <div class="card metric-card">
         <div class="metric-value" style="color:${singleSource.length>0?'var(--warning)':'var(--success)'}">
           ${competed.length}<span style="font-size:14px;color:var(--muted)">/${scopesWithQ.length}</span>
         </div>
-        <div class="metric-label">Scopes Competed${singleSource.length>0?` · <span style="color:var(--warning)">${singleSource.length} single-source</span>`:''}</div>
+        <div class="metric-label">Scopes Competed</div>
+        ${preSourcingCount>0?'<div style="font-size:10px;color:#a855f7;margin-top:4px">'+preSourcingCount+' pre-sourced before proposal 🛡</div>':''}
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">Total Awarded: <strong style="color:var(--success)">${fmt$(totalAwarded)}</strong></div>
       </div>`;
 
     if (!quotes.length) {
@@ -2393,8 +2453,10 @@ async function loadSavings() {
         const bg   = scope.budget_guidance ? Number(scope.budget_guidance) : null;
         const bgTarget = bg ? bg * 0.95 : null;
         const bvAmt = bg && aw ? bg-(aw.total_amount||0) : null;
-        const negTarget = aw?.total_amount ? aw.total_amount*0.02 : null; // BEP 2% push policy
-        const competed2 = amts.length >= 2;
+        const negTarget  = aw?.total_amount ? aw.total_amount*0.02 : null; // BEP 2% push policy
+        const negRed2    = scope.negotiated_reduction ? Number(scope.negotiated_reduction) : null;
+        const preSrc2    = scope.sourced_before_proposal;
+        const competed2  = amts.length >= 2;
         const srcBadge = competed2
           ? `<span style="font-size:9px;font-weight:700;color:#22c55e;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:3px;padding:1px 5px">COMPETED</span>`
           : amts.length===1
@@ -2410,8 +2472,9 @@ async function loadSavings() {
           '<td class="sv-right '+(aw?'sv-green':'')+'">'+( aw?.total_amount?fmt$(aw.total_amount):'<span class="sv-muted">—</span>')+'</td>' +
           '<td class="sv-right">'+(bg?fmt$(bg)+'<br><span style="font-size:10px;color:#f59e0b">Target: '+fmt$(bgTarget)+'</span>':'<span class="sv-muted">—</span>')+'</td>' +
           '<td class="sv-right">'+(bvAmt!==null?'<span style="font-weight:700;color:'+(bvAmt>=0?'#86efac':'#fca5a5')+'">'+(bvAmt>=0?'▼ '+fmt$(bvAmt)+' under':'▲ '+fmt$(Math.abs(bvAmt))+' over')+'</span>':'<span class="sv-muted">—</span>')+'</td>' +
-          '<td class="sv-right '+(spread>0?'sv-green':'')+'">'+( spread>0?fmt$(spread)+(spreadPct?' <span style="font-size:10px;opacity:0.7">('+spreadPct+'% spread)</span>':''):'<span class="sv-muted">—</span>')+'</td>' +
-          '<td class="sv-right" style="color:#a855f7">'+(negTarget?fmt$(negTarget)+'<br><span style="font-size:10px;opacity:0.7">2% push target</span>':'<span class="sv-muted">—</span>')+'</td>' +
+          '<td class="sv-right '+(spread>0?'':'')+'"><span style="color:#38bdf8;font-weight:'+(spread>0?'700':'400')+'">'+( spread>0?fmt$(spread)+(spreadPct?' <span style="font-size:10px;opacity:0.7">('+spreadPct+'%)</span>':''):'<span class="sv-muted">—</span>')+'</span></td>' +
+          '<td class="sv-right" style="color:#22c55e">'+(negRed2?'<strong>'+fmt$(negRed2)+'</strong><br><span style="font-size:10px;opacity:0.7">BIC push-down</span>':'<span class="sv-muted">—</span>')+'</td>' +
+          '<td class="sv-right">'+(preSrc2===true?'<span style="color:#a855f7;font-size:11px;font-weight:700">🛡 Before</span>':preSrc2===false?'<span style="color:#f59e0b;font-size:11px">Post-award</span>':'<span class="sv-muted">—</span>')+'</td>' +
           '</tr>';
       }).filter(Boolean).join('');
       if (!tableRows) return '';
@@ -2439,8 +2502,9 @@ async function loadSavings() {
               <th class="sv-right">Awarded ✓</th>
               <th class="sv-right">Budget · Target (−5%)</th>
               <th class="sv-right">vs. Budget</th>
-              <th class="sv-right">Bid Spread</th>
-              <th class="sv-right" style="color:#a855f7">Neg. Target (2%)</th>
+              <th class="sv-right" style="color:#38bdf8">Bid Spread</th>
+              <th class="sv-right" style="color:#22c55e">Neg. Reduction</th>
+              <th class="sv-right" style="color:#a855f7">Pre-Sourced?</th>
             </tr></thead>
             <tbody>${tableRows}</tbody>
             ${(()=>{
@@ -2463,8 +2527,9 @@ async function loadSavings() {
                 supTotCells +
                 '<td class="sv-right" style="padding:8px;font-size:13px;color:#22c55e">' + (totAw?fmt$(totAw):'—') + '</td>' +
                 '<td colspan="2" style="padding:8px"></td>' +
-                '<td class="sv-right" style="padding:8px;font-size:12px;color:#38bdf8">' + (totSpread?fmt$(totSpread):'—') + '</td>' +
-                '<td class="sv-right" style="padding:8px;font-size:12px;color:#a855f7">' + (totPP?fmt$(totPP):'—') + '</td>' +
+                '<td class="sv-right" style="padding:8px;font-size:12px;color:#38bdf8;font-weight:700">' + (totSpread?fmt$(totSpread):'—') + '</td>' +
+                '<td class="sv-right" style="padding:8px;font-size:12px;color:#22c55e">' + (()=>{const t=ps.reduce((s,x)=>s+(x.negotiated_reduction||0),0);return t?fmt$(t):'—';})() + '</td>' +
+                '<td style="padding:8px"></td>' +
               '</tr></tfoot>';
             })()}
           </table>
@@ -2477,8 +2542,9 @@ async function loadSavings() {
         <div><strong style="color:var(--text)">Awarded ✓</strong> — quote selected for execution; drives SOW and PO</div>
         <div><strong style="color:var(--text)">Budget · Target (−5%)</strong> — AE's preliminary estimate; Target = budget −5%, the bogey BEP must beat before awarding</div>
         <div><strong style="color:#86efac">▼ under</strong> / <strong style="color:#fca5a5">▲ over</strong> — awarded amount vs. AE budget; green = genuine budget saving</div>
-        <div><strong style="color:#38bdf8">Bid Spread</strong> — dollar gap between highest and lowest bid received; this is the competitive spread Mark calls a "powerful story to stakeholders." It is the value created by sourcing the scope competitively rather than single-source</div>
-        <div><strong style="color:#a855f7">Neg. Target (2%)</strong> — BEP deal desk policy: push supplier 2% on material costs after award; this column shows the target dollar recovery, not a captured saving</div>
+        <div><strong style="color:#38bdf8">Bid Spread</strong> — dollar gap between highest and lowest bid; the competitive spread Mark calls a "powerful story to stakeholders." Value created by sourcing competitively instead of single-source</div>
+        <div><strong style="color:#22c55e">Neg. Reduction</strong> — actual push-down after Best in Class feedback: what did the preferred supplier come down from their original ask? This is the most defensible captured saving — enter it per scope in the scope detail view</div>
+        <div><strong style="color:#a855f7">Pre-Sourced? 🛡</strong> — was sourcing done before the customer proposal was submitted? Pre-sourcing locks in margin at proposal time; post-award sourcing means BEP absorbs the gap</div>
         <div><strong style="color:#22c55e">COMPETED</strong> = 2+ quotes received &nbsp;·&nbsp; <strong style="color:#f59e0b">SINGLE SRC</strong> = 1 quote only — procurement gap, no competitive leverage</div>
       </div>`;
     document.getElementById('savings-content').innerHTML = bcBanner + (rows ? legend + rows :
