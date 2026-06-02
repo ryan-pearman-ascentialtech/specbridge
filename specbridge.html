@@ -561,7 +561,13 @@ let _activeTab      = 'dhgriffin';
 // STATIC CONFIG
 // ══════════════════════════════════════════════════
 const SUPPLIERS = [
-  { id: 'dhgriffin', name: 'D.H. Griffin Contracting',      contact: 'Greg Campbell',   email: 'jgcampbell@dhgriffin.com',   phone: '864-848-1885',  preferred: true  },
+  { id: 'dhgriffin', name: 'D.H. Griffin Contracting',      contact: 'Greg Campbell',   email: 'jgcampbell@dhgriffin.com',   phone: '864-848-1885',  preferred: true,
+    secondary: [
+      { name: 'Jerry Russell',  role: 'Project Contact', email: 'jorussell@dhgriffin.com',  phone: '864-216-3025' },
+      { name: 'Chad Dove',      role: 'CC / Admin',      email: 'cdove@dhgriffin.com',       phone: '' },
+      { name: 'Andrew Guy',     role: 'Project Contact', email: 'aeguy@dhgriffin.com',        phone: '864-764-5495' },
+    ]
+  },
   { id: 'culver',    name: 'Culver',                         contact: 'Scott Culver',    email: '',                           phone: '',              preferred: false },
   { id: 'barnhart',  name: 'BarnHart Crane & Rigging',       contact: 'Contact TBD',     email: '',                           phone: '',              preferred: false },
   { id: 'nwi',       name: 'NWI',                            contact: 'Contact TBD',     email: '',                           phone: '',              preferred: false },
@@ -2057,7 +2063,7 @@ async function generateSOW(scopeId) {
         // Party table
         '<table style="width:100%;border-collapse:collapse;margin-bottom:20px">' +
           row('Name of Customer', esc(proj.customer||'Scout Motors Assembly LLC')) +
-          row('Ascential Technologies Entity', 'Burke Equipment Partners (BEP)') +
+          row('Ascential Technologies Entity', 'Burke Porter | Ascential Technologies<br><span style="font-size:11px;color:#64748b;font-weight:400">52301 Shelby Parkway, Shelby Township, MI 48315</span>') +
           row('Name of Service Provider', '<strong>' + spName + '</strong>  <span style="font-size:11px;color:#64748b">Attn: ' + spContact + (spEmail?' · '+spEmail:'') + (spPhone?' · '+spPhone:'') + '</span>') +
         '</table>' +
 
@@ -2155,7 +2161,7 @@ async function generateSOW(scopeId) {
         '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#334155;margin-bottom:16px;padding-bottom:5px;border-bottom:2px solid #e2e8f0">Authorized Signatures</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:32px">' +
           '<div>' +
-            '<div style="font-weight:700;font-size:13px;margin-bottom:14px">[ASCENTIAL TECHNOLOGIES ENTITY]<br><span style="font-weight:400;font-size:12px;color:#334155">Burke Equipment Partners</span></div>' +
+            '<div style="font-weight:700;font-size:13px;margin-bottom:14px">Burke Porter | Ascential Technologies<br><span style="font-weight:400;font-size:12px;color:#334155">52301 Shelby Parkway, Shelby Township, MI 48315</span></div>' +
             '<div style="margin-bottom:16px"><div style="font-size:10px;color:#64748b;margin-bottom:2px">Signature</div><div style="border-bottom:1px solid #334155;height:32px"></div></div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
               '<div><div style="font-size:10px;color:#64748b;margin-bottom:2px">Print Name</div><div style="border-bottom:1px solid #94a3b8;height:24px"></div></div>' +
@@ -2177,7 +2183,7 @@ async function generateSOW(scopeId) {
         // Footer
         '<div style="border-top:1px solid #e2e8f0;padding-top:10px;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between">' +
           '<span>SpecBridge — Generated ' + today + '  ·  SOW No. ' + sowNo + '</span>' +
-          '<span>CONFIDENTIAL — Burke Equipment Partners / Ascential Technologies</span>' +
+          '<span>CONFIDENTIAL — Burke Porter | Ascential Technologies</span>' +
         '</div>' +
 
       '</div>';
@@ -2234,7 +2240,7 @@ async function generateRFQ(scopeId) {
       <div class="rfq-doc">
         <div class="rfq-doc-header">
           <div>
-            <div class="rfq-doc-logo">Spec<span>Bridge</span> · Burke-Porter Engineering</div>
+            <div class="rfq-doc-logo">Spec<span>Bridge</span> · Burke Porter | Ascential Technologies</div>
             <div class="rfq-doc-title">Request for Quotation — Installation Scope</div>
           </div>
           <div class="rfq-doc-meta-right">
@@ -2252,8 +2258,8 @@ async function generateRFQ(scopeId) {
               <div class="rfq-info-pair"><span class="rk">Customer</span><span class="rv">${esc(proj.customer)}</span></div>
               <div class="rfq-info-pair"><span class="rk">JO Number(s)</span><span class="rv">${esc(proj.jo_numbers||'—')}</span></div>
               <div class="rfq-info-pair"><span class="rk">Site Address</span><span class="rv">${esc(proj.site_address||'—')}</span></div>
-              <div class="rfq-info-pair"><span class="rk">BEP Project Manager</span><span class="rv">${esc(proj.pm_name||'—')}</span></div>
-              <div class="rfq-info-pair"><span class="rk">BEP Buyer</span><span class="rv">${esc(proj.buyer_name||'—')}</span></div>
+              <div class="rfq-info-pair"><span class="rk">Project Manager</span><span class="rv">${esc(proj.pm_name||'—')}</span></div>
+              <div class="rfq-info-pair"><span class="rk">Buyer / Procurement</span><span class="rv">${esc(proj.buyer_name||'—')}</span></div>
               <div class="rfq-info-pair"><span class="rk">Target Install Date</span><span class="rv">${fmtDate(proj.target_install_date)}</span></div>
               <div class="rfq-info-pair"><span class="rk">Machine Description</span><span class="rv">${esc(proj.machine_description||'—')}</span></div>
             </div>
@@ -2299,8 +2305,8 @@ async function generateRFQ(scopeId) {
               <p><strong>Payment Terms:</strong> Please state your required payment terms, including any deposit percentage, milestone schedule, and final payment timing.</p>
               <p><strong>Quote Validity:</strong> Please state the validity period for your quotation. Minimum 30 days from the date of submission is required.</p>
               <p><strong>Insurance:</strong> Supplier shall maintain general liability insurance of not less than $2,000,000 per occurrence. Certificate of insurance to be provided prior to mobilization.</p>
-              <p><strong>Compliance:</strong> All work shall be performed in compliance with applicable OSHA regulations (29 CFR 1910 &amp; 1926), US federal and South Carolina state standards, and any site-specific safety requirements communicated by BEP prior to mobilization.</p>
-              <p><strong>Pre-Mobilization Documents:</strong> Risk assessment, lifting/hoisting plan, and equipment certificates/approvals must be submitted to BEP at least 1 month prior to mobilization.</p>
+              <p><strong>Compliance:</strong> All work shall be performed in compliance with applicable OSHA regulations (29 CFR 1910 &amp; 1926), US federal and South Carolina state standards, and any site-specific safety requirements communicated by Burke Porter | Ascential Technologies prior to mobilization.</p>
+              <p><strong>Pre-Mobilization Documents:</strong> Risk assessment, lifting/hoisting plan, and equipment certificates/approvals must be submitted to Burke Porter | Ascential Technologies at least 1 month prior to mobilization.</p>
               <p><strong>Prevailing Wage:</strong> Please indicate if prevailing wage requirements apply and confirm compliance.</p>
               <p><strong>Timeplan:</strong> Supplier shall submit a day-by-day timeplan (tasks + duration + number of resources per trade) together with the quotation.</p>
               <p style="margin-bottom:0"><strong>Exclusions:</strong> Please clearly list any items not included in your quote.</p>
@@ -2310,8 +2316,8 @@ async function generateRFQ(scopeId) {
           <div class="rfq-section">
             <div class="rfq-section-title">Submission</div>
             <p style="font-size:12px;color:#475569;margin-bottom:12px">
-              Please return your completed quote to <strong>${esc(proj.buyer_name||'the BEP Procurement team')}</strong> at Burke-Porter Engineering
-              by <strong>${deadlineVal}</strong>. Questions may be directed to the BEP PM listed above.
+              Please return your completed quote to <strong>${esc(proj.buyer_name||'the Procurement team')}</strong> at Burke Porter | Ascential Technologies
+              by <strong>${deadlineVal}</strong>. Questions may be directed to the Project Manager listed above.
             </p>
             <div class="rfq-sign-grid">
               <div class="rfq-sign-block">
@@ -2327,10 +2333,10 @@ async function generateRFQ(scopeId) {
                 <div style="font-size:11px;color:#94a3b8">Date</div>
               </div>
               <div class="rfq-sign-block">
-                <div class="label">BEP Acknowledgment</div>
-                <div style="font-size:12px;color:#475569;margin-bottom:8px">For BEP internal use — quote received and reviewed by procurement.</div>
+                <div class="label">Burke Porter | Ascential Technologies Acknowledgment</div>
+                <div style="font-size:12px;color:#475569;margin-bottom:8px">For internal use — quote received and reviewed by procurement.</div>
                 <div class="rfq-sign-line"></div>
-                <div style="font-size:11px;color:#94a3b8">BEP Buyer / Procurement</div>
+                <div style="font-size:11px;color:#94a3b8">Buyer / Procurement</div>
                 <div class="rfq-sign-line" style="margin-top:16px"></div>
                 <div style="font-size:11px;color:#94a3b8">Date Received</div>
                 <div style="margin-top:16px;font-size:11px;color:#94a3b8">Internal Notes:</div>
@@ -2341,7 +2347,7 @@ async function generateRFQ(scopeId) {
 
         </div>
         <div class="rfq-footer">
-          <span>Burke-Porter Engineering · SpecBridge Procurement · Confidential</span>
+          <span>Burke Porter | Ascential Technologies · SpecBridge Procurement · Confidential</span>
           <span>RFQ-${esc((proj.jo_numbers||'').replace(/\s/g,''))}-${_scopeType.toUpperCase().slice(0,4)} · Generated ${today}</span>
         </div>
       </div>`;
