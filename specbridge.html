@@ -2889,237 +2889,239 @@ async function generateProjectSupplierFeedback(projectId, supplierName) {
     const fmtN = n => n > 0 ? fmt$(n) : '—';
     const getAmt = (items,key) => { const i=(items||[]).find(x=>x.key===key); return i&&i.amount>0?i.amount:0; };
 
-    const awardedQs   = allQuotes.filter(x=>x.is_awarded);
+    const awardedQs    = allQuotes.filter(x=>x.is_awarded);
     const awardedNames = [...new Set(awardedQs.map(x=>x.supplier_name))];
     const awardedTotal = awardedQs.reduce((s,x)=>s+(x.total_amount||0),0);
 
-    // Build per-scope comparison: supplier quote vs. awarded quote
+    // ── Per-scope data ──
     const scopeComps = SCOPE_ORDER.map(st => {
-      const scope  = scopes.find(s=>s.scope_type===st);
-      const sc     = SCOPES[st];
+      const scope   = scopes.find(s=>s.scope_type===st);
+      const sc      = SCOPES[st];
       if (!scope) return null;
       const sq      = allQuotes.filter(x=>x.scope_id===scope.id);
       const theirQ  = sq.find(x=>x.supplier_name===supplierName&&(x.total_amount||0)>0);
       const awardQ  = sq.find(x=>x.is_awarded);
       if (!theirQ && !awardQ) return null;
+
       const theirAmt = theirQ?.total_amount||0;
       const awardAmt = awardQ?.total_amount||0;
-      const gap = theirAmt > 0 && awardAmt > 0 ? theirAmt - awardAmt : null;
-      const gapPct = gap !== null && awardAmt > 0 ? (gap/awardAmt*100).toFixed(0) : null;
-      // Line-item BIC: items where this supplier has a value vs. the awarded supplier
+
+      // TRUE BIC: lowest price from ANY supplier for this scope (market floor)
+      const allScopeAmts = sq.filter(x=>x.total_amount>0);
+      const bicQ = allScopeAmts.length ? allScopeAmts.reduce((a,b)=>(a.total_amount||0)<=(b.total_amount||0)?a:b) : null;
+      const bicAmt = bicQ?.total_amount||0;
+      const bicSupName = bicQ?.supplier_name||'';
+      const isBIC = theirAmt > 0 && bicAmt > 0 && theirAmt === bicAmt; // this supplier IS the market floor
+
+      const gap        = theirAmt > 0 && awardAmt > 0 ? theirAmt - awardAmt : null;
+      const gapPct     = gap !== null && awardAmt > 0 ? (gap/awardAmt*100).toFixed(0) : null;
+      const gapToBIC   = theirAmt > 0 && bicAmt > 0 ? theirAmt - bicAmt : null; // vs. market floor
+      const gapToBICPct = gapToBIC !== null && bicAmt > 0 ? (gapToBIC/bicAmt*100).toFixed(0) : null;
+
+      // Line-item comparison: this supplier vs. awarded
       const bicItems = sc.items.filter(i=>i.req).map(i => {
         const theirItem = getAmt(theirQ?.line_items||[], i.key);
         const awardItem = getAmt(awardQ?.line_items||[], i.key);
+        // BIC for this line item = min across all suppliers
+        const allItemAmts = allScopeAmts.map(x=>getAmt(x.line_items||[],i.key)).filter(a=>a>0);
+        const itemBIC = allItemAmts.length ? Math.min(...allItemAmts) : null;
+        const itemBICSupplier = allItemAmts.length ? allScopeAmts.find(x=>getAmt(x.line_items||[],i.key)===itemBIC)?.supplier_name : null;
         if (!theirItem && !awardItem) return null;
-        const itemGap = theirItem > 0 && awardItem > 0 ? theirItem - awardItem : null;
-        return { label:i.label, theirItem, awardItem, itemGap };
+        return { label:i.label, theirItem, awardItem, itemGap:theirItem>0&&awardItem>0?theirItem-awardItem:null, itemBIC, itemBICSupplier };
       }).filter(Boolean);
-      // Completeness of their quote
-      const allAmts = sq.filter(x=>x.total_amount>0).map(x=>x.total_amount);
-      const marketAvgScope = allAmts.length ? allAmts.reduce((a,b)=>a+b,0)/allAmts.length : null;
-      const marketLowScope = allAmts.length ? Math.min(...allAmts) : null;
-      return { st, sc, scope, theirQ, awardQ, theirAmt, awardAmt, gap, gapPct, bicItems, marketAvgScope, marketLowScope, awardNames: awardedNames };
+
+      const marketAvgScope = allScopeAmts.length ? allScopeAmts.reduce((a,b)=>a+(b.total_amount||0),0)/allScopeAmts.length : null;
+      return { st, sc, scope, theirQ, awardQ, theirAmt, awardAmt, gap, gapPct, gapToBIC, gapToBICPct, bicAmt, bicSupName, isBIC, bicItems, marketAvgScope };
     }).filter(Boolean);
 
-    const suppliedScopes  = scopeComps.filter(x=>x.theirAmt>0);
-    const theirTotal      = suppliedScopes.reduce((s,x)=>s+x.theirAmt,0);
-    const totalGap        = theirTotal > 0 && awardedTotal > 0 ? theirTotal - awardedTotal : null;
-    const totalGapPct     = totalGap !== null && awardedTotal > 0 ? (totalGap/awardedTotal*100).toFixed(0) : null;
-    const isAboveAward    = totalGap !== null && totalGap > 0;
+    const suppliedScopes = scopeComps.filter(x=>x.theirAmt>0);
+    const theirTotal     = suppliedScopes.reduce((s,x)=>s+x.theirAmt,0);
+    const totalGap       = theirTotal > 0 && awardedTotal > 0 ? theirTotal - awardedTotal : null;
+    const totalGapPct    = totalGap !== null && awardedTotal > 0 ? (totalGap/awardedTotal*100).toFixed(0) : null;
 
-    // Gap drivers: scopes sorted by |gap| descending
-    const gapDrivers = scopeComps
-      .filter(x=>x.gap!==null)
-      .sort((a,b)=>Math.abs(b.gap)-Math.abs(a.gap));
-
-    // Scopes where supplier was competitive (gap < 0 = lower than award)
-    const strengths = gapDrivers.filter(x=>x.gap < 0);
+    const gapDrivers = scopeComps.filter(x=>x.gap!==null).sort((a,b)=>Math.abs(b.gap)-Math.abs(a.gap));
+    const strengths  = gapDrivers.filter(x=>x.gap <= 0);  // at or below award price
     const weaknesses = gapDrivers.filter(x=>x.gap > 0);
-
-    // Total gap attribution (% of total gap from each scope)
     const posGapTotal = weaknesses.reduce((s,x)=>s+x.gap,0);
 
-    // Supplier config
-    const supConf = SUPPLIERS.find(s=>s.name===supplierName);
-    const supContact = supConf?.contact && supConf.contact!=='Contact TBD' ? supConf.contact : '';
-    const supPhone   = supConf?.phone || '';
+    // Scopes where supplier holds the true BIC (they are the market floor)
+    const bicHolderScopes = scopeComps.filter(x=>x.isBIC&&x.theirAmt>0);
 
-    // ── Scope breakdown table rows ──
-    const scopeRows = scopeComps.map(({st,sc,theirAmt,awardAmt,gap,gapPct,theirQ,awardQ,marketAvgScope}) => {
-      const hasGap = gap !== null;
-      const gapColor = !hasGap ? '#94a3b8' : gap > 0 ? '#dc2626' : '#16a34a';
-      const gapText = !hasGap ? '—'
-        : gap > 0 ? '▲ '+fmtN(gap)+' ('+gapPct+'% higher)'
-        : gap < 0 ? '▼ '+fmtN(Math.abs(gap))+' ('+Math.abs(gapPct)+'% lower — COMPETITIVE ✓)'
-        : 'Same';
-      const pctOfTotalGap = (posGapTotal > 0 && gap > 0) ? (gap/posGapTotal*100).toFixed(0) : null;
-      const barWidth = pctOfTotalGap ? Math.min(parseInt(pctOfTotalGap), 100) : 0;
-      return '<tr style="border-bottom:1px solid #e2e8f0">' +
-        '<td style="padding:9px 12px;font-size:13px;font-weight:600">' + sc.icon + ' ' + esc(sc.label) + '</td>' +
-        '<td style="padding:9px 12px;text-align:right;font-size:13px">' + (theirAmt>0?fmtN(theirAmt):'<span style="color:#94a3b8">Not quoted</span>') + '</td>' +
-        '<td style="padding:9px 12px;text-align:right;font-size:13px;color:#16a34a;font-weight:600">' + (awardAmt>0?fmtN(awardAmt):'—') + '</td>' +
-        '<td style="padding:9px 12px;font-size:12px;color:'+gapColor+';font-weight:600">' + gapText +
-          (pctOfTotalGap ? '<div style="margin-top:4px"><div style="height:4px;background:#fee2e2;border-radius:2px;width:140px"><div style="height:4px;background:#dc2626;border-radius:2px;width:'+barWidth+'%"></div></div><div style="font-size:9px;color:#94a3b8;margin-top:2px">'+pctOfTotalGap+'% of total gap vs. award</div></div>' : '') +
-        '</td>' +
+    const supConf   = SUPPLIERS.find(s=>s.name===supplierName);
+    const supContact = supConf?.contact&&supConf.contact!=='Contact TBD' ? supConf.contact : '';
+    const supPhone  = supConf?.phone||'';
+
+    // ── Scope breakdown table (5 columns: scope / your quote / award / market floor / gap vs award) ──
+    const scopeRows = scopeComps.map(({sc,theirAmt,awardAmt,gap,gapPct,bicAmt,bicSupName,isBIC,gapToBIC,gapToBICPct}) => {
+      const gapColor = !gap ? '#94a3b8' : gap > 0 ? '#dc2626' : '#16a34a';
+      const gapTxt   = !gap ? '—' : gap > 0 ? '▲ '+fmtN(gap)+' (+'+gapPct+'%)' : '▼ '+fmtN(Math.abs(gap))+' ('+Math.abs(gapPct)+'%) ✓';
+      const pctOfGap = posGapTotal > 0 && gap > 0 ? (gap/posGapTotal*100).toFixed(0) : null;
+      const barW     = pctOfGap ? Math.min(parseInt(pctOfGap),100) : 0;
+      const bicTxt   = isBIC
+        ? '<span style="font-size:10px;font-weight:800;color:#16a34a;background:#dcfce7;padding:1px 5px;border-radius:3px">YOU ARE BIC ✓</span>'
+        : (bicAmt>0 ? fmtN(bicAmt)+'<div style="font-size:9px;color:#64748b;margin-top:1px">'+esc(bicSupName)+'</div>' : '—');
+      const rowBg = isBIC ? 'background:#f0fdf4;' : (gap>0&&gap===Math.max(...gapDrivers.map(x=>x.gap||0)) ? 'background:#fff5f5;' : '') + (gap<0?'background:#f0fdf4;':'');
+      return '<tr style="border-bottom:1px solid #e2e8f0;'+rowBg+'">'+
+        '<td style="padding:9px 12px;font-size:13px;font-weight:600">'+sc.icon+' '+esc(sc.label)+'</td>'+
+        '<td style="padding:9px 12px;text-align:right;font-size:13px;font-weight:'+(isBIC?800:400)+'">'+( theirAmt>0?fmtN(theirAmt):'<span style="color:#94a3b8">Not quoted</span>')+'</td>'+
+        '<td style="padding:9px 12px;text-align:right;font-size:12px;color:#16a34a;font-weight:600">'+(awardAmt>0?fmtN(awardAmt):'—')+'</td>'+
+        '<td style="padding:9px 12px;text-align:right;font-size:12px">'+bicTxt+'</td>'+
+        '<td style="padding:9px 12px;font-size:12px;color:'+gapColor+';font-weight:600">'+gapTxt+
+          (pctOfGap?'<div style="margin-top:3px"><div style="height:3px;background:#fee2e2;border-radius:2px;width:110px"><div style="height:3px;background:#dc2626;border-radius:2px;width:'+barW+'%"></div></div><div style="font-size:9px;color:#94a3b8;margin-top:1px">'+pctOfGap+'% of total gap</div></div>':'')+
+        '</td>'+
       '</tr>';
     }).join('');
 
-    // ── BIC line-item detail for each weakness scope ──
-    const bicSections = weaknesses.filter(x=>x.bicItems.some(i=>i.itemGap!==null)).map(({sc,bicItems,awardAmt,theirAmt}) => {
+    // ── Path to Competitiveness table ──
+    const pathRows = scopeComps.filter(x=>x.theirAmt>0||x.awardAmt>0).map(({sc,theirAmt,awardAmt,bicAmt,bicSupName,isBIC}) => {
+      const reductionToAward = theirAmt>0&&awardAmt>0&&theirAmt>awardAmt ? theirAmt-awardAmt : null;
+      const reductionToBIC   = theirAmt>0&&bicAmt>0&&theirAmt>bicAmt ? theirAmt-bicAmt : null;
+      const pctToAward = reductionToAward&&theirAmt>0 ? (reductionToAward/theirAmt*100).toFixed(0) : null;
+      const pctToBIC   = reductionToBIC&&theirAmt>0 ? (reductionToBIC/theirAmt*100).toFixed(0) : null;
+      return '<tr style="border-bottom:1px solid #e2e8f0;'+(isBIC?'background:#f0fdf4;':'')+'">'+
+        '<td style="padding:8px 12px;font-size:12px;font-weight:600">'+sc.icon+' '+esc(sc.label)+'</td>'+
+        '<td style="padding:8px 12px;font-size:12px;text-align:right">'+(theirAmt>0?fmtN(theirAmt):'—')+'</td>'+
+        '<td style="padding:8px 12px;font-size:12px;text-align:right;color:#dc2626;font-weight:600">'+(reductionToAward?'▼ '+fmtN(reductionToAward)+' ('+pctToAward+'% reduction needed)':'<span style="color:#16a34a">Already competitive ✓</span>')+'</td>'+
+        '<td style="padding:8px 12px;font-size:12px;text-align:right;color:#7c3aed;font-weight:600">'+(isBIC?'<span style="color:#16a34a">You ARE the market floor ✓</span>':reductionToBIC?'▼ '+fmtN(reductionToBIC)+' ('+pctToBIC+'%) to reach '+esc(bicSupName)+'\'s price':'<span style="color:#16a34a">At or below BIC ✓</span>')+'</td>'+
+      '</tr>';
+    }).join('');
+
+    // Competitive total if they matched BIC on all scopes
+    const theirBICTotal = scopeComps.reduce((s,x)=>x.theirAmt>0?s+Math.min(x.theirAmt,x.bicAmt||x.theirAmt):s,0);
+    const theirAwardMatchTotal = scopeComps.reduce((s,x)=>x.theirAmt>0?s+Math.min(x.theirAmt,x.awardAmt||x.theirAmt):s,0);
+
+    // ── Line-item detail for gap-driver scopes ──
+    const lineItemSections = weaknesses.filter(x=>x.bicItems.some(i=>i.itemGap!==null||i.itemBIC)).map(({sc,bicItems}) => {
       const items = bicItems.filter(i=>i.theirItem>0||i.awardItem>0);
       if (!items.length) return '';
       const rows = items.map(i => {
-        const gapStyle = i.itemGap===null ? '' : i.itemGap>0 ? 'color:#dc2626;font-weight:700' : i.itemGap<0 ? 'color:#16a34a;font-weight:700' : '';
-        const gapTxt = i.itemGap===null ? '—'
-          : i.itemGap>0 ? '▲ '+fmtN(i.itemGap)+' higher'
-          : i.itemGap<0 ? '▼ '+fmtN(Math.abs(i.itemGap))+' LOWER ✓'
-          : 'Same';
-        return '<tr style="border-bottom:1px solid #f1f5f9">' +
-          '<td style="padding:5px 10px;font-size:11px;color:#334155">'+esc(i.label)+'</td>' +
-          '<td style="padding:5px 10px;font-size:11px;text-align:right">'+(i.theirItem>0?fmtN(i.theirItem):'<span style="color:#94a3b8">—</span>')+'</td>' +
-          '<td style="padding:5px 10px;font-size:11px;text-align:right;color:#16a34a">'+(i.awardItem>0?fmtN(i.awardItem):'—')+'</td>' +
-          '<td style="padding:5px 10px;font-size:11px;'+gapStyle+'">'+gapTxt+'</td>' +
+        const gapStyle = i.itemGap===null?'':i.itemGap>0?'color:#dc2626;font-weight:700':'color:#16a34a;font-weight:700';
+        const gapTxt = i.itemGap===null?'—':i.itemGap>0?'▲ '+fmtN(i.itemGap)+' higher':i.itemGap<0?'▼ '+fmtN(Math.abs(i.itemGap))+' LOWER ✓':'Same';
+        const isBICItem = i.theirItem > 0 && i.itemBIC > 0 && i.theirItem === i.itemBIC;
+        return '<tr style="border-bottom:1px solid #f1f5f9;'+(isBICItem?'background:#f0fdf4;':'')+'">'+
+          '<td style="padding:5px 10px;font-size:11px">'+esc(i.label)+(isBICItem?'<span style="font-size:9px;margin-left:5px;color:#16a34a;font-weight:700">BIC ✓</span>':'')+'</td>'+
+          '<td style="padding:5px 10px;font-size:11px;text-align:right">'+(i.theirItem>0?fmtN(i.theirItem):'—')+'</td>'+
+          '<td style="padding:5px 10px;font-size:11px;text-align:right;color:#16a34a">'+(i.awardItem>0?fmtN(i.awardItem):'—')+'</td>'+
+          '<td style="padding:5px 10px;font-size:11px;text-align:right;color:#7c3aed">'+(i.itemBIC&&!isBICItem?fmtN(i.itemBIC)+'<div style="font-size:9px;color:#94a3b8">'+esc(i.itemBICSupplier||'')+'</div>':'<span style="color:#16a34a">'+(isBICItem?'You — lowest ✓':'—')+'</span>')+'</td>'+
+          '<td style="padding:5px 10px;font-size:11px;'+gapStyle+'">'+gapTxt+'</td>'+
         '</tr>';
       }).join('');
-      return '<div style="margin-top:10px;margin-bottom:18px">' +
-        '<div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:6px">'+sc.icon+' '+esc(sc.label)+' — Line Item Breakdown</div>' +
-        '<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;font-size:11px">' +
-          '<thead><tr style="background:#f8fafc"><th style="padding:5px 10px;text-align:left;border-bottom:1px solid #e2e8f0">Line Item</th><th style="padding:5px 10px;text-align:right;border-bottom:1px solid #e2e8f0">Your Quote</th><th style="padding:5px 10px;text-align:right;border-bottom:1px solid #e2e8f0;color:#16a34a">Awarded</th><th style="padding:5px 10px;border-bottom:1px solid #e2e8f0">Variance</th></tr></thead>' +
-          '<tbody>'+rows+'</tbody>' +
-        '</table>' +
+      return '<div style="margin-top:10px;margin-bottom:18px">'+
+        '<div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:6px">'+sc.icon+' '+esc(sc.label)+' — Line Item Detail</div>'+
+        '<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0">'+
+          '<thead><tr style="background:#f8fafc"><th style="padding:5px 10px;border-bottom:1px solid #e2e8f0">Line Item</th><th style="padding:5px 10px;text-align:right;border-bottom:1px solid #e2e8f0">Your Quote</th><th style="padding:5px 10px;text-align:right;border-bottom:1px solid #e2e8f0;color:#16a34a">Awarded</th><th style="padding:5px 10px;text-align:right;border-bottom:1px solid #e2e8f0;color:#7c3aed">Market Floor</th><th style="padding:5px 10px;border-bottom:1px solid #e2e8f0">Gap vs Award</th></tr></thead>'+
+          '<tbody>'+rows+'</tbody>'+
+        '</table>'+
       '</div>';
     }).join('');
 
-    // ── Actionable guidance bullets ──
+    // ── Actionable guidance ──
     const actionItems = [];
+    if (bicHolderScopes.length) {
+      actionItems.push('🏆 <strong>You held the lowest market price (Best-in-Class) on '+bicHolderScopes.length+' scope'+(bicHolderScopes.length>1?'s':'')+': '+bicHolderScopes.map(x=>x.sc.icon+' '+esc(x.sc.label)).join(', ')+'.</strong> These are genuine competitive strengths. Lead with these capabilities in future proposals and use them to demonstrate where your cost structure is the most efficient in the market.');
+    }
     if (weaknesses.length) {
       const top = weaknesses[0];
-      const topPct = posGapTotal > 0 ? Math.round(top.gap/posGapTotal*100) : null;
-      actionItems.push('<strong>'+top.sc.icon+' '+esc(top.sc.label)+'</strong> was your largest gap at '+fmtN(top.gap)+' above the awarded supplier'+(topPct?', representing '+topPct+'% of the total cost gap':'')+'. This scope should be your primary focus for cost reduction in future bids.');
+      const pct = posGapTotal>0?Math.round(top.gap/posGapTotal*100):null;
+      actionItems.push('<strong>'+top.sc.icon+' '+esc(top.sc.label)+'</strong> was your largest gap at <strong>'+fmtN(top.gap)+'</strong> above the awarded price'+(pct?', representing '+pct+'% of your total project gap':'')+'. The market floor for this scope from all suppliers was <strong>'+fmtN(top.bicAmt)+'</strong> ('+esc(top.bicSupName)+'). Reaching that level would require a reduction of <strong>'+fmtN(top.theirAmt-top.bicAmt)+'</strong> ('+top.gapToBICPct+'%) from your quoted price on this scope alone.');
     }
-    if (strengths.length) {
-      actionItems.push('You were <strong>more competitive</strong> than the awarded supplier in: '+strengths.map(x=>x.sc.icon+' '+esc(x.sc.label)+' (▼ '+fmtN(Math.abs(x.gap))+'lower)').join(', ')+'. These are genuine strengths — preserve and communicate them in future proposals.');
+    if (weaknesses.length > 1) {
+      const others = weaknesses.slice(1).map(x=>x.sc.icon+' '+esc(x.sc.label)+': market floor '+fmtN(x.bicAmt)+' ('+esc(x.bicSupName)+'), you quoted '+fmtN(x.theirAmt));
+      actionItems.push('Additional scopes with improvement opportunity:<br><ul style="margin:6px 0 0 16px">'+others.map(o=>'<li style="margin-bottom:4px">'+o+'</li>').join('')+'</ul>');
     }
     const scopesNotQuoted = scopeComps.filter(x=>!x.theirAmt);
     if (scopesNotQuoted.length) {
-      actionItems.push('You did not provide pricing for '+scopesNotQuoted.map(x=>x.sc.icon+' '+esc(x.sc.label)).join(' and ')+'. Complete bids across all scopes improve your competitive standing and signal full project capability.');
-    }
-    if (isAboveAward && Math.abs(parseInt(totalGapPct)) > 20) {
-      actionItems.push('Your overall project total of '+fmtN(theirTotal)+' was '+totalGapPct+'% above the selected supplier. A gap of this magnitude typically reflects structural cost factors — deployment overhead, mobilization, or base labor rates — rather than individual line items alone. Reviewing your overhead and mobilization model may yield the largest efficiency gains.');
+      actionItems.push('You did not submit pricing for: '+scopesNotQuoted.map(x=>x.sc.icon+' '+esc(x.sc.label)).join(', ')+'. Suppliers who bid all scopes are more likely to receive the full award. Complete project proposals are strongly encouraged.');
     }
     const notesContext = awardedQs.map(x=>x.notes).filter(Boolean).join(' ');
-    const hasSiteAdv = notesContext.toLowerCase().includes('site') || notesContext.toLowerCase().includes('mobil');
+    const hasSiteAdv = notesContext.toLowerCase().includes('site')||notesContext.toLowerCase().includes('mobil');
+    if (totalGap!==null&&parseInt(totalGapPct)>30) {
+      actionItems.push('Your overall project total of <strong>'+fmtN(theirTotal)+'</strong> was '+totalGapPct+'% above the award. A gap of this scale is often driven by overhead structures, mobilization costs, and base labor rates more than individual line items. Review your fixed-cost model — structural efficiencies here will have the largest impact on your overall competitiveness.');
+    }
 
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-    <title>Supplier Feedback — ${esc(supplierName)}</title>
-    <style>
-      * { box-sizing:border-box; margin:0; padding:0; }
-      body { font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size:13px; color:#0f172a; background:#fff; padding:36px; max-width:860px; margin:0 auto; }
-      h1 { font-size:20px; font-weight:800; }
-      h2 { font-size:13px; font-weight:700; color:#334155; margin-bottom:10px; padding-bottom:5px; border-bottom:2px solid #e2e8f0; text-transform:uppercase; letter-spacing:0.06em; }
-      .meta { font-size:11px; color:#64748b; margin-top:3px; }
-      .section { margin-bottom:26px; }
-      .kpi-row { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:20px; }
-      .kpi { flex:1; min-width:130px; border:1px solid #e2e8f0; border-radius:8px; padding:12px 16px; }
-      .kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin-bottom:5px; }
-      .kpi-val  { font-size:20px; font-weight:800; }
-      .kpi-sub  { font-size:10px; color:#94a3b8; margin-top:3px; line-height:1.4; }
-      .highlight { border-radius:8px; padding:14px 18px; margin-bottom:16px; }
-      table { width:100%; border-collapse:collapse; border:1px solid #e2e8f0; }
-      thead tr { background:#f8fafc; }
-      th { padding:8px 12px; font-size:11px; font-weight:600; color:#64748b; text-align:left; border-bottom:1px solid #e2e8f0; }
-      .action-list li { margin-bottom:10px; line-height:1.6; color:#334155; font-size:12px; }
-      .action-list { padding-left:20px; }
-      .footer { margin-top:36px; padding-top:12px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; }
-      @media print { body { padding:24px; } }
-    </style>
-    </head><body>
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
-      <div>
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:5px">Competitive Sourcing Debrief — Full Project</div>
-        <h1>${esc(supplierName)}</h1>
-        <div class="meta">${esc(proj.name||'')} · ${esc(proj.customer||'')} · ${today}</div>
-        ${supContact ? '<div class="meta">Attn: '+esc(supContact)+(supPhone?' · '+esc(supPhone):'')+'</div>' : ''}
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Burke Porter | Ascential Technologies</div>
-        <div style="font-size:10px;color:#94a3b8">CONFIDENTIAL — External Use Permitted</div>
-        <button onclick="window.print()" style="margin-top:10px;padding:6px 14px;background:#0f172a;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">🖨 Print / PDF</button>
-      </div>
-    </div>
+    const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Supplier Feedback — '+esc(supplierName)+'</title>'+
+    '<style>* { box-sizing:border-box; margin:0; padding:0; } body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; font-size:13px; color:#0f172a; background:#fff; padding:36px; max-width:920px; margin:0 auto; } h1 { font-size:20px; font-weight:800; } h2 { font-size:12px; font-weight:700; color:#334155; margin-bottom:10px; padding-bottom:5px; border-bottom:2px solid #e2e8f0; text-transform:uppercase; letter-spacing:0.06em; } .meta { font-size:11px; color:#64748b; margin-top:3px; } .section { margin-bottom:26px; } .kpi-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; } .kpi { flex:1; min-width:120px; border:1px solid #e2e8f0; border-radius:8px; padding:11px 14px; } .kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin-bottom:4px; } .kpi-val { font-size:19px; font-weight:800; } .kpi-sub { font-size:10px; color:#94a3b8; margin-top:3px; line-height:1.4; } .highlight { border-radius:8px; padding:14px 18px; margin-bottom:16px; } table { width:100%; border-collapse:collapse; border:1px solid #e2e8f0; } thead tr { background:#f8fafc; } th { padding:7px 10px; font-size:10px; font-weight:700; color:#64748b; text-align:left; border-bottom:1px solid #e2e8f0; text-transform:uppercase; letter-spacing:0.04em; } .al { padding-left:18px; } .al li { margin-bottom:10px; line-height:1.6; color:#334155; font-size:12px; } .footer { margin-top:36px; padding-top:12px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; } @media print { body { padding:20px; } }</style>'+
+    '</head><body>'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px">'+
+      '<div>'+
+        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:4px">Competitive Sourcing Debrief — Full Project</div>'+
+        '<h1>'+esc(supplierName)+'</h1>'+
+        '<div class="meta">'+esc(proj.name||'')+' · '+esc(proj.customer||'')+' · '+today+'</div>'+
+        (supContact?'<div class="meta">Attn: '+esc(supContact)+(supPhone?' · '+esc(supPhone):'')+'</div>':'')+
+      '</div>'+
+      '<div style="text-align:right"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Burke Porter | Ascential Technologies</div><div style="font-size:10px;color:#94a3b8">CONFIDENTIAL — External Use Permitted</div><button onclick="window.print()" style="margin-top:8px;padding:5px 12px;background:#0f172a;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer">🖨 Print / PDF</button></div>'+
+    '</div>'+
 
-    <div class="section">
-      <div class="highlight" style="background:#fff7ed;border:1px solid #fed7aa">
-        <div style="font-size:14px;font-weight:700;color:#c2410c;margin-bottom:6px">Thank you for your proposal on ${esc(proj.name)}.</div>
-        <div style="font-size:12px;color:#475569;line-height:1.7">Following a competitive evaluation across multiple qualified suppliers, we have selected ${esc(awardedNames.join(', '))} for this project. We value your participation and are providing this detailed competitive debrief to support your future engagement with Burke Porter | Ascential Technologies. We encourage you to use this feedback to refine your approach for upcoming opportunities.</div>
-      </div>
-    </div>
+    '<div class="section"><div class="highlight" style="background:#fff7ed;border:1px solid #fed7aa">'+
+      '<div style="font-size:14px;font-weight:700;color:#c2410c;margin-bottom:5px">Thank you for your proposal on '+esc(proj.name||'this project')+'.</div>'+
+      '<div style="font-size:12px;color:#475569;line-height:1.7">Following a competitive evaluation across multiple suppliers, we have selected <strong>'+esc(awardedNames.join(', '))+'</strong> for this project. We value your participation and are sharing this detailed competitive debrief so you can understand exactly where you stood relative to the full market and where to focus for future opportunities with Burke Porter | Ascential Technologies.</div>'+
+    '</div></div>'+
 
-    <div class="section">
-      <h2>Your Overall Position</h2>
-      <div class="kpi-row">
-        <div class="kpi"><div class="kpi-label">Your Total Bid</div><div class="kpi-val" style="color:#0f172a">${fmtN(theirTotal)}</div><div class="kpi-sub">${suppliedScopes.length} of ${scopeComps.length} scopes quoted</div></div>
-        <div class="kpi"><div class="kpi-label">Award Total</div><div class="kpi-val" style="color:#16a34a">${fmtN(awardedTotal)}</div><div class="kpi-sub">${esc(awardedNames.join(', '))}</div></div>
-        ${totalGap!==null ? '<div class="kpi"><div class="kpi-label">Total Gap</div><div class="kpi-val" style="color:'+(totalGap>0?'#dc2626':'#16a34a')+'">'+(totalGap>0?'▲ ':'▼ ')+fmtN(Math.abs(totalGap))+'</div><div class="kpi-sub">'+Math.abs(totalGapPct)+'% '+(totalGap>0?'above':'below')+' award total</div></div>' : ''}
-        ${strengths.length ? '<div class="kpi"><div class="kpi-label">Scopes Where Competitive</div><div class="kpi-val" style="color:#16a34a">'+strengths.length+'</div><div class="kpi-sub">'+strengths.map(x=>x.sc.label.split(' ')[0]).join(', ')+'</div></div>' : ''}
-      </div>
-    </div>
+    '<div class="section"><h2>Your Overall Position</h2>'+
+    '<div class="kpi-row">'+
+      '<div class="kpi"><div class="kpi-label">Your Total Bid</div><div class="kpi-val" style="color:#0f172a">'+fmtN(theirTotal)+'</div><div class="kpi-sub">'+suppliedScopes.length+' of '+scopeComps.length+' scopes quoted</div></div>'+
+      '<div class="kpi"><div class="kpi-label">Award Total</div><div class="kpi-val" style="color:#16a34a">'+fmtN(awardedTotal)+'</div><div class="kpi-sub">'+esc(awardedNames.join(', '))+'</div></div>'+
+      (totalGap!==null?'<div class="kpi"><div class="kpi-label">Gap vs. Award</div><div class="kpi-val" style="color:'+(totalGap>0?'#dc2626':'#16a34a')+'">'+(totalGap>0?'▲ ':'▼ ')+fmtN(Math.abs(totalGap))+'</div><div class="kpi-sub">'+Math.abs(totalGapPct)+'% '+(totalGap>0?'above':'below')+' award</div></div>':'')+
+      (bicHolderScopes.length?'<div class="kpi" style="background:#f0fdf4;border-color:#bbf7d0"><div class="kpi-label" style="color:#16a34a">BIC Scopes — You\'re #1</div><div class="kpi-val" style="color:#16a34a">'+bicHolderScopes.length+'</div><div class="kpi-sub">'+bicHolderScopes.map(x=>x.sc.label.split(' ')[0]).join(', ')+'</div></div>':'')+
+    '</div></div>'+
 
-    <div class="section">
-      <h2>Project-Level Scope Breakdown</h2>
-      <p style="font-size:11px;color:#64748b;margin-bottom:10px">Gap analysis across all ${scopeComps.length} scopes. Red = your quote was higher than the selected supplier. Green = you were more competitive on this scope.</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Scope</th>
-            <th style="text-align:right">Your Quote</th>
-            <th style="text-align:right;color:#16a34a">Awarded (${esc(awardedNames.join('/'))})</th>
-            <th>Variance vs. Award</th>
-          </tr>
-        </thead>
-        <tbody>${scopeRows}</tbody>
-        <tfoot>
-          <tr style="border-top:2px solid #334155;font-weight:800">
-            <td style="padding:10px 12px;font-size:13px;background:#f1f5f9">PROJECT TOTAL</td>
-            <td style="padding:10px 12px;font-size:13px;text-align:right;background:#f1f5f9">${fmtN(theirTotal)}</td>
-            <td style="padding:10px 12px;font-size:13px;text-align:right;color:#16a34a;background:#f1f5f9">${fmtN(awardedTotal)}</td>
-            <td style="padding:10px 12px;font-size:13px;color:${totalGap===null?'#94a3b8':totalGap>0?'#dc2626':'#16a34a'};background:#f1f5f9">${totalGap===null?'—':totalGap>0?'▲ '+fmtN(totalGap)+' ('+totalGapPct+'% above award)':'▼ '+fmtN(Math.abs(totalGap))+' ('+Math.abs(totalGapPct)+'% below award)'}</td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+    '<div class="section"><h2>Project-Level Scope Breakdown</h2>'+
+    '<p style="font-size:11px;color:#64748b;margin-bottom:10px">Market Floor = lowest price received from <em>any</em> supplier on this scope. This is the true competitive benchmark — not just the awarded price.</p>'+
+    '<table><thead><tr>'+
+      '<th>Scope</th>'+
+      '<th style="text-align:right">Your Quote</th>'+
+      '<th style="text-align:right;color:#16a34a">Awarded</th>'+
+      '<th style="text-align:right;color:#7c3aed">Market Floor (BIC)</th>'+
+      '<th>Gap vs. Award</th>'+
+    '</tr></thead><tbody>'+scopeRows+'</tbody>'+
+    '<tfoot><tr style="border-top:2px solid #334155;font-weight:800">'+
+      '<td style="padding:10px 12px;background:#f1f5f9;font-size:13px">PROJECT TOTAL</td>'+
+      '<td style="padding:10px 12px;background:#f1f5f9;text-align:right;font-size:13px">'+fmtN(theirTotal)+'</td>'+
+      '<td style="padding:10px 12px;background:#f1f5f9;text-align:right;font-size:13px;color:#16a34a">'+fmtN(awardedTotal)+'</td>'+
+      '<td style="padding:10px 12px;background:#f1f5f9;text-align:right;font-size:11px;color:#7c3aed">'+fmtN(theirBICTotal)+' if at market floor</td>'+
+      '<td style="padding:10px 12px;background:#f1f5f9;font-size:13px;color:'+(totalGap>0?'#dc2626':'#16a34a')+'">'+
+        (totalGap===null?'—':totalGap>0?'▲ '+fmtN(totalGap)+' (+'+totalGapPct+'%)':'▼ '+fmtN(Math.abs(totalGap))+' ('+Math.abs(totalGapPct)+'%)')+
+      '</td>'+
+    '</tr></tfoot></table></div>'+
 
-    ${bicSections ? '<div class="section"><h2>Line-Item Detail — Gap Driver Scopes</h2><p style="font-size:11px;color:#64748b;margin-bottom:12px">Where line-item detail is available, the table below shows which specific cost elements drove the gap on each scope. Use this to identify targeted areas for cost improvement.</p>'+bicSections+'</div>' : ''}
+    '<div class="section"><h2>Path to Competitiveness</h2>'+
+    '<p style="font-size:11px;color:#64748b;margin-bottom:10px">Shows exactly what your pricing would need to look like to match the award price or the market floor (best price from any supplier) on each scope.</p>'+
+    '<table><thead><tr><th>Scope</th><th style="text-align:right">Your Quote</th><th style="color:#dc2626">Reduction to Match Award</th><th style="color:#7c3aed">Reduction to Reach Market Floor</th></tr></thead>'+
+    '<tbody>'+pathRows+'</tbody>'+
+    '<tfoot><tr style="border-top:2px solid #334155;font-weight:700;background:#f8fafc">'+
+      '<td style="padding:8px 12px;font-size:12px">IF AT AWARD PRICE:</td>'+
+      '<td style="padding:8px 12px;text-align:right;font-size:13px;color:#16a34a">'+fmtN(theirAwardMatchTotal)+'</td>'+
+      '<td colspan="2" style="padding:8px 12px;font-size:11px;color:#64748b">Total if you matched award on all scopes</td>'+
+    '</tr>'+
+    '<tr style="font-weight:700;background:#f5f3ff">'+
+      '<td style="padding:8px 12px;font-size:12px">IF AT MARKET FLOOR:</td>'+
+      '<td style="padding:8px 12px;text-align:right;font-size:13px;color:#7c3aed">'+fmtN(theirBICTotal)+'</td>'+
+      '<td colspan="2" style="padding:8px 12px;font-size:11px;color:#64748b">Total if you held every scope\'s BIC price</td>'+
+    '</tr></tfoot></table></div>'+
 
-    ${hasSiteAdv ? '<div class="section"><h2>Structural Context</h2><div style="padding:14px 18px;background:#f8fafc;border-left:3px solid #0284c7;border-radius:0 6px 6px 0;font-size:12px;color:#334155;line-height:1.7">The selected supplier had an existing on-site presence at the project facility, which eliminated incremental deployment costs including mobilization, equipment transport, and crew establishment. This structural advantage is independent of unit pricing and created a cost position that is difficult to match from off-site. For future projects where you are competing from an off-site position, your pricing model should account for and minimize these deployment overheads to remain competitive.</div></div>' : ''}
+    (lineItemSections?'<div class="section"><h2>Line-Item Detail — Gap Driver Scopes</h2><p style="font-size:11px;color:#64748b;margin-bottom:12px">Market Floor column shows the lowest price received from any supplier on each individual line item. <span style="color:#16a34a;font-weight:700">BIC ✓</span> = you held the lowest price on that element.</p>'+lineItemSections+'</div>':'')+
 
-    <div class="section">
-      <h2>Actionable Guidance for Future Proposals</h2>
-      ${actionItems.length ? '<ul class="action-list">'+actionItems.map(a=>'<li>'+a+'</li>').join('')+'</ul>' : '<p style="color:#94a3b8;font-style:italic">No specific guidance available — insufficient data for analysis.</p>'}
-    </div>
+    (hasSiteAdv?'<div class="section"><h2>Structural Context</h2><div style="padding:13px 16px;background:#f0f9ff;border-left:3px solid #0284c7;border-radius:0 6px 6px 0;font-size:12px;color:#334155;line-height:1.7">The selected supplier had an existing on-site presence at the project facility, eliminating incremental deployment costs including mobilization, equipment transport, and crew establishment. This structural advantage is cost-position independent of unit pricing. For future projects where you are competing from an off-site position, minimizing your mobilization and deployment overhead will have the largest single impact on your overall competitiveness.</div></div>':'')+
 
-    <div class="section">
-      <h2>Next Steps</h2>
-      <div style="font-size:12px;line-height:1.8;color:#334155">
-        <p>• We intend to include ${esc(supplierName)} in future competitive solicitations on upcoming Burke Porter | Ascential Technologies projects</p>
-        <p>• If you have questions about this feedback or would like to discuss your proposal in more detail, please contact our procurement team</p>
-        <p>• Responding competitively to the specific gap areas identified above will strengthen your position for future awards</p>
-      </div>
-    </div>
+    '<div class="section"><h2>Actionable Guidance</h2>'+
+    (actionItems.length?'<ul class="al">'+actionItems.map(a=>'<li>'+a+'</li>').join('')+'</ul>':'<p style="color:#94a3b8;font-style:italic">Insufficient data for specific guidance.</p>')+
+    '</div>'+
 
-    <div class="footer">
-      <span>Burke Porter | Ascential Technologies · SpecBridge Procurement · Confidential</span>
-      <span>Generated: ${today}</span>
-    </div>
-    </body></html>`;
+    '<div class="section"><h2>Next Steps</h2>'+
+    '<div style="font-size:12px;line-height:1.9;color:#334155">'+
+      '<p>• We intend to include '+esc(supplierName)+' in future competitive solicitations on upcoming Burke Porter | Ascential Technologies projects</p>'+
+      '<p>• If you would like to discuss this feedback in detail, please contact our procurement team</p>'+
+      '<p>• The Market Floor benchmarks in this document represent the prices needed to win individual scopes competitively — use them as your target pricing in future bids</p>'+
+    '</div></div>'+
 
-    const w = window.open('','_blank','width=900,height=700');
+    '<div class="footer"><span>Burke Porter | Ascential Technologies · SpecBridge Procurement · Confidential</span><span>Generated: '+today+'</span></div>'+
+    '</body></html>';
+
+    const w = window.open('','_blank','width=960,height=720');
     w.document.write(html);
     w.document.close();
     toast('Feedback package opened — use Print to save as PDF','success');
-  } catch(e) {
-    toast('Error: '+e.message,'error');
-  }
+  } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
 // ══════════════════════════════════════════════════
