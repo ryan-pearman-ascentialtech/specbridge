@@ -2532,6 +2532,52 @@ async function saveRFQDeadline(scopeId) {
 }
 
 // ══════════════════════════════════════════════════
+// SHARED PDF DOWNLOAD — injected into all popup docs
+// ══════════════════════════════════════════════════
+const PDF_DL_SCRIPTS = `
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
+<script>
+window._PDF_FILENAME = 'document.pdf';
+async function downloadPDF() {
+  const btn = document.getElementById('dl-pdf-btn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '⏳ Generating PDF…';
+  btn.disabled = true;
+  // Hide action buttons before capture
+  document.querySelectorAll('.no-print').forEach(el=>el.style.visibility='hidden');
+  try {
+    const { jsPDF } = window.jspdf;
+    const el = document.getElementById('pdf-content');
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
+    const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const pgW = pdf.internal.pageSize.getWidth();
+    const pgH = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const cw = pgW - margin * 2;
+    const pageImgH = ((pgH - margin * 2) / cw) * canvas.width;
+    let yOff = 0;
+    while (yOff < canvas.height) {
+      if (yOff > 0) pdf.addPage();
+      const sliceH = Math.min(pageImgH, canvas.height - yOff);
+      const tmp = document.createElement('canvas');
+      tmp.width = canvas.width; tmp.height = sliceH;
+      const ctx = tmp.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, tmp.width, tmp.height);
+      ctx.drawImage(canvas, 0, yOff, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+      pdf.addImage(tmp.toDataURL('image/jpeg', 0.93), 'JPEG', margin, margin, cw, sliceH * (cw / canvas.width));
+      yOff += sliceH;
+    }
+    pdf.save(window._PDF_FILENAME);
+  } catch(e) { alert('PDF generation failed: ' + e.message); }
+  document.querySelectorAll('.no-print').forEach(el=>el.style.visibility='');
+  btn.innerHTML = orig; btn.disabled = false;
+}
+<\/script>`;
+
+const PDF_BTN_STYLE = 'padding:6px 14px;border:none;border-radius:4px;font-size:12px;cursor:pointer;font-family:inherit';
+
+// ══════════════════════════════════════════════════
 // AWARD SUMMARY — Executive Ratification Document
 // ══════════════════════════════════════════════════
 // ══════════════════════════════════════════════════
@@ -2709,9 +2755,11 @@ async function generateAwardSummary(projectId) {
       .rationale-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:16px; margin-bottom:16px; }
       .rationale-box p { line-height:1.7; color:#334155; font-size:13px; }
       .footer { margin-top:40px; padding-top:14px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; }
-      @media print { body { padding:24px; } }
+      @media print { body { padding:24px; } .no-print { display:none !important; } }
     </style>
-    </head><body>
+    ${PDF_DL_SCRIPTS}
+    <script>window._PDF_FILENAME = 'Award-Summary-${esc(proj.name).replace(/[^a-zA-Z0-9]/g,'-')}.pdf';<\/script>
+    </head><body id="pdf-content">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
       <div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:6px">Sourcing Decision — Award Ratification</div>
@@ -2719,10 +2767,13 @@ async function generateAwardSummary(projectId) {
         <div class="meta">${esc(proj.customer)} · ${today}</div>
         ${proj.jo_numbers ? '<div class="meta">JO: '+esc(proj.jo_numbers)+'</div>' : ''}
       </div>
-      <div style="text-align:right">
+      <div style="text-align:right" class="no-print">
         <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Burke Porter | Ascential Technologies</div>
         <div style="font-size:10px;color:#94a3b8">CONFIDENTIAL — Internal Use Only</div>
-        <button onclick="window.print()" style="margin-top:10px;padding:6px 14px;background:#0f172a;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">🖨 Print / Save PDF</button>
+        <div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end">
+          <button onclick="window.print()" style="${PDF_BTN_STYLE};background:#f1f5f9;color:#334155">🖨 Print</button>
+          <button id="dl-pdf-btn" onclick="downloadPDF()" style="${PDF_BTN_STYLE};background:#0f172a;color:#fff">⬇ Download PDF</button>
+        </div>
       </div>
     </div>
 
@@ -2793,7 +2844,7 @@ async function generateAwardSummary(projectId) {
     const w = window.open('','_blank','width=960,height=700');
     w.document.write(html);
     w.document.close();
-    toast('Award Summary opened in new tab — use Print to save as PDF','success');
+    toast('Award Summary opened — use ⬇ Download PDF or Print','success');
   } catch(e) {
     toast('Error generating summary: '+e.message,'error');
   }
@@ -2923,18 +2974,23 @@ async function generateProjectQuoteSummary(projectId) {
       .insight-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin-bottom:4px; }
       .insight-val { font-size:18px; font-weight:800; }
       .footer { margin-top:24px; padding-top:10px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; }
-      @media print { body { padding:16px; } }
+      @media print { body { padding:16px; } .no-print { display:none !important; } }
     </style>
-    </head><body>
+    ${PDF_DL_SCRIPTS}
+    <script>window._PDF_FILENAME = 'Quote-Summary-${esc(proj.name).replace(/[^a-zA-Z0-9]/g,'-')}.pdf';<\/script>
+    </head><body id="pdf-content">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
       <div>
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:5px">Overall Supplier Quote Summary</div>
         <h1>${esc(proj.name)}</h1>
         <div class="meta">${esc(proj.customer||'')} · ${today}</div>
       </div>
-      <div style="text-align:right">
+      <div style="text-align:right" class="no-print">
         <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Burke Porter | Ascential Technologies</div>
-        <button onclick="window.print()" style="margin-top:8px;padding:6px 14px;background:#0f172a;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">🖨 Print / PDF</button>
+        <div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end">
+          <button onclick="window.print()" style="${PDF_BTN_STYLE};background:#f1f5f9;color:#334155">🖨 Print</button>
+          <button id="dl-pdf-btn" onclick="downloadPDF()" style="${PDF_BTN_STYLE};background:#0f172a;color:#fff">⬇ Download PDF</button>
+        </div>
       </div>
     </div>
 
@@ -2982,7 +3038,7 @@ async function generateProjectQuoteSummary(projectId) {
     const w = window.open('','_blank','width=1100,height=720');
     w.document.write(html);
     w.document.close();
-    toast('Quote Summary opened — use Print to save as PDF','success');
+    toast('Quote Summary opened — use ⬇ Download PDF or Print','success');
   } catch(e) {
     toast('Error generating quote summary: '+e.message,'error');
   }
@@ -3153,8 +3209,10 @@ async function generateProjectSupplierFeedback(projectId, supplierName) {
     }
 
     const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Supplier Feedback — '+esc(supplierName)+'</title>'+
-    '<style>* { box-sizing:border-box; margin:0; padding:0; } body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; font-size:13px; color:#0f172a; background:#fff; padding:36px; max-width:920px; margin:0 auto; } h1 { font-size:20px; font-weight:800; } h2 { font-size:12px; font-weight:700; color:#334155; margin-bottom:10px; padding-bottom:5px; border-bottom:2px solid #e2e8f0; text-transform:uppercase; letter-spacing:0.06em; } .meta { font-size:11px; color:#64748b; margin-top:3px; } .section { margin-bottom:26px; } .kpi-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; } .kpi { flex:1; min-width:120px; border:1px solid #e2e8f0; border-radius:8px; padding:11px 14px; } .kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin-bottom:4px; } .kpi-val { font-size:19px; font-weight:800; } .kpi-sub { font-size:10px; color:#94a3b8; margin-top:3px; line-height:1.4; } .highlight { border-radius:8px; padding:14px 18px; margin-bottom:16px; } table { width:100%; border-collapse:collapse; border:1px solid #e2e8f0; } thead tr { background:#f8fafc; } th { padding:7px 10px; font-size:10px; font-weight:700; color:#64748b; text-align:left; border-bottom:1px solid #e2e8f0; text-transform:uppercase; letter-spacing:0.04em; } .al { padding-left:18px; } .al li { margin-bottom:10px; line-height:1.6; color:#334155; font-size:12px; } .footer { margin-top:36px; padding-top:12px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; } @media print { body { padding:20px; } }</style>'+
-    '</head><body>'+
+    '<style>* { box-sizing:border-box; margin:0; padding:0; } body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; font-size:13px; color:#0f172a; background:#fff; padding:36px; max-width:920px; margin:0 auto; } h1 { font-size:20px; font-weight:800; } h2 { font-size:12px; font-weight:700; color:#334155; margin-bottom:10px; padding-bottom:5px; border-bottom:2px solid #e2e8f0; text-transform:uppercase; letter-spacing:0.06em; } .meta { font-size:11px; color:#64748b; margin-top:3px; } .section { margin-bottom:26px; } .kpi-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; } .kpi { flex:1; min-width:120px; border:1px solid #e2e8f0; border-radius:8px; padding:11px 14px; } .kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin-bottom:4px; } .kpi-val { font-size:19px; font-weight:800; } .kpi-sub { font-size:10px; color:#94a3b8; margin-top:3px; line-height:1.4; } .highlight { border-radius:8px; padding:14px 18px; margin-bottom:16px; } table { width:100%; border-collapse:collapse; border:1px solid #e2e8f0; } thead tr { background:#f8fafc; } th { padding:7px 10px; font-size:10px; font-weight:700; color:#64748b; text-align:left; border-bottom:1px solid #e2e8f0; text-transform:uppercase; letter-spacing:0.04em; } .al { padding-left:18px; } .al li { margin-bottom:10px; line-height:1.6; color:#334155; font-size:12px; } .footer { margin-top:36px; padding-top:12px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; } @media print { body { padding:20px; } .no-print { display:none !important; } }</style>'+
+    PDF_DL_SCRIPTS+
+    '<script>window._PDF_FILENAME = "Supplier-Feedback-'+esc(supplierName).replace(/[^a-zA-Z0-9]/g,'-')+'-'+esc(proj.name||'').replace(/[^a-zA-Z0-9]/g,'-')+'.pdf";<\\/script>'+
+    '</head><body id="pdf-content">'+
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px">'+
       '<div>'+
         '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:4px">Competitive Sourcing Debrief — Full Project</div>'+
@@ -3162,18 +3220,18 @@ async function generateProjectSupplierFeedback(projectId, supplierName) {
         '<div class="meta">'+esc(proj.name||'')+' · '+esc(proj.customer||'')+' · '+today+'</div>'+
         (supContact?'<div class="meta">Attn: '+esc(supContact)+(supPhone?' · '+esc(supPhone):'')+'</div>':'')+
       '</div>'+
-      '<div style="text-align:right"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Burke Porter | Ascential Technologies</div><div style="font-size:10px;color:#94a3b8">CONFIDENTIAL — External Use Permitted</div><button onclick="window.print()" style="margin-top:8px;padding:5px 12px;background:#0f172a;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer">🖨 Print / PDF</button></div>'+
+      '<div style="text-align:right" class="no-print"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Burke Porter | Ascential Technologies</div><div style="font-size:10px;color:#94a3b8">CONFIDENTIAL — External Use Permitted</div><div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end"><button onclick="window.print()" style="padding:5px 12px;background:#f1f5f9;color:#334155;border:none;border-radius:4px;font-size:11px;cursor:pointer">🖨 Print</button><button id="dl-pdf-btn" onclick="downloadPDF()" style="padding:5px 12px;background:#0f172a;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer">⬇ Download PDF</button></div></div>'+
     '</div>'+
 
     '<div class="section"><div class="highlight" style="background:#fff7ed;border:1px solid #fed7aa">'+
       '<div style="font-size:14px;font-weight:700;color:#c2410c;margin-bottom:5px">Thank you for your proposal on '+esc(proj.name||'this project')+'.</div>'+
-      '<div style="font-size:12px;color:#475569;line-height:1.7">Following a competitive evaluation across multiple suppliers, we have selected <strong>'+esc(awardedNames.join(', '))+'</strong> for this project. We value your participation and are sharing this detailed competitive debrief so you can understand exactly where you stood relative to the full market and where to focus for future opportunities with Burke Porter | Ascential Technologies.</div>'+
+      '<div style="font-size:12px;color:#475569;line-height:1.7">Following a competitive evaluation across multiple suppliers, we have made an award decision on this project. We value your participation and are sharing this detailed competitive debrief so you can understand exactly where you stood relative to the full market and where to focus for future opportunities with Burke Porter | Ascential Technologies.</div>'+
     '</div></div>'+
 
     '<div class="section"><h2>Your Overall Position</h2>'+
     '<div class="kpi-row">'+
       '<div class="kpi"><div class="kpi-label">Your Total Bid</div><div class="kpi-val" style="color:#0f172a">'+fmtN(theirTotal)+'</div><div class="kpi-sub">'+suppliedScopes.length+' of '+scopeComps.length+' scopes quoted</div></div>'+
-      '<div class="kpi"><div class="kpi-label">Award Total</div><div class="kpi-val" style="color:#16a34a">'+fmtN(awardedTotal)+'</div><div class="kpi-sub">'+esc(awardedNames.join(', '))+'</div></div>'+
+      '<div class="kpi"><div class="kpi-label">Award Total</div><div class="kpi-val" style="color:#16a34a">'+fmtN(awardedTotal)+'</div><div class="kpi-sub">Awarded to selected supplier</div></div>'+
       (totalGap!==null?'<div class="kpi"><div class="kpi-label">Gap vs. Award</div><div class="kpi-val" style="color:'+(totalGap>0?'#dc2626':'#16a34a')+'">'+(totalGap>0?'▲ ':'▼ ')+fmtN(Math.abs(totalGap))+'</div><div class="kpi-sub">'+Math.abs(totalGapPct)+'% '+(totalGap>0?'above':'below')+' award</div></div>':'')+
       (bicHolderScopes.length?'<div class="kpi" style="background:#f0fdf4;border-color:#bbf7d0"><div class="kpi-label" style="color:#16a34a">BIC Scopes — You\'re #1</div><div class="kpi-val" style="color:#16a34a">'+bicHolderScopes.length+'</div><div class="kpi-sub">'+bicHolderScopes.map(x=>x.sc.label.split(' ')[0]).join(', ')+'</div></div>':'')+
     '</div></div>'+
@@ -3275,7 +3333,7 @@ async function generateProjectSupplierFeedback(projectId, supplierName) {
     const w = window.open('','_blank','width=960,height=720');
     w.document.write(html);
     w.document.close();
-    toast('Feedback package opened — use Print to save as PDF','success');
+    toast('Feedback package opened — use ⬇ Download PDF or Print','success');
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
@@ -3471,8 +3529,9 @@ async function generateBICNegotiationBrief(projectId) {
       '.footer{margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8}'+
       '.alert-box{background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:14px 18px;margin-bottom:20px}'+
       '.success-box{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px 18px;margin-bottom:20px}'+
-      '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'+
-    '</style></head><body><div class="page">'+
+      '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none!important}}'+
+    '</style>'+PDF_DL_SCRIPTS+'<script>window._PDF_FILENAME="BIC-Negotiation-'+esc(proj.name).replace(/[^a-zA-Z0-9]/g,'-')+'.pdf";<\\/script>'+
+    '</head><body><div class="page" id="pdf-content">'+
 
     '<div class="header-bar">'+
       '<div>'+
@@ -3481,11 +3540,12 @@ async function generateBICNegotiationBrief(projectId) {
         '<div class="subtitle" style="color:#cbd5e1">'+esc(proj.name)+' · '+esc(proj.customer||'')+'</div>'+
         '<div style="margin-top:10px;font-size:12px;color:#94a3b8">Awarded to: <strong style="color:#fff">'+esc(awardedNames.join(', '))+'</strong> · Total Award: <strong style="color:#4ade80">'+fmtN(awardedTotal)+'</strong></div>'+
       '</div>'+
-      '<div style="text-align:right">'+
+      '<div style="text-align:right" class="no-print">'+
         '<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Prepared by</div>'+
         '<div style="font-size:13px;font-weight:700;color:#fff">Ascential Technologies</div>'+
         '<div style="font-size:11px;color:#94a3b8">Burke Porter Group</div>'+
         '<div style="font-size:10px;color:#94a3b8;margin-top:6px">'+today+'</div>'+
+        '<div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end"><button onclick="window.print()" style="padding:5px 12px;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:4px;font-size:11px;cursor:pointer">🖨 Print</button><button id="dl-pdf-btn" onclick="downloadPDF()" style="padding:5px 12px;background:#eab308;color:#0f172a;border:none;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer">⬇ Download PDF</button></div>'+
       '</div>'+
     '</div>'+
 
@@ -3610,7 +3670,7 @@ async function generateBICNegotiationBrief(projectId) {
     const w = window.open('','_blank','width=980,height=740');
     w.document.write(html);
     w.document.close();
-    toast('BIC Negotiation Brief opened — Print to save as PDF','success');
+    toast('BIC Negotiation Brief opened — use ⬇ Download PDF or Print','success');
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
@@ -3738,7 +3798,7 @@ async function generateSupplierFeedback(scopeId, supplierName) {
     const w = window.open('','_blank','width=860,height=660');
     w.document.write(html);
     w.document.close();
-    toast('Feedback package opened — use Print to save as PDF','success');
+    toast('Feedback package opened — use ⬇ Download PDF or Print','success');
   } catch(e) {
     toast('Error generating feedback: '+e.message,'error');
   }
