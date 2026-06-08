@@ -1126,6 +1126,42 @@ async function loadProjectDetail(projectId) {
         </div>`;
     }).join('');
 
+    // ── Supplier feedback panel — project level ──────
+    const awardedQsAll  = quotes.filter(x=>x.is_awarded);
+    const awardedNames2 = [...new Set(awardedQsAll.map(x=>x.supplier_name))];
+    const nonAwardedSups = [...new Set(quotes.filter(x=>x.total_amount>0&&!x.is_awarded).map(x=>x.supplier_name))]
+      .filter(n=>!awardedNames2.includes(n));
+    // Compute each non-awarded supplier's total for display
+    const supTotalMap = {};
+    nonAwardedSups.forEach(sup => {
+      supTotalMap[sup] = quotes.filter(x=>x.supplier_name===sup&&x.total_amount>0).reduce((s,x)=>s+(x.total_amount||0),0);
+    });
+    const projAwardedTotal = awardedQsAll.reduce((s,x)=>s+(x.total_amount||0),0);
+    const feedbackPanel = nonAwardedSups.length ? `
+      <div class="card" style="margin-top:20px;border-color:rgba(56,189,248,0.25)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-size:14px;font-weight:700">📨 Supplier Feedback Packages</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">Generate a holistic project-level debrief for each non-awarded supplier — total gap, scope-by-scope gap drivers, where they were competitive, and actionable guidance</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          ${nonAwardedSups.map(sup => {
+            const t = supTotalMap[sup];
+            const gap = projAwardedTotal > 0 && t > 0 ? t - projAwardedTotal : null;
+            const gapPct = gap && projAwardedTotal > 0 ? (gap/projAwardedTotal*100).toFixed(0) : null;
+            return '<div style="flex:1;min-width:200px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px">' +
+              '<div style="font-size:13px;font-weight:700;margin-bottom:4px">'+esc(sup)+'</div>' +
+              '<div style="font-size:12px;color:var(--muted);margin-bottom:2px">Total: '+(t?fmt$(t):'Partial quotes')+'</div>' +
+              (gap!==null&&gap>0?'<div style="font-size:11px;color:#f59e0b;margin-bottom:10px">▲ '+fmt$(gap)+' ('+gapPct+'%) above award</div>':
+               gap!==null&&gap<0?'<div style="font-size:11px;color:#22c55e;margin-bottom:10px">▼ '+fmt$(Math.abs(gap))+' ('+Math.abs(gapPct)+'%) below award</div>':
+               '<div style="margin-bottom:10px"></div>') +
+              '<button class="btn btn-sm" style="background:rgba(56,189,248,0.1);color:#38bdf8;border:1px solid rgba(56,189,248,0.25);width:100%" onclick="generateProjectSupplierFeedback(\''+projectId+'\',\''+safeJs(sup)+'\')">📨 Generate Feedback Package</button>' +
+            '</div>';
+          }).join('')}
+        </div>
+      </div>` : '';
+
     el.innerHTML = `
       <div class="page-header">
         <div>
@@ -1139,7 +1175,8 @@ async function loadProjectDetail(projectId) {
         ${proj.machine_description?`<div style="padding-top:14px;border-top:1px solid var(--border);margin-top:4px"><div class="info-label" style="margin-bottom:4px">Machines</div><div style="font-size:13px;line-height:1.5">${esc(proj.machine_description)}</div></div>`:''}
       </div>
       ${rollupHtml}
-      <div class="scopes-grid">${scopeCards}</div>`;
+      <div class="scopes-grid">${scopeCards}</div>
+      ${feedbackPanel}`;
   } catch(e) {
     el.innerHTML = `<div class="card" style="color:var(--danger)">Error: ${esc(e.message)}</div>`;
   }
@@ -2835,6 +2872,253 @@ async function generateProjectQuoteSummary(projectId) {
     toast('Quote Summary opened — use Print to save as PDF','success');
   } catch(e) {
     toast('Error generating quote summary: '+e.message,'error');
+  }
+}
+
+// ══════════════════════════════════════════════════
+// PROJECT-LEVEL SUPPLIER FEEDBACK — Holistic debrief
+// ══════════════════════════════════════════════════
+async function generateProjectSupplierFeedback(projectId, supplierName) {
+  toast('Generating holistic feedback package…','info');
+  try {
+    const [proj]    = await q('rfq_projects','select',{eq:['id',projectId]});
+    const scopes    = await q('rfq_scopes','select',{eq:['project_id',projectId]});
+    const scopeIds  = scopes.map(s=>s.id);
+    const allQuotes = scopeIds.length ? await q('rfq_quotes','select',{in:['scope_id',scopeIds]}) : [];
+    const today     = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    const fmtN = n => n > 0 ? fmt$(n) : '—';
+    const getAmt = (items,key) => { const i=(items||[]).find(x=>x.key===key); return i&&i.amount>0?i.amount:0; };
+
+    const awardedQs   = allQuotes.filter(x=>x.is_awarded);
+    const awardedNames = [...new Set(awardedQs.map(x=>x.supplier_name))];
+    const awardedTotal = awardedQs.reduce((s,x)=>s+(x.total_amount||0),0);
+
+    // Build per-scope comparison: supplier quote vs. awarded quote
+    const scopeComps = SCOPE_ORDER.map(st => {
+      const scope  = scopes.find(s=>s.scope_type===st);
+      const sc     = SCOPES[st];
+      if (!scope) return null;
+      const sq      = allQuotes.filter(x=>x.scope_id===scope.id);
+      const theirQ  = sq.find(x=>x.supplier_name===supplierName&&(x.total_amount||0)>0);
+      const awardQ  = sq.find(x=>x.is_awarded);
+      if (!theirQ && !awardQ) return null;
+      const theirAmt = theirQ?.total_amount||0;
+      const awardAmt = awardQ?.total_amount||0;
+      const gap = theirAmt > 0 && awardAmt > 0 ? theirAmt - awardAmt : null;
+      const gapPct = gap !== null && awardAmt > 0 ? (gap/awardAmt*100).toFixed(0) : null;
+      // Line-item BIC: items where this supplier has a value vs. the awarded supplier
+      const bicItems = sc.items.filter(i=>i.req).map(i => {
+        const theirItem = getAmt(theirQ?.line_items||[], i.key);
+        const awardItem = getAmt(awardQ?.line_items||[], i.key);
+        if (!theirItem && !awardItem) return null;
+        const itemGap = theirItem > 0 && awardItem > 0 ? theirItem - awardItem : null;
+        return { label:i.label, theirItem, awardItem, itemGap };
+      }).filter(Boolean);
+      // Completeness of their quote
+      const allAmts = sq.filter(x=>x.total_amount>0).map(x=>x.total_amount);
+      const marketAvgScope = allAmts.length ? allAmts.reduce((a,b)=>a+b,0)/allAmts.length : null;
+      const marketLowScope = allAmts.length ? Math.min(...allAmts) : null;
+      return { st, sc, scope, theirQ, awardQ, theirAmt, awardAmt, gap, gapPct, bicItems, marketAvgScope, marketLowScope, awardNames: awardedNames };
+    }).filter(Boolean);
+
+    const suppliedScopes  = scopeComps.filter(x=>x.theirAmt>0);
+    const theirTotal      = suppliedScopes.reduce((s,x)=>s+x.theirAmt,0);
+    const totalGap        = theirTotal > 0 && awardedTotal > 0 ? theirTotal - awardedTotal : null;
+    const totalGapPct     = totalGap !== null && awardedTotal > 0 ? (totalGap/awardedTotal*100).toFixed(0) : null;
+    const isAboveAward    = totalGap !== null && totalGap > 0;
+
+    // Gap drivers: scopes sorted by |gap| descending
+    const gapDrivers = scopeComps
+      .filter(x=>x.gap!==null)
+      .sort((a,b)=>Math.abs(b.gap)-Math.abs(a.gap));
+
+    // Scopes where supplier was competitive (gap < 0 = lower than award)
+    const strengths = gapDrivers.filter(x=>x.gap < 0);
+    const weaknesses = gapDrivers.filter(x=>x.gap > 0);
+
+    // Total gap attribution (% of total gap from each scope)
+    const posGapTotal = weaknesses.reduce((s,x)=>s+x.gap,0);
+
+    // Supplier config
+    const supConf = SUPPLIERS.find(s=>s.name===supplierName);
+    const supContact = supConf?.contact && supConf.contact!=='Contact TBD' ? supConf.contact : '';
+    const supPhone   = supConf?.phone || '';
+
+    // ── Scope breakdown table rows ──
+    const scopeRows = scopeComps.map(({st,sc,theirAmt,awardAmt,gap,gapPct,theirQ,awardQ,marketAvgScope}) => {
+      const hasGap = gap !== null;
+      const gapColor = !hasGap ? '#94a3b8' : gap > 0 ? '#dc2626' : '#16a34a';
+      const gapText = !hasGap ? '—'
+        : gap > 0 ? '▲ '+fmtN(gap)+' ('+gapPct+'% higher)'
+        : gap < 0 ? '▼ '+fmtN(Math.abs(gap))+' ('+Math.abs(gapPct)+'% lower — COMPETITIVE ✓)'
+        : 'Same';
+      const pctOfTotalGap = (posGapTotal > 0 && gap > 0) ? (gap/posGapTotal*100).toFixed(0) : null;
+      const barWidth = pctOfTotalGap ? Math.min(parseInt(pctOfTotalGap), 100) : 0;
+      return '<tr style="border-bottom:1px solid #e2e8f0">' +
+        '<td style="padding:9px 12px;font-size:13px;font-weight:600">' + sc.icon + ' ' + esc(sc.label) + '</td>' +
+        '<td style="padding:9px 12px;text-align:right;font-size:13px">' + (theirAmt>0?fmtN(theirAmt):'<span style="color:#94a3b8">Not quoted</span>') + '</td>' +
+        '<td style="padding:9px 12px;text-align:right;font-size:13px;color:#16a34a;font-weight:600">' + (awardAmt>0?fmtN(awardAmt):'—') + '</td>' +
+        '<td style="padding:9px 12px;font-size:12px;color:'+gapColor+';font-weight:600">' + gapText +
+          (pctOfTotalGap ? '<div style="margin-top:4px"><div style="height:4px;background:#fee2e2;border-radius:2px;width:140px"><div style="height:4px;background:#dc2626;border-radius:2px;width:'+barWidth+'%"></div></div><div style="font-size:9px;color:#94a3b8;margin-top:2px">'+pctOfTotalGap+'% of total gap vs. award</div></div>' : '') +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+    // ── BIC line-item detail for each weakness scope ──
+    const bicSections = weaknesses.filter(x=>x.bicItems.some(i=>i.itemGap!==null)).map(({sc,bicItems,awardAmt,theirAmt}) => {
+      const items = bicItems.filter(i=>i.theirItem>0||i.awardItem>0);
+      if (!items.length) return '';
+      const rows = items.map(i => {
+        const gapStyle = i.itemGap===null ? '' : i.itemGap>0 ? 'color:#dc2626;font-weight:700' : i.itemGap<0 ? 'color:#16a34a;font-weight:700' : '';
+        const gapTxt = i.itemGap===null ? '—'
+          : i.itemGap>0 ? '▲ '+fmtN(i.itemGap)+' higher'
+          : i.itemGap<0 ? '▼ '+fmtN(Math.abs(i.itemGap))+' LOWER ✓'
+          : 'Same';
+        return '<tr style="border-bottom:1px solid #f1f5f9">' +
+          '<td style="padding:5px 10px;font-size:11px;color:#334155">'+esc(i.label)+'</td>' +
+          '<td style="padding:5px 10px;font-size:11px;text-align:right">'+(i.theirItem>0?fmtN(i.theirItem):'<span style="color:#94a3b8">—</span>')+'</td>' +
+          '<td style="padding:5px 10px;font-size:11px;text-align:right;color:#16a34a">'+(i.awardItem>0?fmtN(i.awardItem):'—')+'</td>' +
+          '<td style="padding:5px 10px;font-size:11px;'+gapStyle+'">'+gapTxt+'</td>' +
+        '</tr>';
+      }).join('');
+      return '<div style="margin-top:10px;margin-bottom:18px">' +
+        '<div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:6px">'+sc.icon+' '+esc(sc.label)+' — Line Item Breakdown</div>' +
+        '<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;font-size:11px">' +
+          '<thead><tr style="background:#f8fafc"><th style="padding:5px 10px;text-align:left;border-bottom:1px solid #e2e8f0">Line Item</th><th style="padding:5px 10px;text-align:right;border-bottom:1px solid #e2e8f0">Your Quote</th><th style="padding:5px 10px;text-align:right;border-bottom:1px solid #e2e8f0;color:#16a34a">Awarded</th><th style="padding:5px 10px;border-bottom:1px solid #e2e8f0">Variance</th></tr></thead>' +
+          '<tbody>'+rows+'</tbody>' +
+        '</table>' +
+      '</div>';
+    }).join('');
+
+    // ── Actionable guidance bullets ──
+    const actionItems = [];
+    if (weaknesses.length) {
+      const top = weaknesses[0];
+      const topPct = posGapTotal > 0 ? Math.round(top.gap/posGapTotal*100) : null;
+      actionItems.push('<strong>'+top.sc.icon+' '+esc(top.sc.label)+'</strong> was your largest gap at '+fmtN(top.gap)+' above the awarded supplier'+(topPct?', representing '+topPct+'% of the total cost gap':'')+'. This scope should be your primary focus for cost reduction in future bids.');
+    }
+    if (strengths.length) {
+      actionItems.push('You were <strong>more competitive</strong> than the awarded supplier in: '+strengths.map(x=>x.sc.icon+' '+esc(x.sc.label)+' (▼ '+fmtN(Math.abs(x.gap))+'lower)').join(', ')+'. These are genuine strengths — preserve and communicate them in future proposals.');
+    }
+    const scopesNotQuoted = scopeComps.filter(x=>!x.theirAmt);
+    if (scopesNotQuoted.length) {
+      actionItems.push('You did not provide pricing for '+scopesNotQuoted.map(x=>x.sc.icon+' '+esc(x.sc.label)).join(' and ')+'. Complete bids across all scopes improve your competitive standing and signal full project capability.');
+    }
+    if (isAboveAward && Math.abs(parseInt(totalGapPct)) > 20) {
+      actionItems.push('Your overall project total of '+fmtN(theirTotal)+' was '+totalGapPct+'% above the selected supplier. A gap of this magnitude typically reflects structural cost factors — deployment overhead, mobilization, or base labor rates — rather than individual line items alone. Reviewing your overhead and mobilization model may yield the largest efficiency gains.');
+    }
+    const notesContext = awardedQs.map(x=>x.notes).filter(Boolean).join(' ');
+    const hasSiteAdv = notesContext.toLowerCase().includes('site') || notesContext.toLowerCase().includes('mobil');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Supplier Feedback — ${esc(supplierName)}</title>
+    <style>
+      * { box-sizing:border-box; margin:0; padding:0; }
+      body { font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size:13px; color:#0f172a; background:#fff; padding:36px; max-width:860px; margin:0 auto; }
+      h1 { font-size:20px; font-weight:800; }
+      h2 { font-size:13px; font-weight:700; color:#334155; margin-bottom:10px; padding-bottom:5px; border-bottom:2px solid #e2e8f0; text-transform:uppercase; letter-spacing:0.06em; }
+      .meta { font-size:11px; color:#64748b; margin-top:3px; }
+      .section { margin-bottom:26px; }
+      .kpi-row { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:20px; }
+      .kpi { flex:1; min-width:130px; border:1px solid #e2e8f0; border-radius:8px; padding:12px 16px; }
+      .kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin-bottom:5px; }
+      .kpi-val  { font-size:20px; font-weight:800; }
+      .kpi-sub  { font-size:10px; color:#94a3b8; margin-top:3px; line-height:1.4; }
+      .highlight { border-radius:8px; padding:14px 18px; margin-bottom:16px; }
+      table { width:100%; border-collapse:collapse; border:1px solid #e2e8f0; }
+      thead tr { background:#f8fafc; }
+      th { padding:8px 12px; font-size:11px; font-weight:600; color:#64748b; text-align:left; border-bottom:1px solid #e2e8f0; }
+      .action-list li { margin-bottom:10px; line-height:1.6; color:#334155; font-size:12px; }
+      .action-list { padding-left:20px; }
+      .footer { margin-top:36px; padding-top:12px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; }
+      @media print { body { padding:24px; } }
+    </style>
+    </head><body>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:5px">Competitive Sourcing Debrief — Full Project</div>
+        <h1>${esc(supplierName)}</h1>
+        <div class="meta">${esc(proj.name||'')} · ${esc(proj.customer||'')} · ${today}</div>
+        ${supContact ? '<div class="meta">Attn: '+esc(supContact)+(supPhone?' · '+esc(supPhone):'')+'</div>' : ''}
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Burke Porter | Ascential Technologies</div>
+        <div style="font-size:10px;color:#94a3b8">CONFIDENTIAL — External Use Permitted</div>
+        <button onclick="window.print()" style="margin-top:10px;padding:6px 14px;background:#0f172a;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">🖨 Print / PDF</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="highlight" style="background:#fff7ed;border:1px solid #fed7aa">
+        <div style="font-size:14px;font-weight:700;color:#c2410c;margin-bottom:6px">Thank you for your proposal on ${esc(proj.name)}.</div>
+        <div style="font-size:12px;color:#475569;line-height:1.7">Following a competitive evaluation across multiple qualified suppliers, we have selected ${esc(awardedNames.join(', '))} for this project. We value your participation and are providing this detailed competitive debrief to support your future engagement with Burke Porter | Ascential Technologies. We encourage you to use this feedback to refine your approach for upcoming opportunities.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Your Overall Position</h2>
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-label">Your Total Bid</div><div class="kpi-val" style="color:#0f172a">${fmtN(theirTotal)}</div><div class="kpi-sub">${suppliedScopes.length} of ${scopeComps.length} scopes quoted</div></div>
+        <div class="kpi"><div class="kpi-label">Award Total</div><div class="kpi-val" style="color:#16a34a">${fmtN(awardedTotal)}</div><div class="kpi-sub">${esc(awardedNames.join(', '))}</div></div>
+        ${totalGap!==null ? '<div class="kpi"><div class="kpi-label">Total Gap</div><div class="kpi-val" style="color:'+(totalGap>0?'#dc2626':'#16a34a')+'">'+(totalGap>0?'▲ ':'▼ ')+fmtN(Math.abs(totalGap))+'</div><div class="kpi-sub">'+Math.abs(totalGapPct)+'% '+(totalGap>0?'above':'below')+' award total</div></div>' : ''}
+        ${strengths.length ? '<div class="kpi"><div class="kpi-label">Scopes Where Competitive</div><div class="kpi-val" style="color:#16a34a">'+strengths.length+'</div><div class="kpi-sub">'+strengths.map(x=>x.sc.label.split(' ')[0]).join(', ')+'</div></div>' : ''}
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Project-Level Scope Breakdown</h2>
+      <p style="font-size:11px;color:#64748b;margin-bottom:10px">Gap analysis across all ${scopeComps.length} scopes. Red = your quote was higher than the selected supplier. Green = you were more competitive on this scope.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Scope</th>
+            <th style="text-align:right">Your Quote</th>
+            <th style="text-align:right;color:#16a34a">Awarded (${esc(awardedNames.join('/'))})</th>
+            <th>Variance vs. Award</th>
+          </tr>
+        </thead>
+        <tbody>${scopeRows}</tbody>
+        <tfoot>
+          <tr style="border-top:2px solid #334155;font-weight:800">
+            <td style="padding:10px 12px;font-size:13px;background:#f1f5f9">PROJECT TOTAL</td>
+            <td style="padding:10px 12px;font-size:13px;text-align:right;background:#f1f5f9">${fmtN(theirTotal)}</td>
+            <td style="padding:10px 12px;font-size:13px;text-align:right;color:#16a34a;background:#f1f5f9">${fmtN(awardedTotal)}</td>
+            <td style="padding:10px 12px;font-size:13px;color:${totalGap===null?'#94a3b8':totalGap>0?'#dc2626':'#16a34a'};background:#f1f5f9">${totalGap===null?'—':totalGap>0?'▲ '+fmtN(totalGap)+' ('+totalGapPct+'% above award)':'▼ '+fmtN(Math.abs(totalGap))+' ('+Math.abs(totalGapPct)+'% below award)'}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    ${bicSections ? '<div class="section"><h2>Line-Item Detail — Gap Driver Scopes</h2><p style="font-size:11px;color:#64748b;margin-bottom:12px">Where line-item detail is available, the table below shows which specific cost elements drove the gap on each scope. Use this to identify targeted areas for cost improvement.</p>'+bicSections+'</div>' : ''}
+
+    ${hasSiteAdv ? '<div class="section"><h2>Structural Context</h2><div style="padding:14px 18px;background:#f8fafc;border-left:3px solid #0284c7;border-radius:0 6px 6px 0;font-size:12px;color:#334155;line-height:1.7">The selected supplier had an existing on-site presence at the project facility, which eliminated incremental deployment costs including mobilization, equipment transport, and crew establishment. This structural advantage is independent of unit pricing and created a cost position that is difficult to match from off-site. For future projects where you are competing from an off-site position, your pricing model should account for and minimize these deployment overheads to remain competitive.</div></div>' : ''}
+
+    <div class="section">
+      <h2>Actionable Guidance for Future Proposals</h2>
+      ${actionItems.length ? '<ul class="action-list">'+actionItems.map(a=>'<li>'+a+'</li>').join('')+'</ul>' : '<p style="color:#94a3b8;font-style:italic">No specific guidance available — insufficient data for analysis.</p>'}
+    </div>
+
+    <div class="section">
+      <h2>Next Steps</h2>
+      <div style="font-size:12px;line-height:1.8;color:#334155">
+        <p>• We intend to include ${esc(supplierName)} in future competitive solicitations on upcoming Burke Porter | Ascential Technologies projects</p>
+        <p>• If you have questions about this feedback or would like to discuss your proposal in more detail, please contact our procurement team</p>
+        <p>• Responding competitively to the specific gap areas identified above will strengthen your position for future awards</p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Burke Porter | Ascential Technologies · SpecBridge Procurement · Confidential</span>
+      <span>Generated: ${today}</span>
+    </div>
+    </body></html>`;
+
+    const w = window.open('','_blank','width=900,height=700');
+    w.document.write(html);
+    w.document.close();
+    toast('Feedback package opened — use Print to save as PDF','success');
+  } catch(e) {
+    toast('Error: '+e.message,'error');
   }
 }
 
