@@ -497,6 +497,7 @@
         <h1>Sourcing Intelligence</h1>
         <div class="page-subtitle">Competitive bidding results &amp; procurement value across all projects</div>
       </div>
+      <button class="btn btn-sm" style="background:rgba(168,85,247,0.12);color:#a855f7;border:1px solid rgba(168,85,247,0.3)" onclick="generateExecutiveSourcingSummary()">📤 Executive Summary PDF</button>
     </div>
 
     <div class="metrics-row" id="savings-metrics">
@@ -3211,7 +3212,7 @@ async function generateProjectSupplierFeedback(projectId, supplierName) {
     const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Supplier Feedback — '+esc(supplierName)+'</title>'+
     '<style>* { box-sizing:border-box; margin:0; padding:0; } body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; font-size:13px; color:#0f172a; background:#fff; padding:36px; max-width:920px; margin:0 auto; } h1 { font-size:20px; font-weight:800; } h2 { font-size:12px; font-weight:700; color:#334155; margin-bottom:10px; padding-bottom:5px; border-bottom:2px solid #e2e8f0; text-transform:uppercase; letter-spacing:0.06em; } .meta { font-size:11px; color:#64748b; margin-top:3px; } .section { margin-bottom:26px; } .kpi-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; } .kpi { flex:1; min-width:120px; border:1px solid #e2e8f0; border-radius:8px; padding:11px 14px; } .kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin-bottom:4px; } .kpi-val { font-size:19px; font-weight:800; } .kpi-sub { font-size:10px; color:#94a3b8; margin-top:3px; line-height:1.4; } .highlight { border-radius:8px; padding:14px 18px; margin-bottom:16px; } table { width:100%; border-collapse:collapse; border:1px solid #e2e8f0; } thead tr { background:#f8fafc; } th { padding:7px 10px; font-size:10px; font-weight:700; color:#64748b; text-align:left; border-bottom:1px solid #e2e8f0; text-transform:uppercase; letter-spacing:0.04em; } .al { padding-left:18px; } .al li { margin-bottom:10px; line-height:1.6; color:#334155; font-size:12px; } .footer { margin-top:36px; padding-top:12px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; } @media print { body { padding:20px; } .no-print { display:none !important; } }</style>'+
     PDF_DL_SCRIPTS+
-    '<script>window._PDF_FILENAME = "Supplier-Feedback-'+esc(supplierName).replace(/[^a-zA-Z0-9]/g,'-')+'-'+esc(proj.name||'').replace(/[^a-zA-Z0-9]/g,'-')+'.pdf";<\\/script>'+
+    '<script>window._PDF_FILENAME = "Supplier-Feedback-'+esc(supplierName).replace(/[^a-zA-Z0-9]/g,'-')+'-'+esc(proj.name||'').replace(/[^a-zA-Z0-9]/g,'-')+'.pdf";<\/script>'+
     '</head><body id="pdf-content">'+
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px">'+
       '<div>'+
@@ -3530,7 +3531,7 @@ async function generateBICNegotiationBrief(projectId) {
       '.alert-box{background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:14px 18px;margin-bottom:20px}'+
       '.success-box{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px 18px;margin-bottom:20px}'+
       '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none!important}}'+
-    '</style>'+PDF_DL_SCRIPTS+'<script>window._PDF_FILENAME="BIC-Negotiation-'+esc(proj.name).replace(/[^a-zA-Z0-9]/g,'-')+'.pdf";<\\/script>'+
+    '</style>'+PDF_DL_SCRIPTS+'<script>window._PDF_FILENAME="BIC-Negotiation-'+esc(proj.name).replace(/[^a-zA-Z0-9]/g,'-')+'.pdf";<\/script>'+
     '</head><body><div class="page" id="pdf-content">'+
 
     '<div class="header-bar">'+
@@ -4087,6 +4088,221 @@ async function loadSavings() {
   } catch(e) {
     document.getElementById('savings-content').innerHTML = `<div class="card" style="color:var(--danger)">Error: ${esc(e.message)}</div>`;
   }
+}
+
+// ══════════════════════════════════════════════════
+// EXECUTIVE SOURCING SUMMARY PDF
+// ══════════════════════════════════════════════════
+async function generateExecutiveSourcingSummary() {
+  toast('Building Executive Sourcing Summary…','info');
+  try {
+    const projects = await q('rfq_projects','select',{order:['created_at',false]});
+    const scopes   = await q('rfq_scopes','select');
+    const quotes   = await q('rfq_quotes','select');
+    const today    = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    const fmtN     = n => n>0 ? fmt$(n) : '—';
+
+    const awardedQs   = quotes.filter(x=>x.is_awarded);
+    const totalAwarded= awardedQs.reduce((s,x)=>s+(x.total_amount||0),0);
+    const competed    = scopes.filter(s=>quotes.filter(x=>x.scope_id===s.id&&x.total_amount>0).length>=2);
+    const allWithQ    = scopes.filter(s=>quotes.some(x=>x.scope_id===s.id&&x.total_amount>0));
+    const totalBidSpread = competed.reduce((sum,s)=>{
+      const amts=quotes.filter(x=>x.scope_id===s.id&&x.total_amount>0).map(x=>x.total_amount);
+      return amts.length>=2?sum+(Math.max(...amts)-Math.min(...amts)):sum;
+    },0);
+    const totalRecognized = competed.reduce((sum,s)=>{
+      const sq=quotes.filter(x=>x.scope_id===s.id&&x.total_amount>0);
+      const aw=sq.find(x=>x.is_awarded);
+      if(!aw||!aw.total_amount) return sum;
+      const avg=sq.reduce((a,x)=>a+(x.total_amount||0),0)/sq.length;
+      const sv=avg-(aw.total_amount||0);
+      return sum+(sv>0?sv:0);
+    },0);
+    const totalNegRed = scopes.reduce((s,x)=>s+(x.negotiated_reduction||0),0);
+    const budgetedScopes = scopes.filter(s=>s.budget_guidance&&awardedQs.some(x=>x.scope_id===s.id));
+    const totalBudgeted  = budgetedScopes.reduce((s,x)=>s+Number(x.budget_guidance||0),0);
+    const totalAwardedBg = budgetedScopes.reduce((sum,s)=>{const aw=awardedQs.find(x=>x.scope_id===s.id);return sum+(aw?.total_amount||0);},0);
+    const budgetVar = totalBudgeted>0 ? totalBudgeted-totalAwardedBg : null;
+    const preSrcCount = scopes.filter(s=>s.sourced_before_proposal===true).length;
+    const totalSuppliers = [...new Set(quotes.filter(x=>x.total_amount>0).map(x=>x.supplier_name))].length;
+
+    // Project rows
+    const projectRows = projects.map(p => {
+      const ps = scopes.filter(s=>s.project_id===p.id);
+      const pq = quotes.filter(x=>ps.some(s=>s.id===x.scope_id));
+      if(!pq.length) return '';
+      const pAw  = pq.filter(x=>x.is_awarded).reduce((s,x)=>s+(x.total_amount||0),0);
+      const pBIC = SCOPE_ORDER.reduce((sum,st)=>{
+        const s2=ps.find(x=>x.scope_type===st); if(!s2) return sum;
+        const sq3=pq.filter(x=>x.scope_id===s2.id&&(x.total_amount||0)>0);
+        return sq3.length?sum+Math.min(...sq3.map(x=>x.total_amount||0)):sum;
+      },0);
+      const pSpread = SCOPE_ORDER.reduce((sum,st)=>{
+        const s2=ps.find(x=>x.scope_type===st); if(!s2) return sum;
+        const sq3=pq.filter(x=>x.scope_id===s2.id&&(x.total_amount||0)>0);
+        if(sq3.length<2) return sum;
+        const amts=sq3.map(x=>x.total_amount||0);
+        return sum+(Math.max(...amts)-Math.min(...amts));
+      },0);
+      const pScopes  = ps.filter(s=>!SCOPES[s.scope_type]?.pending);
+      const pCompeted= pScopes.filter(s=>quotes.filter(x=>x.scope_id===s.id&&x.total_amount>0).length>=2).length;
+      const pSupps   = [...new Set(pq.filter(x=>x.total_amount>0).map(x=>x.supplier_name))];
+      const pAwardedNames = [...new Set(pq.filter(x=>x.is_awarded).map(x=>x.supplier_name))];
+      const bg = ps.reduce((s,x)=>s+Number(x.budget_guidance||0),0);
+      const bv = bg>0&&pAw>0 ? bg-pAw : null;
+      const negRed = ps.reduce((s,x)=>s+(x.negotiated_reduction||0),0);
+      return '<tr style="border-bottom:1px solid #e2e8f0">'+
+        '<td style="padding:9px 12px;font-size:12px;font-weight:700">'+esc(p.name)+'<div style="font-size:10px;font-weight:400;color:#64748b;margin-top:1px">'+esc(p.customer||'')+'</div></td>'+
+        '<td style="padding:9px 12px;font-size:12px;text-align:right;font-weight:700;color:#16a34a">'+(pAw?fmtN(pAw):'—')+'</td>'+
+        '<td style="padding:9px 12px;font-size:11px;text-align:right;color:#7c3aed">'+(pBIC?fmtN(pBIC):'—')+'</td>'+
+        '<td style="padding:9px 12px;font-size:11px;text-align:right;color:'+(bv!==null?(bv>=0?'#16a34a':'#dc2626'):'#94a3b8')+'">'+(bv!==null?(bv>=0?'▼ '+fmtN(bv):'▲ '+fmtN(Math.abs(bv))):'—')+'</td>'+
+        '<td style="padding:9px 12px;font-size:11px;text-align:right;color:#0284c7">'+(pSpread?fmtN(pSpread):'—')+'</td>'+
+        '<td style="padding:9px 12px;font-size:11px;text-align:center">'+pSupps.length+' quotes<div style="font-size:10px;color:#64748b">'+pCompeted+'/'+pScopes.length+' competed</div></td>'+
+        '<td style="padding:9px 12px;font-size:11px">'+(pAwardedNames.length?esc(pAwardedNames.join(', ')):'<span style="color:#94a3b8">Pending</span>')+
+          (negRed>0?'<div style="font-size:9px;color:#16a34a;margin-top:2px">▼ '+fmtN(negRed)+' neg.</div>':'')+
+        '</td>'+
+      '</tr>';
+    }).filter(Boolean).join('');
+
+    const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Procurement Executive Summary</title>'+
+    '<style>'+
+      '* { box-sizing:border-box; margin:0; padding:0; }'+
+      'body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; font-size:13px; color:#0f172a; background:#fff; padding:40px; max-width:1000px; margin:0 auto; }'+
+      'h1 { font-size:22px; font-weight:800; color:#0f172a; }'+
+      'h2 { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#475569; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #e2e8f0; }'+
+      '.meta { font-size:11px; color:#64748b; margin-top:4px; }'+
+      '.kpi-row { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:28px; }'+
+      '.kpi { flex:1; min-width:130px; border:1px solid #e2e8f0; border-radius:8px; padding:14px 18px; }'+
+      '.kpi-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#64748b; margin-bottom:5px; }'+
+      '.kpi-val { font-size:22px; font-weight:800; }'+
+      '.kpi-sub { font-size:10px; color:#94a3b8; margin-top:3px; line-height:1.4; }'+
+      '.section { margin-bottom:32px; }'+
+      'table { width:100%; border-collapse:collapse; border:1px solid #e2e8f0; }'+
+      'thead th { background:#f1f5f9; padding:8px 12px; font-size:10px; font-weight:700; color:#475569; text-align:left; border-bottom:1px solid #e2e8f0; text-transform:uppercase; letter-spacing:.04em; }'+
+      '.footer { margin-top:36px; padding-top:14px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; }'+
+      '.pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; }'+
+      '.pill-green { background:#dcfce7; color:#166534; }'+
+      '.pill-blue  { background:#dbeafe; color:#1d4ed8; }'+
+      '.pill-amber { background:#fef9c3; color:#854d0e; }'+
+      '@media print { body { padding:24px; } .no-print { display:none !important; } }'+
+    '</style>'+
+    PDF_DL_SCRIPTS+
+    '<script>window._PDF_FILENAME="Procurement-Executive-Summary-'+today.replace(/[^a-zA-Z0-9]/g,'-')+'.pdf";<\/script>'+
+    '</head><body id="pdf-content">'+
+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">'+
+      '<div>'+
+        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin-bottom:6px">PROCUREMENT — EXECUTIVE SOURCING SUMMARY</div>'+
+        '<h1>Sourcing Intelligence Report</h1>'+
+        '<div class="meta">Ascential Technologies · Burke Porter Group · '+today+'</div>'+
+        '<div class="meta">'+projects.filter(p=>quotes.some(x=>scopes.filter(s=>s.project_id===p.id).some(s=>s.id===x.scope_id))).length+' active projects · '+allWithQ.length+' scopes · '+totalSuppliers+' suppliers in market</div>'+
+      '</div>'+
+      '<div style="text-align:right" class="no-print">'+
+        '<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">CONFIDENTIAL — Executive Distribution</div>'+
+        '<div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end">'+
+          '<button onclick="window.print()" style="padding:6px 14px;background:#f1f5f9;color:#334155;border:none;border-radius:4px;font-size:12px;cursor:pointer">🖨 Print</button>'+
+          '<button id="dl-pdf-btn" onclick="downloadPDF()" style="padding:6px 14px;background:#7c3aed;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer">⬇ Download PDF</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+
+    '<div class="kpi-row">'+
+      '<div class="kpi" style="border-color:#86efac;background:#f0fdf4">'+
+        '<div class="kpi-label" style="color:#166534">Total Awarded</div>'+
+        '<div class="kpi-val" style="color:#16a34a">'+fmtN(totalAwarded)+'</div>'+
+        '<div class="kpi-sub">Across '+awardedQs.length+' scope award'+(awardedQs.length!==1?'s':'')+' · '+[...new Set(awardedQs.map(x=>x.supplier_name))].length+' supplier'+(([...new Set(awardedQs.map(x=>x.supplier_name))].length!==1?'s':''))+' awarded</div>'+
+      '</div>'+
+      (budgetVar!==null?
+        '<div class="kpi" style="border-color:'+(budgetVar>=0?'#86efac':'#fca5a5')+';background:'+(budgetVar>=0?'#f0fdf4':'#fef2f2')+'">'+
+          '<div class="kpi-label" style="color:'+(budgetVar>=0?'#166534':'#991b1b')+'">Award vs. Budget</div>'+
+          '<div class="kpi-val" style="color:'+(budgetVar>=0?'#16a34a':'#dc2626')+'">'+(budgetVar>=0?'▼ ':'▲ ')+fmtN(Math.abs(budgetVar))+'</div>'+
+          '<div class="kpi-sub">Budget: '+fmtN(totalBudgeted)+' · Awarded: '+fmtN(totalAwardedBg)+'</div>'+
+        '</div>':'')+
+      (totalBidSpread>0?
+        '<div class="kpi" style="border-color:#bae6fd;background:#f0f9ff">'+
+          '<div class="kpi-label" style="color:#0369a1">Bid Spread (Value Created)</div>'+
+          '<div class="kpi-val" style="color:#0284c7">'+fmtN(totalBidSpread)+'</div>'+
+          '<div class="kpi-sub">Gap between highest &amp; lowest bid — competitive leverage created by sourcing</div>'+
+        '</div>':'')+
+      (totalRecognized>0?
+        '<div class="kpi" style="border-color:#86efac;background:#f0fdf4">'+
+          '<div class="kpi-label" style="color:#166534">Recognized Savings</div>'+
+          '<div class="kpi-val" style="color:#16a34a">'+fmtN(totalRecognized)+'</div>'+
+          '<div class="kpi-sub">Board-approved: awarded vs. avg of all quotes received</div>'+
+        '</div>':'')+
+      (totalNegRed>0?
+        '<div class="kpi" style="border-color:#86efac;background:#f0fdf4">'+
+          '<div class="kpi-label" style="color:#166534">Negotiated Reductions</div>'+
+          '<div class="kpi-val" style="color:#16a34a">'+fmtN(totalNegRed)+'</div>'+
+          '<div class="kpi-sub">Captured via BIC push-down after competitive benchmarking</div>'+
+        '</div>':'')+
+      '<div class="kpi">'+
+        '<div class="kpi-label">Competitive Sourcing Rate</div>'+
+        '<div class="kpi-val" style="color:'+(competed.length===allWithQ.length?'#16a34a':'#f59e0b')+'">'+competed.length+'/'+allWithQ.length+'</div>'+
+        '<div class="kpi-sub">Scopes with 2+ competitive quotes'+
+          (preSrcCount>0?' · '+preSrcCount+' pre-sourced before proposal 🛡':'')+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+
+    '<div class="section">'+
+      '<h2>Project-by-Project Summary</h2>'+
+      '<table>'+
+        '<thead><tr>'+
+          '<th>Project / Customer</th>'+
+          '<th style="text-align:right">Awarded Total</th>'+
+          '<th style="text-align:right;color:#7c3aed">🏆 Full-Project BIC</th>'+
+          '<th style="text-align:right">vs. Budget</th>'+
+          '<th style="text-align:right;color:#0284c7">Bid Spread</th>'+
+          '<th style="text-align:center">Quotes / Competed</th>'+
+          '<th>Awarded Supplier</th>'+
+        '</tr></thead>'+
+        '<tbody>'+projectRows+'</tbody>'+
+        '<tfoot><tr style="background:#f8fafc;font-weight:700;border-top:2px solid #cbd5e1">'+
+          '<td style="padding:9px 12px;font-size:12px">TOTALS</td>'+
+          '<td style="padding:9px 12px;font-size:13px;text-align:right;color:#16a34a">'+fmtN(totalAwarded)+'</td>'+
+          '<td style="padding:9px 12px;text-align:right;color:#94a3b8"></td>'+
+          '<td style="padding:9px 12px;font-size:12px;text-align:right;color:'+(budgetVar!==null?(budgetVar>=0?'#16a34a':'#dc2626'):'#94a3b8')+'">'+(budgetVar!==null?(budgetVar>=0?'▼ '+fmtN(budgetVar):'▲ '+fmtN(Math.abs(budgetVar))):'—')+'</td>'+
+          '<td style="padding:9px 12px;font-size:12px;text-align:right;color:#0284c7">'+(totalBidSpread?fmtN(totalBidSpread):'—')+'</td>'+
+          '<td style="padding:9px 12px;font-size:11px;text-align:center">'+competed.length+'/'+allWithQ.length+' competed</td>'+
+          '<td style="padding:9px 12px;text-align:right;color:#94a3b8"></td>'+
+        '</tr></tfoot>'+
+      '</table>'+
+    '</div>'+
+
+    '<div class="section" style="display:flex;gap:20px;flex-wrap:wrap">'+
+      '<div style="flex:1;min-width:260px;border:1px solid #e2e8f0;border-radius:8px;padding:18px 20px">'+
+        '<h2 style="margin-bottom:14px">Procurement Methodology</h2>'+
+        '<div style="font-size:12px;color:#334155;line-height:1.8">'+
+          '<div>• <strong>Two-iteration framework:</strong> AE quotes customer at median market (Iteration 1); procurement sources at lowest cost to capture margin spread (Iteration 2)</div>'+
+          '<div style="margin-top:6px">• <strong>Board-approved savings metric:</strong> Awarded price vs. average of all quotes received per scope</div>'+
+          '<div style="margin-top:6px">• <strong>BIC (Best-in-Class):</strong> The lowest price from any supplier per scope — the true market floor used for post-award negotiation briefings</div>'+
+          '<div style="margin-top:6px">• <strong>Governance thresholds:</strong> &lt;$100K = Manager · $100K–$500K = Director (Mike Pish) · &gt;$500K = VP (Scott Watts)</div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="flex:1;min-width:260px;border:1px solid #e2e8f0;border-radius:8px;padding:18px 20px">'+
+        '<h2 style="margin-bottom:14px">Key Value Drivers</h2>'+
+        '<div style="font-size:12px;color:#334155;line-height:1.8">'+
+          (totalBidSpread>0?'<div>• Competitive sourcing created <strong style="color:#0284c7">'+fmtN(totalBidSpread)+'</strong> in bid spread — value that would not exist without multi-supplier solicitation</div>':'<div>• No bid spread data yet — add 2+ quotes per scope to measure competitive value</div>')+
+          (totalRecognized>0?'<div style="margin-top:6px">• <strong style="color:#16a34a">'+fmtN(totalRecognized)+'</strong> recognized savings vs. market average (board-approved method)</div>':'')+
+          (totalNegRed>0?'<div style="margin-top:6px">• <strong style="color:#16a34a">'+fmtN(totalNegRed)+'</strong> in negotiated reductions captured via BIC feedback loop</div>':'')+
+          (budgetVar!==null&&budgetVar>0?'<div style="margin-top:6px">• Awarded <strong style="color:#16a34a">'+fmtN(budgetVar)+'</strong> under AE budget estimate</div>':'')+
+          (preSrcCount>0?'<div style="margin-top:6px">• '+preSrcCount+' scope'+(preSrcCount!==1?'s':'')+' pre-sourced before proposal — margin locked in at proposal time 🛡</div>':'')+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+
+    '<div class="footer">'+
+      '<span>Burke Porter | Ascential Technologies · Procurement · CONFIDENTIAL — Executive Distribution Only</span>'+
+      '<span>Generated: '+today+'</span>'+
+    '</div>'+
+    '</body></html>';
+
+    const w = window.open('','_blank','width=1020,height=760');
+    w.document.write(html);
+    w.document.close();
+    toast('Executive Summary opened — use ⬇ Download PDF or Print','success');
+  } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
 // ══════════════════════════════════════════════════
