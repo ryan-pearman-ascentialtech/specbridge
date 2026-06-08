@@ -1013,6 +1013,8 @@ async function loadProjectDetail(projectId) {
         </div>
         <button class="btn btn-sm" style="background:rgba(79,124,255,0.12);color:#7da4ff;border:1px solid rgba(79,124,255,0.25);margin-left:8px" onclick="generateAwardSummary('${projectId}')">📋 Award Summary</button>
         <button class="btn btn-sm" style="background:rgba(56,189,248,0.1);color:#38bdf8;border:1px solid rgba(56,189,248,0.25);margin-left:4px" onclick="generateProjectQuoteSummary('${projectId}')">📊 Quote Summary</button>
+        <button class="btn btn-sm" style="background:rgba(234,179,8,0.12);color:#eab308;border:1px solid rgba(234,179,8,0.3);margin-left:4px" onclick="generateBICNegotiationBrief('${projectId}')">🔍 BIC Negotiation Brief</button>
+        <button class="btn btn-sm" style="background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.3);margin-left:4px" onclick="submitForApproval('${projectId}','${govTier.name}','${safeJs(govTier.name+' — '+govTier.label)}')">📤 Send for Approval</button>
       </div>` : '';
 
     const rollupHtml = (totalAwarded>0 || scopesCompeted>0) ? `
@@ -1162,17 +1164,41 @@ async function loadProjectDetail(projectId) {
         </div>
       </div>` : '';
 
+    const approvalStatus = proj.approval_status || 'draft';
+    const approvalBadge = {
+      draft:     { label: 'Draft',            bg: 'rgba(100,116,139,0.15)', color: '#94a3b8', border: 'rgba(100,116,139,0.3)' },
+      submitted: { label: 'Pending Approval', bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
+      approved:  { label: 'Approved ✓',       bg: 'rgba(34,197,94,0.12)',   color: '#22c55e', border: 'rgba(34,197,94,0.3)'  },
+      rejected:  { label: 'Returned',         bg: 'rgba(239,68,68,0.12)',   color: '#ef4444', border: 'rgba(239,68,68,0.3)'  },
+    }[approvalStatus] || { label: approvalStatus, bg: 'rgba(100,116,139,0.15)', color: '#94a3b8', border: 'rgba(100,116,139,0.3)' };
+
     el.innerHTML = `
       <div class="page-header">
-        <div>
-          <h1>${esc(proj.name)}</h1>
-          <div class="page-subtitle">${esc(proj.customer)}${proj.target_install_date?' · Target: '+fmtDate(proj.target_install_date):''}</div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div>
+            <h1 style="margin:0">${esc(proj.name)}</h1>
+            <div class="page-subtitle">${esc(proj.customer)}${proj.target_install_date?' · Target: '+fmtDate(proj.target_install_date):''}</div>
+          </div>
+          <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${approvalBadge.bg};color:${approvalBadge.color};border:1px solid ${approvalBadge.border}">${approvalBadge.label}</span>
         </div>
         <button class="btn btn-secondary" onclick="showPage('dashboard')">← Projects</button>
       </div>
       <div class="card" style="margin-bottom:20px">
         <div class="info-grid">${infoHtml}</div>
         ${proj.machine_description?`<div style="padding-top:14px;border-top:1px solid var(--border);margin-top:4px"><div class="info-label" style="margin-bottom:4px">Machines</div><div style="font-size:13px;line-height:1.5">${esc(proj.machine_description)}</div></div>`:''}
+        <div style="padding-top:14px;border-top:1px solid var(--border);margin-top:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div class="info-label" style="margin:0">📝 Award Rationale</div>
+            <span style="font-size:10px;color:var(--muted)">Captured in Award Summary & approval routing</span>
+          </div>
+          <textarea id="award-rationale-input-${projectId}" rows="3"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:8px 10px;resize:vertical;font-family:inherit;box-sizing:border-box"
+            placeholder="e.g. D.H. Griffin selected based on competitive pricing, proven track record on similar scope, local presence reducing mobilization cost, and ability to meet target install schedule…"
+          >${esc(proj.award_rationale||'')}</textarea>
+          <div style="display:flex;gap:8px;margin-top:6px;justify-content:flex-end">
+            <button class="btn btn-sm" style="background:rgba(79,124,255,0.12);color:#7da4ff;border:1px solid rgba(79,124,255,0.25)" onclick="saveAwardRationale('${projectId}')">💾 Save Rationale</button>
+          </div>
+        </div>
       </div>
       ${rollupHtml}
       <div class="scopes-grid">${scopeCards}</div>
@@ -2508,6 +2534,90 @@ async function saveRFQDeadline(scopeId) {
 // ══════════════════════════════════════════════════
 // AWARD SUMMARY — Executive Ratification Document
 // ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════
+// AWARD RATIONALE — Save to Supabase
+// ══════════════════════════════════════════════════
+async function saveAwardRationale(projectId) {
+  const el = document.getElementById('award-rationale-input-'+projectId);
+  if (!el) return;
+  const text = el.value.trim();
+  try {
+    await q('rfq_projects','update',{eq:['id',projectId],set:{award_rationale: text||null}});
+    toast('Award rationale saved ✓','success');
+    if (_projectData && _projectData.id === projectId) _projectData.award_rationale = text||null;
+  } catch(e) { toast('Save failed: '+e.message,'error'); }
+}
+
+// ══════════════════════════════════════════════════
+// SEND FOR APPROVAL — Pre-populate approval email
+// ══════════════════════════════════════════════════
+async function submitForApproval(projectId, approverName, approverLabel) {
+  try {
+    const [proj]     = await q('rfq_projects','select',{eq:['id',projectId]});
+    const scopes     = await q('rfq_scopes','select',{eq:['project_id',projectId]});
+    const scopeIds   = scopes.map(s=>s.id);
+    const allQuotes  = scopeIds.length ? await q('rfq_quotes','select',{in:['scope_id',scopeIds]}) : [];
+    const awardedQs  = allQuotes.filter(x=>x.is_awarded);
+    const totalAwarded = awardedQs.reduce((s,x)=>s+(x.total_amount||0),0);
+    const awardedNames = [...new Set(awardedQs.map(x=>x.supplier_name))];
+
+    const rationale = proj.award_rationale ||
+      (document.getElementById('award-rationale-input-'+projectId)||{}).value ||
+      '[No rationale captured — please add in SpecBridge before sending]';
+
+    const approverEmails = {
+      'Scott Watts': 'swatts@burkeporter.com',
+      'Mike Pish':   'mpish@burkeporter.com',
+      'Mark':        'mark@burkeporter.com',
+    };
+    const toEmail = approverEmails[approverName] || '';
+
+    const scopeLines = SCOPE_ORDER.map(st => {
+      const scope = scopes.find(s=>s.scope_type===st);
+      if (!scope) return null;
+      const aw = allQuotes.find(x=>x.scope_id===scope.id&&x.is_awarded);
+      if (!aw) return null;
+      return '  • '+SCOPES[st].label+': '+fmt$(aw.total_amount||0)+' — '+esc(aw.supplier_name);
+    }).filter(Boolean).join('\n');
+
+    const competeCount = [...new Set(allQuotes.filter(x=>x.total_amount>0).map(x=>x.supplier_name))].length;
+
+    const subject = encodeURIComponent('Award Ratification Request — '+proj.name+' ('+fmt$(totalAwarded)+')');
+    const body = encodeURIComponent(
+      approverName+',\n\n'+
+      'Please review and approve the following sourcing award for routing per our procurement governance policy.\n\n'+
+      '━━━━━━━━━━━━━━━━━━━━━━\n'+
+      'PROJECT:  '+proj.name+'\n'+
+      'CUSTOMER: '+(proj.customer||'—')+'\n'+
+      'JO#:      '+(proj.jo_numbers||'—')+'\n'+
+      'TOTAL:    '+fmt$(totalAwarded)+'\n'+
+      'AWARDED TO: '+awardedNames.join(', ')+'\n'+
+      'QUOTES RECEIVED: '+competeCount+' suppliers\n'+
+      '━━━━━━━━━━━━━━━━━━━━━━\n\n'+
+      'SCOPE BREAKDOWN:\n'+scopeLines+'\n\n'+
+      'AWARD RATIONALE:\n'+rationale+'\n\n'+
+      '━━━━━━━━━━━━━━━━━━━━━━\n'+
+      'Full Award Summary, Quote Comparison, and sourcing documentation have been generated in SpecBridge.\n\n'+
+      'Please reply with your approval or any questions.\n\n'+
+      'Thank you,\nAscential Technologies — Procurement\nBurke Porter Group'
+    );
+
+    // Update approval_status to 'submitted' in DB
+    await q('rfq_projects','update',{eq:['id',projectId],set:{approval_status:'submitted',approval_submitted_at:new Date().toISOString()}});
+    if (_projectData && _projectData.id === projectId) {
+      _projectData.approval_status = 'submitted';
+    }
+
+    // Open mail client with pre-populated draft
+    window.location.href = 'mailto:'+toEmail+'?subject='+subject+'&body='+body;
+
+    toast('Approval email opened · Status updated to Pending','success');
+
+    // Refresh the badge display
+    setTimeout(()=>loadProjectDetail(projectId),1200);
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
 async function generateAwardSummary(projectId) {
   toast('Generating Award Summary…','info');
   try {
@@ -2642,10 +2752,13 @@ async function generateAwardSummary(projectId) {
       <h2>Award Rationale</h2>
       <div class="rationale-box">
         <p>Following competitive solicitation across ${[...new Set(allQuotes.map(x=>x.supplier_name))].length} qualified supplier${[...new Set(allQuotes.map(x=>x.supplier_name))].length!==1?'s':''}, the sourcing team recommends award to <strong>${awardedSuppliers.map(s=>esc(s)).join(', ')}</strong> for the ${esc(proj.name)} project at ${esc(proj.customer||'the customer site')}.</p>
-        <p style="margin-top:10px">Selection criteria: competitive pricing, site mobilization advantage (supplier already on site eliminating incremental deployment costs), technical capability, and compliance with required scope specifications. The selected supplier's quote of <strong>${fmtN(totalAwarded)}</strong> represents the best value position when total cost of deployment is considered.</p>
-        ${recognizedSavings ? '<p style="margin-top:10px">Procurement recognized savings of <strong>'+fmtN(recognizedSavings)+'</strong> versus the market average of <strong>'+fmtN(marketAvg)+'</strong>, calculated per the board-approved methodology (awarded price minus average of all quotes received).</p>' : ''}
+        ${proj.award_rationale
+          ? '<p style="margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px">'+esc(proj.award_rationale)+'</p>'
+          : '<p style="margin-top:10px;color:#64748b;font-style:italic">No custom rationale captured. Add your rationale in the project view (Award Rationale field) and re-generate to include it here.</p>'
+        }
+        ${recognizedSavings ? '<p style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0">Procurement recognized savings of <strong>'+fmtN(recognizedSavings)+'</strong> versus the market average of <strong>'+fmtN(marketAvg)+'</strong>, calculated per the board-approved methodology (awarded price minus average of all quotes received).</p>' : ''}
       </div>
-      <div style="margin-top:8px;font-size:11px;color:#64748b;padding:8px 12px;border-left:3px solid #0284c7;background:#f0f9ff">⚠ Edit the rationale above before submitting for approval. Customize with project-specific details as needed.</div>
+      ${!proj.award_rationale ? '<div style="margin-top:8px;font-size:11px;color:#9a3412;padding:8px 12px;border-left:3px solid #f97316;background:#fff7ed">⚠ Return to the project in SpecBridge, enter your award rationale, save it, then re-generate this document.</div>' : ''}
     </div>
 
     <div class="section">
@@ -3125,6 +3238,341 @@ async function generateProjectSupplierFeedback(projectId, supplierName) {
 }
 
 // ══════════════════════════════════════════════════
+// POST-AWARD BIC NEGOTIATION BRIEF — Awarded supplier push
+// ══════════════════════════════════════════════════
+async function generateBICNegotiationBrief(projectId) {
+  toast('Generating BIC Negotiation Brief…','info');
+  try {
+    const [proj]    = await q('rfq_projects','select',{eq:['id',projectId]});
+    const scopes    = await q('rfq_scopes','select',{eq:['project_id',projectId]});
+    const scopeIds  = scopes.map(s=>s.id);
+    const allQuotes = scopeIds.length ? await q('rfq_quotes','select',{in:['scope_id',scopeIds]}) : [];
+    const today     = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    const fmtN      = n => n > 0 ? fmt$(n) : '—';
+    const getAmt    = (items,key) => { const i=(items||[]).find(x=>x.key===key); return i&&i.amount>0?i.amount:0; };
+
+    const awardedQs   = allQuotes.filter(x=>x.is_awarded);
+    const awardedNames= [...new Set(awardedQs.map(x=>x.supplier_name))];
+    const awardedTotal= awardedQs.reduce((s,x)=>s+(x.total_amount||0),0);
+
+    if (!awardedQs.length) {
+      toast('No awarded supplier found for this project.','error');
+      return;
+    }
+
+    // Governance tier
+    const govTier = awardedTotal > 500000
+      ? { name: 'Scott Watts',  title: 'VP / Executive Sponsor',    color: '#ef4444' }
+      : awardedTotal > 100000
+        ? { name: 'Mike Pish',  title: 'Director of Procurement',   color: '#f59e0b' }
+        : { name: 'Mark',       title: 'Procurement Manager',       color: '#22c55e' };
+
+    // Per-scope BIC analysis
+    const scopeData = SCOPE_ORDER.map(st => {
+      const scope    = scopes.find(s=>s.scope_type===st);
+      const sc       = SCOPES[st];
+      if (!scope) return null;
+      const sq       = allQuotes.filter(x=>x.scope_id===scope.id&&(x.total_amount||0)>0);
+      if (!sq.length) return null;
+      const awardedQ = sq.find(x=>x.is_awarded);
+      if (!awardedQ) return null; // only show scopes where THIS project awarded someone
+
+      // BIC: lowest from ANY supplier on this scope
+      const bicQ     = sq.reduce((a,b)=>(a.total_amount||0)<=(b.total_amount||0)?a:b);
+      const bicAmt   = bicQ.total_amount||0;
+      const bicSup   = bicQ.supplier_name||'';
+      const awardAmt = awardedQ.total_amount||0;
+      const awardSup = awardedQ.supplier_name||'';
+      const gap      = awardAmt > bicAmt ? awardAmt - bicAmt : 0;
+      const gapPct   = gap > 0 && awardAmt > 0 ? (gap/awardAmt*100).toFixed(1) : '0.0';
+      const isBIC    = awardAmt === bicAmt;
+
+      // Line-item detail: compare awarded supplier vs BIC holder per line item
+      const awardedItems = awardedQ.line_items||[];
+      const bicItems     = bicQ.line_items||[];
+      const allItemKeys  = [...new Set([...awardedItems.map(x=>x.key),...bicItems.map(x=>x.key)])];
+      const ITEM_LABELS  = {
+        mobilization:'Mobilization', rigging_labor:'Rigging Labor', crane_rental:'Crane Rental',
+        equipment_moves:'Equipment Moves', permits:'Permits', electrical_labor:'Electrical Labor',
+        materials:'Materials', conduit:'Conduit', controls:'Controls', panel_work:'Panel Work',
+        engineering:'Engineering', pipe_labor:'Pipe Labor', pipe_materials:'Pipe Materials',
+        installation:'Installation', fab:'Fabrication', steel_supply:'Steel Supply',
+        demolition:'Demolition', freight:'Freight', misc:'Miscellaneous', other:'Other'
+      };
+      const lineItemRows = allItemKeys.map(k => {
+        const aAmt = getAmt(awardedItems,k);
+        const bAmt = getAmt(bicItems,k);
+        if (!aAmt && !bAmt) return '';
+        const diff = aAmt>0&&bAmt>0 ? aAmt-bAmt : null;
+        const label= ITEM_LABELS[k]||k;
+        const diffTxt = diff===null?'—':diff>0?'<span style="color:#dc2626">+'+fmtN(diff)+'</span>':
+                        diff<0?'<span style="color:#16a34a">'+fmtN(diff)+'</span>':
+                        '<span style="color:#64748b">—</span>';
+        return '<tr style="border-bottom:1px solid #e2e8f0">' +
+          '<td style="padding:5px 8px;font-size:11px">'+esc(label)+'</td>' +
+          '<td style="padding:5px 8px;font-size:11px;text-align:right">'+(aAmt?fmtN(aAmt):'—')+'</td>' +
+          '<td style="padding:5px 8px;font-size:11px;text-align:right">'+(bAmt?fmtN(bAmt):'—')+'</td>' +
+          '<td style="padding:5px 8px;font-size:11px;text-align:right">'+diffTxt+'</td>' +
+        '</tr>';
+      }).filter(Boolean).join('');
+
+      return { sc, st, scope, awardedQ, awardSup, awardAmt, bicQ, bicSup, bicAmt, gap, gapPct, isBIC, lineItemRows };
+    }).filter(Boolean);
+
+    const totalGap        = scopeData.reduce((s,x)=>s+x.gap,0);
+    const atRiskScopes    = scopeData.filter(x=>x.gap>0);
+    const bicScopes       = scopeData.filter(x=>x.isBIC);
+    const bicAtTotal      = awardedTotal - totalGap; // what award would be if every scope were at BIC
+    const savingsOppty    = totalGap;  // value left on table
+
+    // Awarded supplier contact
+    const awSup    = SUPPLIERS.find(s=>s.name===awardedNames[0]);
+    const awContact= awSup ? awSup.contact : 'Project Contact';
+    const awEmail  = awSup ? awSup.email   : '';
+    const awPhone  = awSup ? awSup.phone   : '';
+
+    // Build the negotiation agenda rows
+    const agendaRows = atRiskScopes.map((d,i) => {
+      const pct = parseFloat(d.gapPct);
+      const urgency = pct >= 20 ? 'HIGH' : pct >= 8 ? 'MEDIUM' : 'LOW';
+      const urgencyColor = pct >= 20 ? '#dc2626' : pct >= 8 ? '#f59e0b' : '#64748b';
+      const ask = 'Reduce ' + esc(d.sc.label) + ' from ' + fmtN(d.awardAmt) + ' to ' + fmtN(d.bicAmt) +
+                  ' (' + fmtN(d.gap) + ' reduction, ' + d.gapPct + '%). BIC held by ' + esc(d.bicSup) + '.';
+      return '<tr style="border-bottom:1px solid #e2e8f0;background:'+(i%2===0?'#fff':'#f8fafc')+'">' +
+        '<td style="padding:9px 12px;font-size:13px;font-weight:600">' + d.sc.icon + ' ' + esc(d.sc.label) + '</td>' +
+        '<td style="padding:9px 12px;font-size:13px;text-align:right;font-weight:600">' + fmtN(d.awardAmt) + '</td>' +
+        '<td style="padding:9px 12px;font-size:13px;text-align:right;color:#7c3aed;font-weight:700">' + fmtN(d.bicAmt) + '<div style="font-size:10px;font-weight:400;color:#64748b;margin-top:2px">' + esc(d.bicSup) + '</div></td>' +
+        '<td style="padding:9px 12px;font-size:13px;text-align:right;color:#dc2626;font-weight:700">' + fmtN(d.gap) + '<div style="font-size:10px;color:#94a3b8;margin-top:2px">(' + d.gapPct + '% of scope)</div></td>' +
+        '<td style="padding:9px 12px;text-align:center"><span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:4px;background:'+urgencyColor+'1a;color:'+urgencyColor+'">' + urgency + '</span></td>' +
+      '</tr>';
+    }).join('');
+
+    // BIC holder recognition rows
+    const bicRows = bicScopes.map(d =>
+      '<tr style="border-bottom:1px solid #dcfce7;background:#f0fdf4">' +
+        '<td style="padding:8px 12px;font-size:12px;font-weight:600">' + d.sc.icon + ' ' + esc(d.sc.label) + '</td>' +
+        '<td style="padding:8px 12px;font-size:12px;text-align:right;font-weight:600">' + fmtN(d.awardAmt) + '</td>' +
+        '<td colspan="2" style="padding:8px 12px;font-size:12px;color:#166534;font-weight:700">✓ Already at Market Floor — No negotiation required for this scope</td>' +
+      '</tr>'
+    ).join('');
+
+    // Line item detail sections
+    const lineDetailSections = atRiskScopes.filter(d=>d.lineItemRows).map(d =>
+      '<div style="margin-bottom:20px">' +
+        '<div style="font-size:13px;font-weight:700;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:8px 12px;margin-bottom:0">' +
+          d.sc.icon + ' ' + esc(d.sc.label) + ' — Line Item Comparison: ' + esc(d.awardSup) + ' vs. BIC (' + esc(d.bicSup) + ')' +
+        '</div>' +
+        '<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-top:0">' +
+          '<thead><tr style="background:#f8fafc">' +
+            '<th style="padding:6px 8px;font-size:11px;font-weight:600;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0">Line Item</th>' +
+            '<th style="padding:6px 8px;font-size:11px;font-weight:600;color:#64748b;text-align:right;border-bottom:1px solid #e2e8f0">'+esc(d.awardSup)+'</th>' +
+            '<th style="padding:6px 8px;font-size:11px;font-weight:600;color:#7c3aed;text-align:right;border-bottom:1px solid #e2e8f0">BIC: '+esc(d.bicSup)+'</th>' +
+            '<th style="padding:6px 8px;font-size:11px;font-weight:600;color:#64748b;text-align:right;border-bottom:1px solid #e2e8f0">Difference</th>' +
+          '</tr></thead>' +
+          '<tbody>' + d.lineItemRows + '</tbody>' +
+          '<tfoot><tr style="background:#fafafa;font-weight:700">' +
+            '<td style="padding:7px 8px;font-size:12px;border-top:2px solid #e2e8f0">TOTAL</td>' +
+            '<td style="padding:7px 8px;font-size:12px;text-align:right;border-top:2px solid #e2e8f0">' + fmtN(d.awardAmt) + '</td>' +
+            '<td style="padding:7px 8px;font-size:12px;text-align:right;color:#7c3aed;border-top:2px solid #e2e8f0">' + fmtN(d.bicAmt) + '</td>' +
+            '<td style="padding:7px 8px;font-size:12px;text-align:right;color:#dc2626;border-top:2px solid #e2e8f0">+' + fmtN(d.gap) + '</td>' +
+          '</tr></tfoot>' +
+        '</table>' +
+      '</div>'
+    ).join('');
+
+    const negScript = atRiskScopes.map((d,i) => {
+      const pct = parseFloat(d.gapPct);
+      return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin-bottom:14px">' +
+        '<div style="font-size:13px;font-weight:800;color:#0f172a;margin-bottom:8px">' + (i+1) + '. ' + d.sc.icon + ' ' + esc(d.sc.label) + ' — Ask: ' + fmtN(d.gap) + ' reduction</div>' +
+        '<div style="font-size:12px;color:#334155;line-height:1.7;margin-bottom:8px">' +
+          '"We received ' + scopeData.find(x=>x.st===d.st) ? '' : '' +
+          'We received multiple competitive quotes for ' + esc(d.sc.label) + '. The market floor on this scope came in at ' + fmtN(d.bicAmt) +
+          ' from ' + esc(d.bicSup) + '. Your current price of ' + fmtN(d.awardAmt) + ' represents a ' + d.gapPct + '% premium above the best available market price. ' +
+          'We are committed to awarding you this scope, and would like to bring this to ' + fmtN(d.bicAmt) + ' to reflect the competitive market. ' +
+          'Can you review your ' + esc(d.sc.label) + ' scope and bring a revised number?"' +
+        '</div>' +
+        '<div style="display:flex;gap:12px;flex-wrap:wrap">' +
+          '<div style="flex:1;min-width:120px;background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:8px 12px;text-align:center">' +
+            '<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#854d0e;margin-bottom:2px">Current Price</div>' +
+            '<div style="font-size:15px;font-weight:700;color:#713f12">' + fmtN(d.awardAmt) + '</div>' +
+          '</div>' +
+          '<div style="flex:1;min-width:120px;background:#f3e8ff;border:1px solid #d8b4fe;border-radius:6px;padding:8px 12px;text-align:center">' +
+            '<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#5b21b6;margin-bottom:2px">Market Floor (BIC)</div>' +
+            '<div style="font-size:15px;font-weight:700;color:#4c1d95">' + fmtN(d.bicAmt) + '</div>' +
+            '<div style="font-size:9px;color:#7c3aed;margin-top:1px">' + esc(d.bicSup) + '</div>' +
+          '</div>' +
+          '<div style="flex:1;min-width:120px;background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:8px 12px;text-align:center">' +
+            '<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#7f1d1d;margin-bottom:2px">Reduction Target</div>' +
+            '<div style="font-size:15px;font-weight:700;color:#991b1b">' + fmtN(d.gap) + '</div>' +
+            '<div style="font-size:9px;color:#dc2626;margin-top:1px">' + d.gapPct + '% reduction</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>BIC Negotiation Brief — '+esc(proj.name)+'</title>'+
+    '<style>'+
+      'body{font-family:Arial,sans-serif;font-size:13px;color:#0f172a;background:#fff;margin:0;padding:0}'+
+      '.page{max-width:960px;margin:0 auto;padding:40px}'+
+      'h1{margin:0 0 4px;font-size:22px;color:#0f172a}'+
+      '.subtitle{font-size:12px;color:#64748b;margin-bottom:0}'+
+      '.header-bar{display:flex;justify-content:space-between;align-items:flex-start;padding:24px 32px;background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);color:#fff;border-radius:10px;margin-bottom:24px}'+
+      '.kpi-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:24px}'+
+      '.kpi{flex:1;min-width:130px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px}'+
+      '.kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px}'+
+      '.kpi-value{font-size:21px;font-weight:700}'+
+      '.kpi-note{font-size:10px;color:#94a3b8;margin-top:3px}'+
+      '.section{margin-bottom:28px}'+
+      '.section-title{font-size:15px;font-weight:800;color:#0f172a;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #e2e8f0;display:flex;align-items:center;gap:8px}'+
+      'table{width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden}'+
+      'thead th{background:#f1f5f9;padding:9px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#475569;text-align:left;border-bottom:1px solid #e2e8f0}'+
+      '.footer{margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8}'+
+      '.alert-box{background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:14px 18px;margin-bottom:20px}'+
+      '.success-box{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px 18px;margin-bottom:20px}'+
+      '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'+
+    '</style></head><body><div class="page">'+
+
+    '<div class="header-bar">'+
+      '<div>'+
+        '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin-bottom:6px">POST-AWARD NEGOTIATION BRIEF — CONFIDENTIAL</div>'+
+        '<h1 style="color:#fff;margin:0 0 4px">🔍 BIC Negotiation Brief</h1>'+
+        '<div class="subtitle" style="color:#cbd5e1">'+esc(proj.name)+' · '+esc(proj.customer||'')+'</div>'+
+        '<div style="margin-top:10px;font-size:12px;color:#94a3b8">Awarded to: <strong style="color:#fff">'+esc(awardedNames.join(', '))+'</strong> · Total Award: <strong style="color:#4ade80">'+fmtN(awardedTotal)+'</strong></div>'+
+      '</div>'+
+      '<div style="text-align:right">'+
+        '<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Prepared by</div>'+
+        '<div style="font-size:13px;font-weight:700;color:#fff">Ascential Technologies</div>'+
+        '<div style="font-size:11px;color:#94a3b8">Burke Porter Group</div>'+
+        '<div style="font-size:10px;color:#94a3b8;margin-top:6px">'+today+'</div>'+
+      '</div>'+
+    '</div>'+
+
+    '<div class="kpi-row">'+
+      '<div class="kpi">'+
+        '<div class="kpi-label">Current Award Total</div>'+
+        '<div class="kpi-value" style="color:#0f172a">'+fmtN(awardedTotal)+'</div>'+
+        '<div class="kpi-note">As-awarded to '+esc(awardedNames.join(', '))+'</div>'+
+      '</div>'+
+      (savingsOppty>0?
+        '<div class="kpi" style="border-color:#fde047;background:#fefce8">'+
+          '<div class="kpi-label" style="color:#92400e">Value Left on Table</div>'+
+          '<div class="kpi-value" style="color:#92400e">'+fmtN(savingsOppty)+'</div>'+
+          '<div class="kpi-note">Gap between award and full-BIC pricing</div>'+
+        '</div>':'')+
+      (savingsOppty>0?
+        '<div class="kpi" style="border-color:#c4b5fd;background:#f5f3ff">'+
+          '<div class="kpi-label" style="color:#4c1d95">Revised Target (Full BIC)</div>'+
+          '<div class="kpi-value" style="color:#4c1d95">'+fmtN(bicAtTotal)+'</div>'+
+          '<div class="kpi-note">Award if all scopes reach market floor</div>'+
+        '</div>':'')+
+      '<div class="kpi">'+
+        '<div class="kpi-label">Scopes at Market Floor</div>'+
+        '<div class="kpi-value" style="color:#16a34a">'+bicScopes.length+' / '+scopeData.length+'</div>'+
+        '<div class="kpi-note">Already priced at BIC — no action needed</div>'+
+      '</div>'+
+      '<div class="kpi">'+
+        '<div class="kpi-label">Scopes Requiring Push</div>'+
+        '<div class="kpi-value" style="color:#dc2626">'+atRiskScopes.length+'</div>'+
+        '<div class="kpi-note">Above market floor — negotiation opportunity</div>'+
+      '</div>'+
+    '</div>'+
+
+    (savingsOppty>0?
+      '<div class="alert-box">'+
+        '<div style="font-size:13px;font-weight:700;color:#9a3412;margin-bottom:6px">⚠️ Post-Award Negotiation Opportunity: '+fmtN(savingsOppty)+'</div>'+
+        '<div style="font-size:12px;color:#7c2d12;line-height:1.6">'+
+          esc(awardedNames.join(', '))+' was awarded this project at '+fmtN(awardedTotal)+'. However, on '+atRiskScopes.length+' scope'+(atRiskScopes.length!==1?'s':'')+', '+
+          'other suppliers provided lower pricing during the sourcing event. The market floor (BIC) across those scopes totals '+fmtN(bicAtTotal)+'. '+
+          'This brief provides the scope-by-scope breakdown and negotiation language to close this '+fmtN(savingsOppty)+' gap.'+
+        '</div>'+
+      '</div>':'') +
+
+    (bicScopes.length>0?
+      '<div class="success-box">'+
+        '<div style="font-size:13px;font-weight:700;color:#166534;margin-bottom:6px">✅ Competitive at Market Floor — '+bicScopes.length+' Scope'+(bicScopes.length!==1?'s':'')+' Require No Negotiation</div>'+
+        '<div style="font-size:12px;color:#166534">'+esc(awardedNames[0])+' holds the lowest market price on: '+bicScopes.map(d=>d.sc.label).join(', ')+'. No push required on these scopes.</div>'+
+      '</div>':'') +
+
+    '<div class="section">'+
+      '<div class="section-title">📊 Scope-by-Scope BIC Gap Analysis</div>'+
+      '<table>'+
+        '<thead><tr>'+
+          '<th>Scope</th>'+
+          '<th style="text-align:right">Awarded Price</th>'+
+          '<th style="text-align:right;color:#7c3aed">Market Floor (BIC)</th>'+
+          '<th style="text-align:right">Value Left on Table</th>'+
+          '<th style="text-align:center">Priority</th>'+
+        '</tr></thead>'+
+        '<tbody>'+agendaRows+bicRows+'</tbody>'+
+        '<tfoot><tr style="background:#f1f5f9;font-weight:700">'+
+          '<td style="padding:10px 12px;font-size:13px;border-top:2px solid #cbd5e1">PROJECT TOTAL</td>'+
+          '<td style="padding:10px 12px;font-size:13px;text-align:right;border-top:2px solid #cbd5e1">'+fmtN(awardedTotal)+'</td>'+
+          '<td style="padding:10px 12px;font-size:13px;text-align:right;color:#7c3aed;border-top:2px solid #cbd5e1">'+fmtN(bicAtTotal)+'</td>'+
+          '<td style="padding:10px 12px;font-size:13px;text-align:right;color:#dc2626;border-top:2px solid #cbd5e1">'+(savingsOppty>0?fmtN(savingsOppty):'—')+'</td>'+
+          '<td style="border-top:2px solid #cbd5e1"></td>'+
+        '</tr></tfoot>'+
+      '</table>'+
+    '</div>'+
+
+    (lineDetailSections?
+      '<div class="section">'+
+        '<div class="section-title">🔎 Line Item Detail — Where the Gap Lives</div>'+
+        lineDetailSections+
+      '</div>':'') +
+
+    (atRiskScopes.length>0?
+      '<div class="section">'+
+        '<div class="section-title">💬 Negotiation Script — Scope by Scope</div>'+
+        '<div style="font-size:11px;color:#64748b;margin-bottom:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px">'+
+          '📌 <strong>Approach:</strong> Lead with relationship, acknowledge award, then present market data. Do not reveal which supplier provided the BIC price if it creates competitive sensitivity. Position as "market data" rather than "competitor quote."'+
+        '</div>'+
+        negScript+
+      '</div>':'') +
+
+    '<div class="section">'+
+      '<div class="section-title">✅ Negotiation Tracking</div>'+
+      '<table>'+
+        '<thead><tr>'+
+          '<th>Scope</th>'+
+          '<th style="text-align:right">Target Price</th>'+
+          '<th style="text-align:right">Supplier Response</th>'+
+          '<th style="text-align:right">Final Agreed</th>'+
+          '<th>Date</th>'+
+          '<th>Status</th>'+
+        '</tr></thead>'+
+        '<tbody>'+atRiskScopes.map(d =>
+          '<tr style="border-bottom:1px solid #e2e8f0">'+
+            '<td style="padding:10px 12px;font-size:12px;font-weight:600">'+d.sc.icon+' '+esc(d.sc.label)+'</td>'+
+            '<td style="padding:10px 12px;font-size:12px;text-align:right;color:#7c3aed;font-weight:600">'+fmtN(d.bicAmt)+'</td>'+
+            '<td style="padding:10px 12px;font-size:12px;text-align:right;color:#94a3b8">___________</td>'+
+            '<td style="padding:10px 12px;font-size:12px;text-align:right;color:#94a3b8">___________</td>'+
+            '<td style="padding:10px 12px;font-size:12px;color:#94a3b8">___________</td>'+
+            '<td style="padding:10px 12px;font-size:12px;color:#94a3b8">[ ] Pending  [ ] Agreed  [ ] Declined</td>'+
+          '</tr>'
+        ).join('')+'</tbody>'+
+        '<tfoot><tr style="background:#f8fafc">'+
+          '<td style="padding:10px 12px;font-size:12px;font-weight:700;border-top:2px solid #e2e8f0">TOTAL SAVINGS TARGET</td>'+
+          '<td colspan="2" style="padding:10px 12px;font-size:12px;font-weight:700;color:#7c3aed;border-top:2px solid #e2e8f0">'+fmtN(savingsOppty)+'</td>'+
+          '<td style="padding:10px 12px;font-size:12px;font-weight:700;color:#94a3b8;border-top:2px solid #e2e8f0">___________</td>'+
+          '<td colspan="2" style="border-top:2px solid #e2e8f0"></td>'+
+        '</tr></tfoot>'+
+      '</table>'+
+    '</div>'+
+
+    '<div class="footer">'+
+      '<span>Burke Porter | Ascential Technologies · SpecBridge Procurement · CONFIDENTIAL — Internal Use Only</span>'+
+      '<span>Generated: '+today+' · Approver: '+esc(govTier.name)+', '+esc(govTier.title)+'</span>'+
+    '</div>'+
+    '</div></body></html>';
+
+    const w = window.open('','_blank','width=980,height=740');
+    w.document.write(html);
+    w.document.close();
+    toast('BIC Negotiation Brief opened — Print to save as PDF','success');
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
+// ══════════════════════════════════════════════════
 // SUPPLIER FEEDBACK REPORT — Competitive debrief package
 // ══════════════════════════════════════════════════
 async function generateSupplierFeedback(scopeId, supplierName) {
@@ -3319,15 +3767,45 @@ async function loadSavings() {
         <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">Competitive spread is a powerful story to stakeholders. Getting multiple bids on installation — historically unmanaged by procurement — creates a measurable dollar value and a market-defensible position before customer proposal.</div>
       </div>` : '';
 
+    // Award vs. Budget hero metrics
+    const bvUnder   = budgetVariance > 0;
+    const bvPct     = totalBudgeted > 0 ? (Math.abs(budgetVariance)/totalBudgeted*100).toFixed(1) : null;
+    const bvColor   = totalBudgeted === 0 ? 'var(--muted)' : bvUnder ? '#22c55e' : '#ef4444';
+    const bvBorder  = totalBudgeted === 0 ? 'var(--border)' : bvUnder ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)';
+    const bvBg      = totalBudgeted === 0 ? '' : bvUnder ? 'rgba(34,197,94,0.04)' : 'rgba(239,68,68,0.04)';
+
     document.getElementById('savings-metrics').innerHTML = `
-      <div class="card metric-card" style="grid-column:span 2;background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(56,189,248,0.03));border-color:rgba(56,189,248,0.3)">
+      <div class="card metric-card" style="grid-column:span 2;background:${bvBg||'linear-gradient(135deg,rgba(56,189,248,0.04),transparent)'};border-color:${totalBudgeted>0?bvBorder:'rgba(56,189,248,0.2)'}">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin-bottom:8px">🎯 Award vs. Budget</div>
+        ${totalBudgeted > 0 ? `
         <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
-          <div class="metric-value" style="color:#38bdf8;font-size:${totalBidSpread>0?'32':'32'}px;line-height:1">${totalBidSpread>0?fmt$(totalBidSpread):'—'}</div>
-          ${totalBidSpread>0&&totalAwarded>0?'<div style="font-size:12px;color:#38bdf8;opacity:0.7">'+(totalBidSpread/totalAwarded*100).toFixed(1)+'% spread</div>':''}
+          <div class="metric-value" style="color:${bvColor};font-size:30px;line-height:1">${bvUnder?'▼ ':'▲ '}${fmt$(Math.abs(budgetVariance))}</div>
+          ${bvPct?'<div style="font-size:13px;color:'+bvColor+';opacity:0.8">'+bvPct+'% '+(bvUnder?'under':'over')+'</div>':''}
         </div>
-        <div class="metric-label" style="font-size:12px;margin-top:6px">Bid Spread — competitive value created by sourcing</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px">Gap between highest &amp; lowest bid received · the core business case</div>
-        ${totalNegReduction>0?'<div style="margin-top:8px;font-size:11px;font-weight:700;color:#22c55e">+ '+fmt$(totalNegReduction)+' negotiated reduction captured via BIC push-down</div>':''}
+        <div class="metric-label" style="font-size:12px;margin-top:6px;color:${bvColor}">${bvUnder?'Under budget ✓':'Over budget — review scope pricing'}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:5px">
+          Budget: <strong style="color:var(--text)">${fmt$(totalBudgeted)}</strong>
+          &nbsp;·&nbsp; Awarded: <strong style="color:var(--text)">${fmt$(totalAwardedBg)}</strong>
+          &nbsp;·&nbsp; ${budgetedScopes.length} scope${budgetedScopes.length!==1?'s':''} with budget set
+        </div>` : `
+        <div class="metric-value" style="color:var(--muted);font-size:20px">—</div>
+        <div class="metric-label" style="font-size:12px;margin-top:6px">No budgets entered yet</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Set budget guidance on each scope to track award vs. budget variance</div>`}
+      </div>
+      <div class="card metric-card" style="background:linear-gradient(135deg,rgba(56,189,248,0.08),rgba(56,189,248,0.03));border-color:rgba(56,189,248,0.3)">
+        <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+          <div class="metric-value" style="color:#38bdf8;font-size:26px;line-height:1">${totalBidSpread>0?fmt$(totalBidSpread):'—'}</div>
+          ${totalBidSpread>0&&totalAwarded>0?'<div style="font-size:11px;color:#38bdf8;opacity:0.7">'+(totalBidSpread/totalAwarded*100).toFixed(1)+'%</div>':''}
+        </div>
+        <div class="metric-label" style="font-size:12px;margin-top:6px">Bid Spread</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Competitive value created by sourcing</div>
+        ${totalNegReduction>0?'<div style="margin-top:6px;font-size:10px;font-weight:700;color:#22c55e">+ '+fmt$(totalNegReduction)+' neg. reduction</div>':''}
+      </div>
+      <div class="card metric-card" style="border-color:rgba(34,197,94,0.3);background:rgba(34,197,94,0.04)">
+        <div class="metric-value" style="color:#22c55e;font-size:${totalRecognizedSavings>0?'22':'26'}px">${totalRecognizedSavings>0?fmt$(totalRecognizedSavings):'—'}</div>
+        <div class="metric-label">Recognized Savings</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Board-approved: awarded vs. avg of all quotes</div>
+        ${totalNegReduction>0?'<div style="font-size:10px;color:#22c55e;margin-top:3px;font-weight:700">+ '+fmt$(totalNegReduction)+' neg. reduction</div>':''}
       </div>
       <div class="card metric-card">
         <div class="metric-value" style="color:${singleSourceRisk>0?'var(--warning)':'var(--success)'};font-size:${singleSourceRisk>0?'20':'26'}px">${singleSourceRisk>0?fmt$(singleSourceRisk):'$0'}</div>
@@ -3344,12 +3822,6 @@ async function loadSavings() {
         <div class="metric-label">Scopes Competed</div>
         ${preSourcingCount>0?'<div style="font-size:10px;color:#a855f7;margin-top:4px">'+preSourcingCount+' pre-sourced before proposal 🛡</div>':''}
         <div style="font-size:10px;color:var(--muted);margin-top:3px">Total Awarded: <strong style="color:var(--success)">${fmt$(totalAwarded)}</strong></div>
-      </div>
-      <div class="card metric-card" style="border-color:rgba(34,197,94,0.3);background:rgba(34,197,94,0.04)">
-        <div class="metric-value" style="color:#22c55e;font-size:${totalRecognizedSavings>0?'22':'26'}px">${totalRecognizedSavings>0?fmt$(totalRecognizedSavings):'—'}</div>
-        <div class="metric-label">Recognized Savings</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px">Board-approved: awarded vs. average of all quotes</div>
-        ${totalNegReduction>0?'<div style="font-size:10px;color:#22c55e;margin-top:3px;font-weight:700">+ '+fmt$(totalNegReduction)+' neg. reduction</div>':''}
       </div>`;
 
     if (!quotes.length) {
