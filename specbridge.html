@@ -569,7 +569,8 @@ const SUPPLIERS = [
       { name: 'Jeffrey Parsons', role: 'Contract Review', email: 'JBParsons@dhgriffin.com',     phone: '' },
     ]
   },
-  { id: 'culver',    name: 'Culver',                         contact: 'Scott Culver',    email: '',                           phone: '',              preferred: false },
+  { id: 'culver',    name: 'Culver',                         contact: 'Scott Culver',    email: '',                           phone: '248-930-2312',  preferred: false,
+    secondary: [{ name: 'Scott Culver', role: 'Owner / Principal', email: '', phone: '248-930-2312', address: '5465 Gatewood Dr., Sterling Heights MI 48310' }] },
   { id: 'barnhart',  name: 'BarnHart Crane & Rigging',       contact: 'Contact TBD',     email: '',                           phone: '',              preferred: false },
   { id: 'nwi',       name: 'NWI',                            contact: 'Contact TBD',     email: '',                           phone: '',              preferred: false },
   { id: 'burkesme',  name: 'Burkes Mechanical & Electrical', contact: 'Contact TBD',     email: '',                           phone: '',              preferred: false },
@@ -1010,7 +1011,8 @@ async function loadProjectDetail(projectId) {
           <div style="font-size:10px;color:var(--muted);margin-bottom:2px">Required Approver</div>
           <div style="font-size:15px;font-weight:700;color:${govTier.color}">${govTier.name}</div>
         </div>
-        <button class="btn btn-sm" style="background:rgba(79,124,255,0.12);color:#7da4ff;border:1px solid rgba(79,124,255,0.25);margin-left:8px" onclick="generateAwardSummary('${projectId}')">📋 Generate Award Summary</button>
+        <button class="btn btn-sm" style="background:rgba(79,124,255,0.12);color:#7da4ff;border:1px solid rgba(79,124,255,0.25);margin-left:8px" onclick="generateAwardSummary('${projectId}')">📋 Award Summary</button>
+        <button class="btn btn-sm" style="background:rgba(56,189,248,0.1);color:#38bdf8;border:1px solid rgba(56,189,248,0.25);margin-left:4px" onclick="generateProjectQuoteSummary('${projectId}')">📊 Quote Summary</button>
       </div>` : '';
 
     const rollupHtml = (totalAwarded>0 || scopesCompeted>0) ? `
@@ -1975,12 +1977,41 @@ function buildComparison(scope, allQuotes) {
     ? '<div style="display:flex;align-items:center;gap:10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 16px;margin-bottom:14px"><span style="font-size:16px">✅</span><div><div style="font-size:11px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:0.06em">Competed — '+allAmts.length+' Quotes Received</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Scope is competitively sourced. Pricing reflects market defensible position.</div></div></div>'
     : '<div style="display:flex;align-items:center;gap:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 16px;margin-bottom:14px"><span style="font-size:16px">⚠️</span><div><div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.06em">Single Source — 1 Quote Only</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Scope is not competed. Obtain a second quote to establish a market defensible position.</div></div></div>';
 
+  // AE Quoting Guide — two-iteration framework per Mark's direction
+  // Iteration 1 (Pre-Source): quote customer at median market, not lowest
+  // Iteration 2 (Post-Award): source at lowest, capture the spread as margin
+  const awardedAmt2   = awarded ? (awarded.total_amount||0) : (marketLow||0);
+  const marginProtected = marketAvg && awardedAmt2 > 0 ? marketAvg - awardedAmt2 : null;
+  const marginPct = marginProtected && marketAvg ? (marginProtected/marketAvg*100).toFixed(1) : null;
+  const aeGuideHtml = marketAvg && allAmts.length >= 2 ? (
+    '<div style="margin-top:14px;background:rgba(79,124,255,0.05);border:1px solid rgba(79,124,255,0.2);border-radius:10px;padding:16px 18px">' +
+      '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--accent);margin-bottom:12px">⚡ AE Quoting Guide — Two-Iteration Framework</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;flex-wrap:wrap">' +
+        '<div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:12px 14px">' +
+          '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#f59e0b;margin-bottom:5px">Iteration 1 — AE Customer Quote</div>' +
+          '<div style="font-size:18px;font-weight:700;color:#f59e0b">'+fmt$(marketAvg)+'</div>' +
+          '<div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">Quote customer at <strong>median market</strong> — not the lowest. Quoting at your source cost transfers competitive advantage to the customer.</div>' +
+        '</div>' +
+        '<div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:12px 14px">' +
+          '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#22c55e;margin-bottom:5px">Iteration 2 — Internal Source Cost</div>' +
+          '<div style="font-size:18px;font-weight:700;color:#22c55e">'+fmt$(awardedAmt2)+'</div>' +
+          '<div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">'+(awarded?'Awarded to <strong>'+esc(awarded.supplier_name)+'</strong>. Source at lowest compliant cost. Never show this number to AE when quoting customers.':'Lowest bid — source internally at this rate.')+'</div>' +
+        '</div>' +
+        '<div style="background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.25);border-radius:8px;padding:12px 14px">' +
+          '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#a855f7;margin-bottom:5px">Protected Margin Spread</div>' +
+          '<div style="font-size:18px;font-weight:700;color:#a855f7">'+(marginProtected&&marginProtected>0?fmt$(marginProtected)+' <span style="font-size:12px;font-weight:400">('+marginPct+'%)</span>':'—')+'</div>' +
+          '<div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">Margin captured by quoting at median market and sourcing at awarded cost. This is the structural competitive advantage.</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>'
+  ) : '';
+
   const marketRateHtml = marketAvg ? '<div class="market-rate-box">' +
     '<div class="market-rate-item"><div class="market-rate-item-label">Market Low</div><div class="market-rate-item-val" style="color:var(--success)">'+fmt$(marketLow)+'</div></div>' +
-    '<div class="market-rate-item"><div class="market-rate-item-label">Market Defensible Position</div><div class="market-rate-item-val" style="color:var(--warning)">'+fmt$(marketAvg)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Blended avg — use for customer pricing</div></div>' +
+    '<div class="market-rate-item"><div class="market-rate-item-label">Market Average (AE Quote Target)</div><div class="market-rate-item-val" style="color:var(--warning)">'+fmt$(marketAvg)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Quote customers at this rate — not lowest</div></div>' +
     '<div class="market-rate-item"><div class="market-rate-item-label">Market High</div><div class="market-rate-item-val" style="color:var(--muted)">'+fmt$(marketHigh)+'</div></div>' +
-    (bg ? '<div class="market-rate-item" style="border-color:var(--accent)"><div class="market-rate-item-label" style="color:var(--accent)">Budget Guidance</div><div class="market-rate-item-val" style="color:var(--accent)">'+fmt$(bg)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">BEP internal estimate</div></div>' +
-      '<div class="market-rate-item" style="border-color:rgba(245,158,11,0.4)"><div class="market-rate-item-label" style="color:#f59e0b">Cost Target (−5%)</div><div class="market-rate-item-val" style="color:#f59e0b">'+fmt$(bg*0.95)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Must beat this to protect margin</div></div>' : '') +
+    (bg ? '<div class="market-rate-item" style="border-color:var(--accent)"><div class="market-rate-item-label" style="color:var(--accent)">Budget Guidance</div><div class="market-rate-item-val" style="color:var(--accent)">'+fmt$(bg)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">AE internal estimate</div></div>' +
+      '<div class="market-rate-item" style="border-color:rgba(245,158,11,0.4)"><div class="market-rate-item-label" style="color:#f59e0b">Cost Target (−5%)</div><div class="market-rate-item-val" style="color:#f59e0b">'+fmt$(bg*0.95)+'</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Must beat to protect margin</div></div>' : '') +
     '</div>' : '';
 
   const headroom = marketAvg && marketLow ? marketAvg-marketLow : null;
@@ -2029,7 +2060,7 @@ function buildComparison(scope, allQuotes) {
     budgetRow + ptRow +
     '</tbody></table>' +
     (savings>0 ? '<div class="savings-box"><div><div class="savings-box-label">Bid spread — gap between highest and lowest bid</div><div class="savings-box-pct">'+savingsPct+'% spread between bids</div></div><div class="savings-box-amt">'+fmt$(savings)+'</div></div>' : '') +
-    marketRateHtml + metricsHtml + feedbackHtml;
+    aeGuideHtml + marketRateHtml + metricsHtml + feedbackHtml;
 }
 
 // ══════════════════════════════════════════════════
@@ -2615,6 +2646,195 @@ async function generateAwardSummary(projectId) {
     toast('Award Summary opened in new tab — use Print to save as PDF','success');
   } catch(e) {
     toast('Error generating summary: '+e.message,'error');
+  }
+}
+
+// ══════════════════════════════════════════════════
+// PROJECT QUOTE SUMMARY — Clean side-by-side table
+// ══════════════════════════════════════════════════
+async function generateProjectQuoteSummary(projectId) {
+  toast('Building Quote Summary…','info');
+  try {
+    const [proj]   = await q('rfq_projects','select',{eq:['id',projectId]});
+    const scopes   = await q('rfq_scopes','select',{eq:['project_id',projectId]});
+    const scopeIds = scopes.map(s=>s.id);
+    const allQuotes = scopeIds.length ? await q('rfq_quotes','select',{in:['scope_id',scopeIds]}) : [];
+    const today    = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    const fmtN     = n => n > 0 ? fmt$(n) : '<span style="color:#94a3b8">—</span>';
+
+    // Unique suppliers who quoted (sorted: awarded first, then by total desc)
+    const awardedNames = [...new Set(allQuotes.filter(x=>x.is_awarded).map(x=>x.supplier_name))];
+    const allSupplierNames = [...new Set(allQuotes.filter(x=>x.total_amount>0).map(x=>x.supplier_name))];
+    const suppOrder = [
+      ...awardedNames,
+      ...allSupplierNames.filter(n=>!awardedNames.includes(n)).sort((a,b) => {
+        const ta = allQuotes.filter(x=>x.supplier_name===a).reduce((s,x)=>s+(x.total_amount||0),0);
+        const tb = allQuotes.filter(x=>x.supplier_name===b).reduce((s,x)=>s+(x.total_amount||0),0);
+        return ta - tb;
+      })
+    ];
+
+    // Per-scope, per-supplier amounts
+    const scopeDataRows = SCOPE_ORDER.map(st => {
+      const scope  = scopes.find(s=>s.scope_type===st);
+      const sc     = SCOPES[st];
+      if (!scope) return null;
+      const sq     = allQuotes.filter(x=>x.scope_id===scope.id);
+      if (!sq.length) return null;
+      const awardedQ = sq.find(x=>x.is_awarded);
+      return { st, sc, scope, sq, awardedQ };
+    }).filter(Boolean);
+
+    // Compute supplier totals across all scopes
+    const suppTotals = {};
+    suppOrder.forEach(sup => {
+      suppTotals[sup] = scopeDataRows.reduce((s,{sq})=>{
+        const qx = sq.find(x=>x.supplier_name===sup&&x.total_amount>0);
+        return s + (qx?.total_amount||0);
+      },0);
+    });
+
+    const awardedTotal = SCOPE_ORDER.reduce((s,st)=>{
+      const scope = scopes.find(x=>x.scope_type===st);
+      if (!scope) return s;
+      const aw = allQuotes.find(x=>x.scope_id===scope.id&&x.is_awarded);
+      return s + (aw?.total_amount||0);
+    },0);
+
+    // Market avg per scope and overall
+    const scopeAvgs = {};
+    scopeDataRows.forEach(({st,sq})=>{
+      const amts = sq.filter(x=>x.total_amount>0).map(x=>x.total_amount);
+      scopeAvgs[st] = amts.length ? amts.reduce((a,b)=>a+b,0)/amts.length : null;
+    });
+    const overallMarketAvg = suppOrder.reduce((s,sup)=>s+suppTotals[sup],0) / suppOrder.length;
+
+    // Header row: supplier names
+    const thCols = suppOrder.map(sup => {
+      const isAwarded = awardedNames.includes(sup);
+      const supConf = SUPPLIERS.find(s=>s.name===sup);
+      return '<th style="text-align:right;padding:8px 12px;'+(isAwarded?'background:#f0fdf4;':'')+'border:1px solid #e2e8f0;min-width:130px">' +
+        (isAwarded ? '<div style="font-size:9px;font-weight:800;color:#166534;letter-spacing:0.05em;margin-bottom:2px">AWARDED ✓</div>' : '') +
+        '<div style="font-size:13px;font-weight:700;color:#0f172a">'+esc(sup)+'</div>' +
+        (supConf?.contact&&supConf.contact!=='Contact TBD'?'<div style="font-size:10px;font-weight:400;color:#64748b;margin-top:1px">'+esc(supConf.contact)+'</div>':'') +
+      '</th>';
+    }).join('');
+
+    // Data rows: one per scope
+    const tableRows = scopeDataRows.map(({st,sc,scope,sq,awardedQ}) => {
+      const amts = sq.filter(x=>x.total_amount>0).map(x=>x.total_amount);
+      const scopeMin = amts.length ? Math.min(...amts) : null;
+      const avgAmt   = scopeAvgs[st];
+      const suppCells = suppOrder.map(sup => {
+        const qx = sq.find(x=>x.supplier_name===sup&&x.total_amount>0);
+        const amt = qx?.total_amount||0;
+        const isAwardedSup = awardedNames.includes(sup);
+        const isLowest = amt > 0 && scopeMin !== null && amt === scopeMin;
+        return '<td style="text-align:right;padding:8px 12px;border:1px solid #e2e8f0;'+(isAwardedSup?'background:#f0fdf4;':'')+(isLowest&&!isAwardedSup?'background:#eff6ff;':'')+(qx?.is_awarded?'font-weight:700;':'')+'font-size:13px">' +
+          (amt>0 ? fmtN(amt) + (isLowest&&!isAwardedSup?'<div style="font-size:9px;color:#0284c7;font-weight:700;margin-top:1px">LOWEST</div>':'') : '<span style="color:#94a3b8">—</span>') +
+        '</td>';
+      }).join('');
+      const notes = awardedQ?.notes ? '<div style="font-size:10px;color:#94a3b8;margin-top:2px;font-style:italic">'+esc(awardedQ.notes.slice(0,80)+(awardedQ.notes.length>80?'…':''))+'</div>' : '';
+      return '<tr>' +
+        '<td style="padding:8px 12px;border:1px solid #e2e8f0;white-space:nowrap"><div style="font-size:13px;font-weight:600;color:#0f172a">'+sc.icon+' '+esc(sc.label)+'</div>' + (avgAmt?'<div style="font-size:10px;color:#64748b;margin-top:2px">Market avg: '+fmt$(avgAmt)+'</div>':'') + notes + '</td>' +
+        suppCells +
+        '<td style="text-align:right;padding:8px 12px;border:1px solid #e2e8f0;background:#fafafa;font-size:11px;color:#64748b">'+(amts.length?amts.length+' quote'+(amts.length!==1?'s':''):'—')+'</td>' +
+      '</tr>';
+    }).join('');
+
+    // Total row
+    const totalCells = suppOrder.map(sup => {
+      const t = suppTotals[sup];
+      const isAwardedSup = awardedNames.includes(sup);
+      const isLowest = t > 0 && t === Math.min(...Object.values(suppTotals).filter(v=>v>0));
+      return '<td style="text-align:right;padding:10px 12px;border:1px solid #e2e8f0;font-size:15px;font-weight:800;'+(isAwardedSup?'background:#dcfce7;color:#166534;':'')+(isLowest&&!isAwardedSup?'background:#eff6ff;color:#0284c7;':'')+'">'+(t>0?fmt$(t):'—')+(isLowest&&!isAwardedSup?'<div style="font-size:9px;font-weight:700;margin-top:1px">MARKET LOW</div>':'')+'</td>';
+    }).join('');
+
+    // Variance row: each supplier vs. awarded
+    const varianceCells = suppOrder.map(sup => {
+      const t = suppTotals[sup];
+      const isAwardedSup = awardedNames.includes(sup);
+      if (isAwardedSup || !t || !awardedTotal) return '<td style="padding:6px 12px;border:1px solid #e2e8f0;text-align:right;background:#f8fafc;font-size:11px;color:#94a3b8">'+(isAwardedSup?'<em>Awarded</em>':'—')+'</td>';
+      const gap = t - awardedTotal;
+      const gapPct = (gap/awardedTotal*100).toFixed(0);
+      return '<td style="padding:6px 12px;border:1px solid #e2e8f0;text-align:right;background:#fff5f5;font-size:11px;font-weight:700;color:#dc2626">▲ '+fmt$(gap)+'<div style="font-size:10px;font-weight:400;color:#94a3b8">'+gapPct+'% above award</div></td>';
+    }).join('');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Quote Summary — ${esc(proj.name)}</title>
+    <style>
+      * { box-sizing:border-box; margin:0; padding:0; }
+      body { font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size:13px; color:#0f172a; background:#fff; padding:30px; max-width:100%; }
+      h1 { font-size:20px; font-weight:800; }
+      .meta { font-size:11px; color:#64748b; margin-top:3px; }
+      table { width:100%; border-collapse:collapse; font-size:13px; }
+      .insight-row { display:flex; gap:16px; flex-wrap:wrap; margin:16px 0; }
+      .insight { flex:1; min-width:120px; border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; }
+      .insight-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin-bottom:4px; }
+      .insight-val { font-size:18px; font-weight:800; }
+      .footer { margin-top:24px; padding-top:10px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; }
+      @media print { body { padding:16px; } }
+    </style>
+    </head><body>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:5px">Overall Supplier Quote Summary</div>
+        <h1>${esc(proj.name)}</h1>
+        <div class="meta">${esc(proj.customer||'')} · ${today}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Burke Porter | Ascential Technologies</div>
+        <button onclick="window.print()" style="margin-top:8px;padding:6px 14px;background:#0f172a;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">🖨 Print / PDF</button>
+      </div>
+    </div>
+
+    <div class="insight-row">
+      <div class="insight"><div class="insight-label">Award Total</div><div class="insight-val" style="color:#16a34a">${fmt$(awardedTotal)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">${awardedNames.join(', ')}</div></div>
+      <div class="insight"><div class="insight-label">Market Average</div><div class="insight-val" style="color:#0284c7">${fmt$(overallMarketAvg)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">All ${suppOrder.length} suppliers avg</div></div>
+      <div class="insight"><div class="insight-label">Recognized Savings</div><div class="insight-val" style="color:#16a34a">${overallMarketAvg > awardedTotal ? fmt$(overallMarketAvg-awardedTotal) : '—'}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Awarded vs. market avg</div></div>
+      <div class="insight"><div class="insight-label">Bid Spread</div><div class="insight-val" style="color:#0284c7">${fmt$(Math.max(...Object.values(suppTotals))-Math.min(...Object.values(suppTotals).filter(v=>v>0)))}</div><div style="font-size:10px;color:#64748b;margin-top:2px">High–low range</div></div>
+      <div class="insight"><div class="insight-label">Suppliers Quoted</div><div class="insight-val" style="color:#6b21a8">${suppOrder.length}</div><div style="font-size:10px;color:#64748b;margin-top:2px">${suppOrder.length} submitted bids</div></div>
+    </div>
+
+    <table>
+      <thead>
+        <tr style="border-bottom:2px solid #e2e8f0">
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e2e8f0;background:#f8fafc;width:180px">Scope</th>
+          ${thCols}
+          <th style="padding:8px 12px;border:1px solid #e2e8f0;background:#f8fafc;text-align:center;width:70px;font-size:11px">Quotes</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+      <tfoot>
+        <tr style="border-top:2px solid #334155">
+          <td style="padding:10px 12px;border:1px solid #e2e8f0;font-size:13px;font-weight:800;background:#f1f5f9">PROJECT TOTAL</td>
+          ${totalCells}
+          <td style="padding:10px 12px;border:1px solid #e2e8f0;background:#f1f5f9"></td>
+        </tr>
+        <tr>
+          <td style="padding:6px 12px;border:1px solid #e2e8f0;font-size:11px;color:#64748b;background:#fafafa">vs. Awarded (${fmt$(awardedTotal)})</td>
+          ${varianceCells}
+          <td style="padding:6px 12px;border:1px solid #e2e8f0;background:#fafafa"></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div style="margin-top:14px;padding:10px 14px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0;font-size:10px;color:#64748b;line-height:1.6">
+      <strong style="color:#334155">Notes:</strong> Highlighted cells in blue = lowest bid per scope. Variance rows show gap vs. awarded supplier. Market average = arithmetic mean of all submitted bids per scope. Recognized savings = awarded total vs. market average (board-approved calculation method). Some suppliers quoted only partial scopes — totals reflect only scopes where bids were submitted.
+    </div>
+
+    <div class="footer">
+      <span>Burke Porter | Ascential Technologies · SpecBridge Procurement · Confidential</span>
+      <span>Generated: ${today}</span>
+    </div>
+    </body></html>`;
+
+    const w = window.open('','_blank','width=1100,height=720');
+    w.document.write(html);
+    w.document.close();
+    toast('Quote Summary opened — use Print to save as PDF','success');
+  } catch(e) {
+    toast('Error generating quote summary: '+e.message,'error');
   }
 }
 
