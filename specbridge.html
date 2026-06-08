@@ -565,7 +565,8 @@ const SUPPLIERS = [
     secondary: [
       { name: 'Jerry Russell',  role: 'Project Contact', email: 'jorussell@dhgriffin.com',  phone: '864-216-3025' },
       { name: 'Chad Dove',      role: 'CC / Admin',      email: 'cdove@dhgriffin.com',       phone: '' },
-      { name: 'Andrew Guy',     role: 'Project Contact', email: 'aeguy@dhgriffin.com',        phone: '864-764-5495' },
+      { name: 'Andrew Guy',     role: 'Project Contact',  email: 'aeguy@dhgriffin.com',        phone: '864-764-5495' },
+      { name: 'Jeffrey Parsons', role: 'Contract Review', email: 'JBParsons@dhgriffin.com',     phone: '' },
     ]
   },
   { id: 'culver',    name: 'Culver',                         contact: 'Scott Culver',    email: '',                           phone: '',              preferred: false },
@@ -990,7 +991,30 @@ async function loadProjectDetail(projectId) {
       if (aw?.total_amount) { totalAwarded += aw.total_amount; totalProfitProtect += aw.total_amount * 0.02; }
       if (quotedAmts2.length >= 2) { totalHeadroom += (Math.max(...quotedAmts2)-Math.min(...quotedAmts2))/2; }
     });
+    // ── Governance approval threshold ──────────────
+    const govTier = totalAwarded > 500000
+      ? { name: 'Scott Watts', color: '#ef4444', borderColor: 'rgba(239,68,68,0.35)', icon: '🔴', label: '>$500K — VP Approval Required', sub: 'Requires Scott Watts sign-off before award execution' }
+      : totalAwarded > 100000
+        ? { name: 'Mike Pish',   color: '#f59e0b', borderColor: 'rgba(245,158,11,0.35)', icon: '🟡', label: '$100K–$500K — Director Approval Required', sub: 'Requires Mike Pish sign-off before award execution' }
+        : totalAwarded > 0
+          ? { name: 'Mark',      color: '#22c55e', borderColor: 'rgba(34,197,94,0.35)',   icon: '🟢', label: 'Up to $100K — Manager Level', sub: 'Mark approval threshold — within manager authority' }
+          : null;
+    const govBanner = govTier && totalAwarded > 0 ? `
+      <div style="display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.02);border:1px solid ${govTier.borderColor};border-radius:10px;padding:14px 20px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="font-size:22px">${govTier.icon}</div>
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:${govTier.color}">${govTier.label}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">${govTier.sub}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:2px">Required Approver</div>
+          <div style="font-size:15px;font-weight:700;color:${govTier.color}">${govTier.name}</div>
+        </div>
+        <button class="btn btn-sm" style="background:rgba(79,124,255,0.12);color:#7da4ff;border:1px solid rgba(79,124,255,0.25);margin-left:8px" onclick="generateAwardSummary('${projectId}')">📋 Generate Award Summary</button>
+      </div>` : '';
+
     const rollupHtml = (totalAwarded>0 || scopesCompeted>0) ? `
+      ${govBanner}
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
         ${totalAwarded>0?`
         <div style="flex:1;min-width:160px;background:#0d1117;border:1px solid #1e2535;border-radius:10px;padding:16px 20px">
@@ -1874,7 +1898,8 @@ function buildComparison(scope, allQuotes) {
   const awardBtn = (xq) => {
     if (awarded) return awarded.id===xq.id
       ? '<div style="color:#86efac;font-size:12px;font-weight:700">✓ Awarded</div>'
-      : '<div style="color:var(--muted);font-size:11px">Not awarded</div>';
+      : '<div style="color:var(--muted);font-size:11px">Not awarded</div>' +
+        '<button class="btn btn-xs btn-ghost" style="margin-top:6px;font-size:10px" onclick="generateSupplierFeedback(\''+scope.id+'\',\''+esc(xq.supplier_name)+'\')">📨 Feedback</button>';
     return '<button class="btn btn-success btn-xs" onclick="awardQuote(\''+xq.id+'\',\''+scope.id+'\')">Award →</button>';
   };
 
@@ -1885,15 +1910,34 @@ function buildComparison(scope, allQuotes) {
     return '<th style="text-align:right">'+esc(q.supplier_name)+'<br><small style="font-weight:400;color:var(--muted)">'+esc(sup?sup.contact:(q.supplier_contact||''))+'</small>'+noteFlag+'</th>';
   }).join('');
 
+  // Best-in-Class: per line item, find the lowest value across all suppliers (theoretical floor for negotiation)
+  const bicItemMin = (key) => {
+    const vals = sorted.map(q=>getAmt(q.line_items,key)).filter(a=>a>0);
+    return vals.length ? Math.min(...vals) : null;
+  };
+  const bicThCol = allAmts.length>=2
+    ? '<th style="text-align:right;color:#22c55e;background:rgba(34,197,94,0.04);border-left:1px solid rgba(34,197,94,0.2)">🏆 Best in Class<br><small style="font-weight:400;color:var(--muted)">Lowest per line item<br>Negotiation floor</small></th>'
+    : '';
+
   // Line item rows
   const rows = sc.items.filter(i=>i.req).map(i => {
     const cells = sorted.map(q => {
       const a = getAmt(q.line_items, i.key);
-      const isLow = a>0 && allAmts.length>=2 && a===marketLow;
+      const bicMin = bicItemMin(i.key);
+      const isLow = a>0 && allAmts.length>=2 && bicMin!==null && a===bicMin;
       return '<td class="comp-amt '+(isLow?'comp-lower':'')+'">'+( a>0?fmt$(a):'—')+'</td>';
     }).join('');
-    return '<tr><td class="comp-item-col">'+esc(i.label)+'</td>'+cells+'</tr>';
+    const bicMin = bicItemMin(i.key);
+    const bicCell = allAmts.length>=2
+      ? '<td class="comp-amt" style="background:rgba(34,197,94,0.04);border-left:1px solid rgba(34,197,94,0.12);color:#22c55e;font-weight:600">'+(bicMin?fmt$(bicMin):'—')+'</td>'
+      : '';
+    return '<tr><td class="comp-item-col">'+esc(i.label)+'</td>'+cells+bicCell+'</tr>';
   }).join('');
+
+  // BIC total: sum of per-line-item minimums (theoretical negotiation floor)
+  const bicTotal = allAmts.length>=2 ? sc.items.filter(i=>i.req).reduce((s,i)=>{
+    const m = bicItemMin(i.key); return m ? s+m : s;
+  },0) : 0;
 
   // Total row with award buttons
   const totalCells = sorted.map(q => {
@@ -1901,6 +1945,9 @@ function buildComparison(scope, allQuotes) {
     const isLow = t>0 && allAmts.length>=2 && t===marketLow;
     return '<td class="comp-amt '+(isLow?'comp-lower':'')+'"><div>'+fmt$(t)+'</div><div style="margin-top:8px">'+awardBtn(q)+'</div></td>';
   }).join('');
+  const bicTotalCell = allAmts.length>=2
+    ? '<td class="comp-amt" style="background:rgba(34,197,94,0.06);border-left:1px solid rgba(34,197,94,0.2);color:#22c55e;font-weight:700">'+(bicTotal>0?fmt$(bicTotal)+'<div style="font-size:10px;margin-top:4px;color:var(--muted);font-weight:400">Negotiation<br>floor</div>':'—')+'</td>'
+    : '';
 
   // Budget variance row
   const budgetRow = bg ? (() => {
@@ -1960,10 +2007,25 @@ function buildComparison(scope, allQuotes) {
       '</div>'
     : '';
 
-  return compSourcingBanner +
-    '<table class="comp-table"><thead><tr><th class="comp-item-col">Line Item</th>'+thCols+'</tr></thead><tbody>' +
+  // Recognized savings (board-approved method: awarded vs. market average)
+  const recognizedSavings = awarded && marketAvg && (awarded.total_amount||0) > 0 && (awarded.total_amount||0) < marketAvg
+    ? marketAvg - (awarded.total_amount||0)
+    : null;
+  const recognizedSavingsPct = recognizedSavings && marketAvg ? (recognizedSavings/marketAvg*100).toFixed(1) : null;
+
+  const recognizedSavingsHtml = recognizedSavings
+    ? '<div style="display:flex;align-items:center;gap:12px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:12px 16px;margin-bottom:10px">' +
+        '<span style="font-size:18px">💰</span>' +
+        '<div><div style="font-size:10px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:0.06em">Recognized Savings (Board-Approved Method)</div>' +
+        '<div style="font-size:18px;font-weight:700;color:#22c55e;margin-top:2px">'+fmt$(recognizedSavings)+' <span style="font-size:12px;font-weight:400;color:var(--muted)">('+recognizedSavingsPct+'% below market average)</span></div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-top:3px">Awarded to '+esc(awarded.supplier_name||'')+' at '+fmt$(awarded.total_amount||0)+' vs. market avg '+fmt$(marketAvg)+' · Delta is recognized as procurement productivity gain</div>' +
+        '</div></div>'
+    : '';
+
+  return compSourcingBanner + recognizedSavingsHtml +
+    '<table class="comp-table"><thead><tr><th class="comp-item-col">Line Item</th>'+thCols+bicThCol+'</tr></thead><tbody>' +
     rows +
-    '<tr class="comp-total-row"><td><strong>TOTAL</strong></td>'+totalCells+'</tr>' +
+    '<tr class="comp-total-row"><td><strong>TOTAL</strong></td>'+totalCells+bicTotalCell+'</tr>' +
     budgetRow + ptRow +
     '</tbody></table>' +
     (savings>0 ? '<div class="savings-box"><div><div class="savings-box-label">Bid spread — gap between highest and lowest bid</div><div class="savings-box-pct">'+savingsPct+'% spread between bids</div></div><div class="savings-box-amt">'+fmt$(savings)+'</div></div>' : '') +
@@ -2376,6 +2438,317 @@ async function saveRFQDeadline(scopeId) {
 }
 
 // ══════════════════════════════════════════════════
+// AWARD SUMMARY — Executive Ratification Document
+// ══════════════════════════════════════════════════
+async function generateAwardSummary(projectId) {
+  toast('Generating Award Summary…','info');
+  try {
+    const [proj]  = await q('rfq_projects','select',{eq:['id',projectId]});
+    const scopes  = await q('rfq_scopes','select',{eq:['project_id',projectId]});
+    const scopeIds = scopes.map(s=>s.id);
+    const allQuotes = scopeIds.length ? await q('rfq_quotes','select',{in:['scope_id',scopeIds]}) : [];
+    const today   = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    const fmtN = n => n != null ? fmt$(n) : '—';
+
+    // Project-level rollups
+    const awardedQs  = allQuotes.filter(x=>x.is_awarded);
+    const totalAwarded = awardedQs.reduce((s,x)=>s+(x.total_amount||0),0);
+    const allAmts    = allQuotes.filter(x=>x.total_amount>0).map(x=>x.total_amount);
+    const marketAvg  = allAmts.length ? allAmts.reduce((s,a)=>s+a,0)/allAmts.length : null;
+    const recognizedSavings = marketAvg && totalAwarded > 0 && totalAwarded < marketAvg ? marketAvg - totalAwarded : null;
+
+    // Governance tier
+    const govTier = totalAwarded > 500000
+      ? { name: 'Scott Watts', title: 'VP / Executive Sponsor', level: 3 }
+      : totalAwarded > 100000
+        ? { name: 'Mike Pish',  title: 'Director of Procurement', level: 2 }
+        : { name: 'Mark',       title: 'Procurement Manager',     level: 1 };
+
+    // Build scope rows
+    const scopeRows = SCOPE_ORDER.map(st => {
+      const scope  = scopes.find(s=>s.scope_type===st);
+      const sc     = SCOPES[st];
+      if (!scope) return '';
+      const sq     = allQuotes.filter(x=>x.scope_id===scope.id&&(x.total_amount||0)>0);
+      const aw     = sq.find(x=>x.is_awarded);
+      if (!sq.length) return '';
+      const amts   = sq.map(x=>x.total_amount||0);
+      const avg    = amts.reduce((s,a)=>s+a,0)/amts.length;
+      const spread = amts.length>=2 ? Math.max(...amts)-Math.min(...amts) : 0;
+      const recogn = aw && aw.total_amount < avg ? avg - aw.total_amount : 0;
+      const suppRows = sq.map(x => {
+        const sup = SUPPLIERS.find(s=>s.name===x.supplier_name);
+        return '<tr style="border-bottom:1px solid #e2e8f0">' +
+          '<td style="padding:6px 10px;font-size:12px">' + esc(x.supplier_name) + (x.is_awarded ? ' <span style="background:#dcfce7;color:#166534;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:4px">AWARDED</span>' : '') + '</td>' +
+          '<td style="padding:6px 10px;font-size:12px;text-align:right;font-weight:'+(x.is_awarded?700:400)+'">'+fmtN(x.total_amount)+'</td>' +
+          '<td style="padding:6px 10px;font-size:12px;color:#64748b">'+(sup?esc(sup.contact):'—')+'</td>' +
+          '<td style="padding:6px 10px;font-size:11px;color:#64748b">'+(x.payment_terms?.terms?esc(x.payment_terms.terms):'—')+'</td>' +
+        '</tr>';
+      }).join('');
+      return '<div style="margin-bottom:24px">' +
+        '<div style="font-size:13px;font-weight:700;color:#0f172a;padding:8px 10px;background:#f1f5f9;border-radius:4px;margin-bottom:0;border:1px solid #e2e8f0">' + sc.icon + ' ' + esc(sc.label) + '</div>' +
+        '<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-top:0">' +
+          '<thead><tr style="background:#f8fafc">' +
+            '<th style="padding:6px 10px;font-size:11px;font-weight:600;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0">Supplier</th>' +
+            '<th style="padding:6px 10px;font-size:11px;font-weight:600;color:#64748b;text-align:right;border-bottom:1px solid #e2e8f0">Quote Total</th>' +
+            '<th style="padding:6px 10px;font-size:11px;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0">Contact</th>' +
+            '<th style="padding:6px 10px;font-size:11px;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0">Payment Terms</th>' +
+          '</tr></thead><tbody>' + suppRows + '</tbody>' +
+          (sq.length>=2 ? '<tfoot><tr style="background:#f8fafc"><td colspan="2" style="padding:6px 10px;font-size:11px;color:#64748b">Market avg: <strong>'+fmtN(avg)+'</strong>  ·  Bid spread: <strong style="color:#0284c7">'+fmtN(spread)+'</strong>' + (recogn>0?'  ·  Recognized savings vs. avg: <strong style="color:#166534">'+fmtN(recogn)+'</strong>':'') + '</td><td colspan="2" style="padding:6px 10px;font-size:11px;color:#64748b">' + (amts.length>=2?amts.length+' quotes received — competed':'Single source — no competition') + '</td></tr></tfoot>' : '') +
+        '</table></div>';
+    }).filter(Boolean).join('');
+
+    // Supplier summary (unique awarded suppliers + rationale)
+    const awardedSuppliers = [...new Set(awardedQs.map(x=>x.supplier_name))];
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Sourcing Decision — ${esc(proj.name)}</title>
+    <style>
+      * { box-sizing:border-box; margin:0; padding:0; }
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size:13px; color:#0f172a; background:#fff; padding:36px; max-width:900px; margin:0 auto; }
+      h1 { font-size:22px; font-weight:800; color:#0f172a; letter-spacing:-0.01em; }
+      h2 { font-size:14px; font-weight:700; color:#334155; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #e2e8f0; text-transform:uppercase; letter-spacing:0.06em; }
+      .meta { font-size:11px; color:#64748b; margin-top:4px; }
+      .section { margin-bottom:28px; }
+      .badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+      .badge-red    { background:#fee2e2; color:#dc2626; }
+      .badge-yellow { background:#fef9c3; color:#b45309; }
+      .badge-green  { background:#dcfce7; color:#166534; }
+      .kpi-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:20px; }
+      .kpi { flex:1; min-width:140px; border:1px solid #e2e8f0; border-radius:8px; padding:14px 16px; }
+      .kpi-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin-bottom:6px; }
+      .kpi-val { font-size:22px; font-weight:800; }
+      .kpi-sub  { font-size:10px; color:#94a3b8; margin-top:4px; line-height:1.4; }
+      .kpi-green  { color:#16a34a; }
+      .kpi-blue   { color:#0284c7; }
+      .kpi-amber  { color:#b45309; }
+      .kpi-red    { color:#dc2626; }
+      .gov-box { border:2px solid; border-radius:10px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; gap:16px; }
+      .sign-block { display:flex; gap:30px; flex-wrap:wrap; margin-top:10px; }
+      .sign-field { flex:1; min-width:200px; }
+      .sign-line { border-bottom:1px solid #94a3b8; margin-top:40px; margin-bottom:6px; }
+      .sign-label { font-size:10px; color:#64748b; }
+      .rationale-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:16px; margin-bottom:16px; }
+      .rationale-box p { line-height:1.7; color:#334155; font-size:13px; }
+      .footer { margin-top:40px; padding-top:14px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; }
+      @media print { body { padding:24px; } }
+    </style>
+    </head><body>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:6px">Sourcing Decision — Award Ratification</div>
+        <h1>${esc(proj.name)}</h1>
+        <div class="meta">${esc(proj.customer)} · ${today}</div>
+        ${proj.jo_numbers ? '<div class="meta">JO: '+esc(proj.jo_numbers)+'</div>' : ''}
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Burke Porter | Ascential Technologies</div>
+        <div style="font-size:10px;color:#94a3b8">CONFIDENTIAL — Internal Use Only</div>
+        <button onclick="window.print()" style="margin-top:10px;padding:6px 14px;background:#0f172a;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">🖨 Print / Save PDF</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Executive Summary</h2>
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-label">Total Awarded</div><div class="kpi-val kpi-green">${fmtN(totalAwarded)}</div><div class="kpi-sub">Across ${awardedQs.length} scope${awardedQs.length!==1?'s':''}</div></div>
+        ${recognizedSavings ? '<div class="kpi"><div class="kpi-label">Recognized Savings</div><div class="kpi-val kpi-green">'+fmtN(recognizedSavings)+'</div><div class="kpi-sub">Awarded vs. market average (board-approved method)</div></div>' : ''}
+        <div class="kpi"><div class="kpi-label">Quotes Received</div><div class="kpi-val kpi-blue">${allQuotes.filter(x=>x.total_amount>0).length}</div><div class="kpi-sub">From ${[...new Set(allQuotes.map(x=>x.supplier_name))].length} supplier${[...new Set(allQuotes.map(x=>x.supplier_name))].length!==1?'s':''}</div></div>
+        <div class="kpi"><div class="kpi-label">Required Approver</div><div class="kpi-val" style="font-size:17px">${govTier.name}</div><div class="kpi-sub">${govTier.title}</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Approval Requirement</h2>
+      <div class="gov-box" style="border-color:${totalAwarded>500000?'#dc2626':totalAwarded>100000?'#b45309':'#16a34a'};background:${totalAwarded>500000?'#fff5f5':totalAwarded>100000?'#fffbeb':'#f0fdf4'}">
+        <div style="font-size:28px">${totalAwarded>500000?'🔴':totalAwarded>100000?'🟡':'🟢'}</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:${totalAwarded>500000?'#dc2626':totalAwarded>100000?'#b45309':'#16a34a'}">${govTier.level===3?'>$500K — VP Approval Required':govTier.level===2?'$100K–$500K — Director Approval Required':'Up to $100K — Manager Authority'}</div>
+          <div style="font-size:12px;color:#475569;margin-top:4px">Total awarded spend of <strong>${fmtN(totalAwarded)}</strong> requires sign-off from <strong>${govTier.name}</strong> (${govTier.title}) per Ascential Technologies Procurement Governance Policy.</div>
+          <div style="font-size:11px;color:#64748b;margin-top:6px">This document constitutes the sourcing package for ${awardedQs.length === allQuotes.filter(x=>x.total_amount>0).length ? 'post-award' : 'pre-award'} ratification. Attach to SharePoint approval workflow for routing.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Award Rationale</h2>
+      <div class="rationale-box">
+        <p>Following competitive solicitation across ${[...new Set(allQuotes.map(x=>x.supplier_name))].length} qualified supplier${[...new Set(allQuotes.map(x=>x.supplier_name))].length!==1?'s':''}, the sourcing team recommends award to <strong>${awardedSuppliers.map(s=>esc(s)).join(', ')}</strong> for the ${esc(proj.name)} project at ${esc(proj.customer||'the customer site')}.</p>
+        <p style="margin-top:10px">Selection criteria: competitive pricing, site mobilization advantage (supplier already on site eliminating incremental deployment costs), technical capability, and compliance with required scope specifications. The selected supplier's quote of <strong>${fmtN(totalAwarded)}</strong> represents the best value position when total cost of deployment is considered.</p>
+        ${recognizedSavings ? '<p style="margin-top:10px">Procurement recognized savings of <strong>'+fmtN(recognizedSavings)+'</strong> versus the market average of <strong>'+fmtN(marketAvg)+'</strong>, calculated per the board-approved methodology (awarded price minus average of all quotes received).</p>' : ''}
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:#64748b;padding:8px 12px;border-left:3px solid #0284c7;background:#f0f9ff">⚠ Edit the rationale above before submitting for approval. Customize with project-specific details as needed.</div>
+    </div>
+
+    <div class="section">
+      <h2>Competitive Quote Summary</h2>
+      ${scopeRows || '<p style="color:#94a3b8;font-style:italic">No quote data available — enter quotes in SpecBridge to populate this section.</p>'}
+    </div>
+
+    <div class="section">
+      <h2>Approver Sign-off</h2>
+      <div class="sign-block">
+        <div class="sign-field">
+          <div class="sign-line"></div>
+          <div class="sign-label">Buyer / Procurement Lead — Signature &amp; Date</div>
+        </div>
+        <div class="sign-field">
+          <div class="sign-line"></div>
+          <div class="sign-label">${esc(govTier.name)} (${esc(govTier.title)}) — Signature &amp; Date</div>
+        </div>
+        <div class="sign-field">
+          <div class="sign-line"></div>
+          <div class="sign-label">Project Manager — Signature &amp; Date</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Burke Porter | Ascential Technologies · SpecBridge Procurement · Confidential</span>
+      <span>Generated: ${today}</span>
+    </div>
+    </body></html>`;
+
+    const w = window.open('','_blank','width=960,height=700');
+    w.document.write(html);
+    w.document.close();
+    toast('Award Summary opened in new tab — use Print to save as PDF','success');
+  } catch(e) {
+    toast('Error generating summary: '+e.message,'error');
+  }
+}
+
+// ══════════════════════════════════════════════════
+// SUPPLIER FEEDBACK REPORT — Competitive debrief package
+// ══════════════════════════════════════════════════
+async function generateSupplierFeedback(scopeId, supplierName) {
+  toast('Generating feedback package…','info');
+  try {
+    const [scope]  = await q('rfq_scopes','select',{eq:['id',scopeId]});
+    const allQuotes = await q('rfq_quotes','select',{eq:['scope_id',scopeId]});
+    const proj     = _projectData || (await q('rfq_projects','select',{eq:['id',scope.project_id]}))[0];
+    const sc       = SCOPES[scope.scope_type];
+    const today    = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    const fmtN = n => n != null && n > 0 ? fmt$(n) : '—';
+    const getAmt = (items,key) => { const i=(items||[]).find(x=>x.key===key); return i&&i.amount>0?i.amount:0; };
+
+    const feedbackQ  = allQuotes.find(x=>x.supplier_name===supplierName);
+    const awarded    = allQuotes.find(x=>x.is_awarded);
+    if (!feedbackQ) { toast('Quote not found for '+supplierName,'error'); return; }
+    if (!awarded)   { toast('No awarded quote found — award a quote first','error'); return; }
+
+    const quotedAmts = allQuotes.filter(x=>x.total_amount>0).map(x=>x.total_amount);
+    const marketAvg  = quotedAmts.length ? quotedAmts.reduce((s,a)=>s+a,0)/quotedAmts.length : null;
+    const marketLow  = quotedAmts.length ? Math.min(...quotedAmts) : null;
+    const marketHigh = quotedAmts.length ? Math.max(...quotedAmts) : null;
+    const gap        = feedbackQ.total_amount - awarded.total_amount;
+    const gapPct     = awarded.total_amount > 0 ? (gap/awarded.total_amount*100).toFixed(1) : null;
+    const isAwarded  = feedbackQ.id === awarded.id;
+
+    // Line-item comparison
+    const lineRows = sc.items.filter(i=>i.req).map(i => {
+      const theirAmt = getAmt(feedbackQ.line_items||[], i.key);
+      const awardAmt = getAmt(awarded.line_items||[], i.key);
+      const diff     = (theirAmt > 0 && awardAmt > 0) ? theirAmt - awardAmt : null;
+      const diffPct  = (diff !== null && awardAmt > 0) ? (diff/awardAmt*100).toFixed(0) : null;
+      const rowStyle = diff === null ? '' : diff > 0 ? 'background:#fff5f5' : diff < 0 ? 'background:#f0fdf4' : '';
+      return '<tr style="border-bottom:1px solid #e2e8f0;'+rowStyle+'">' +
+        '<td style="padding:7px 10px;font-size:12px">'+esc(i.label)+'</td>' +
+        '<td style="padding:7px 10px;font-size:12px;text-align:right;font-weight:'+(theirAmt>0?600:400)+'">'+(theirAmt>0?fmtN(theirAmt):'<span style="color:#94a3b8">Not quoted</span>')+'</td>' +
+        '<td style="padding:7px 10px;font-size:12px;text-align:right;color:#64748b">'+(awardAmt>0?fmtN(awardAmt):'—')+'</td>' +
+        '<td style="padding:7px 10px;font-size:12px;text-align:right">'+(diff!==null?'<span style="color:'+(diff>0?'#dc2626':diff<0?'#16a34a':'#64748b')+'">'+( diff>0?'▲ '+fmtN(diff)+' ('+diffPct+'% higher)':diff<0?'▼ '+fmtN(Math.abs(diff))+' ('+Math.abs(diffPct)+'% lower)':'Same')+'</span>':'<span style="color:#94a3b8">—</span>')+'</td>' +
+      '</tr>';
+    }).join('');
+
+    // Determine which scope areas had the biggest gap
+    const itemGaps = sc.items.filter(i=>i.req).map(i => {
+      const theirAmt = getAmt(feedbackQ.line_items||[], i.key);
+      const awardAmt = getAmt(awarded.line_items||[], i.key);
+      return {label:i.label, gap: theirAmt>0&&awardAmt>0?theirAmt-awardAmt:null};
+    }).filter(x=>x.gap!==null&&x.gap>0).sort((a,b)=>b.gap-a.gap);
+    const topGap = itemGaps[0];
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Competitive Feedback — ${esc(supplierName)}</title>
+    <style>
+      * { box-sizing:border-box; margin:0; padding:0; }
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size:13px; color:#0f172a; background:#fff; padding:36px; max-width:800px; margin:0 auto; }
+      h1 { font-size:20px; font-weight:800; color:#0f172a; }
+      h2 { font-size:13px; font-weight:700; color:#334155; margin-bottom:10px; padding-bottom:5px; border-bottom:2px solid #e2e8f0; text-transform:uppercase; letter-spacing:0.06em; }
+      .section { margin-bottom:26px; }
+      .meta { font-size:11px; color:#64748b; margin-top:3px; }
+      .kpi-row { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:20px; }
+      .kpi { flex:1; min-width:130px; border:1px solid #e2e8f0; border-radius:8px; padding:12px 16px; }
+      .kpi-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin-bottom:5px; }
+      .kpi-val  { font-size:20px; font-weight:800; }
+      .kpi-sub  { font-size:10px; color:#94a3b8; margin-top:3px; }
+      .highlight-box { border-radius:8px; padding:16px 20px; margin-bottom:16px; }
+      table { width:100%; border-collapse:collapse; border:1px solid #e2e8f0; }
+      thead tr { background:#f8fafc; }
+      th { padding:7px 10px; font-size:11px; font-weight:600; color:#64748b; text-align:left; border-bottom:1px solid #e2e8f0; }
+      .footer { margin-top:36px; padding-top:12px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; }
+      @media print { body { padding:24px; } }
+    </style>
+    </head><body>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:5px">Competitive Sourcing Debrief</div>
+        <h1>Feedback Package — ${esc(supplierName)}</h1>
+        <div class="meta">${esc(proj.name||'')} · ${sc.icon} ${sc.label} · ${today}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Burke Porter | Ascential Technologies</div>
+        <div style="font-size:10px;color:#94a3b8">CONFIDENTIAL — External Use Permitted</div>
+        <button onclick="window.print()" style="margin-top:10px;padding:6px 14px;background:#0f172a;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">🖨 Print / Save PDF</button>
+      </div>
+    </div>
+
+    <div class="section">
+      ${isAwarded
+        ? '<div class="highlight-box" style="background:#f0fdf4;border:1px solid #86efac"><div style="font-size:13px;font-weight:700;color:#166534">✅ Congratulations — '+esc(supplierName)+' has been selected for award on this scope.</div><div style="font-size:12px;color:#475569;margin-top:6px">This package confirms your competitive position and supports the formal award. Further details will be provided via SOW / Purchase Order.</div></div>'
+        : '<div class="highlight-box" style="background:#fff7ed;border:1px solid #fed7aa"><div style="font-size:13px;font-weight:700;color:#c2410c">Thank you for your quote on '+esc(proj.name||'this project')+'.</div><div style="font-size:12px;color:#475569;margin-top:6px">After reviewing all proposals, we have selected another supplier for this scope. We value your participation and are providing this competitive feedback to support your future quoting efforts with Burke Porter | Ascential Technologies.</div></div>'
+      }
+    </div>
+
+    <div class="section">
+      <h2>Your Competitive Position</h2>
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-label">Your Total Bid</div><div class="kpi-val" style="color:#0f172a">${fmtN(feedbackQ.total_amount)}</div></div>
+        ${!isAwarded ? '<div class="kpi"><div class="kpi-label">Selected Supplier</div><div class="kpi-val" style="color:#16a34a">'+fmtN(awarded.total_amount)+'</div><div class="kpi-sub">Award value (all scopes)</div></div>' : ''}
+        ${!isAwarded && gap > 0 ? '<div class="kpi"><div class="kpi-label">Gap to Award</div><div class="kpi-val" style="color:#dc2626">▲ '+fmtN(gap)+'</div><div class="kpi-sub">'+gapPct+'% above selected supplier</div></div>' : ''}
+        ${marketAvg ? '<div class="kpi"><div class="kpi-label">Market Average</div><div class="kpi-val" style="color:#0284c7">'+fmtN(marketAvg)+'</div><div class="kpi-sub">Avg of all '+quotedAmts.length+' quotes received</div></div>' : ''}
+      </div>
+      ${!isAwarded && topGap ? '<div style="padding:12px 16px;background:#f8fafc;border-left:3px solid #f97316;border-radius:0 6px 6px 0;font-size:12px;margin-bottom:14px"><strong>Key Improvement Area:</strong> Your largest cost gap vs. the selected supplier was in <strong>'+esc(topGap.label)+'</strong> at <strong>'+fmtN(topGap.gap)+'</strong>. Focusing on this element in future bids will significantly improve your competitive position.</div>' : ''}
+    </div>
+
+    ${!isAwarded ? '<div class="section"><h2>Line-Item Comparison</h2><p style="font-size:11px;color:#64748b;margin-bottom:10px">Comparison is provided to help you identify areas of opportunity. Competitor pricing is not disclosed — "Awarded" column shows the selected price.</p><table><thead><tr><th>Line Item</th><th style="text-align:right">Your Quote</th><th style="text-align:right">Awarded Price</th><th style="text-align:right">Variance</th></tr></thead><tbody>'+lineRows+'</tbody><tfoot><tr style="background:#f8fafc;font-weight:700"><td style="padding:8px 10px">TOTAL</td><td style="padding:8px 10px;text-align:right">'+fmtN(feedbackQ.total_amount)+'</td><td style="padding:8px 10px;text-align:right">'+fmtN(awarded.total_amount)+'</td><td style="padding:8px 10px;text-align:right;color:'+(gap>0?'#dc2626':gap<0?'#16a34a':'#64748b')+'">'+(gap>0?'▲ '+fmtN(gap):gap<0?'▼ '+fmtN(Math.abs(gap)):'Same')+'</td></tr></tfoot></table></div>' : ''}
+
+    <div class="section">
+      <h2>Next Steps</h2>
+      <div style="font-size:12px;line-height:1.8;color:#334155">
+        ${isAwarded
+          ? '<p>• Formal SOW and Purchase Order will be issued by Burke Porter | Ascential Technologies</p><p>• Please review and return the signed SOW within 5 business days</p><p>• Mobilization schedule and site access details will follow</p>'
+          : '<p>• We encourage you to stay engaged as a supplier — additional scopes and future projects will be sourced competitively</p><p>• Use this feedback to sharpen your cost structure, particularly in the areas noted above</p><p>• Our team is available to discuss this debrief if you have questions: contact '+(proj.buyer_name?esc(proj.buyer_name):'the procurement team')+' at Burke Porter | Ascential Technologies</p>'
+        }
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Burke Porter | Ascential Technologies · SpecBridge Procurement</span>
+      <span>Generated: ${today} · Confidential</span>
+    </div>
+    </body></html>`;
+
+    const w = window.open('','_blank','width=860,height=660');
+    w.document.write(html);
+    w.document.close();
+    toast('Feedback package opened — use Print to save as PDF','success');
+  } catch(e) {
+    toast('Error generating feedback: '+e.message,'error');
+  }
+}
+
+// ══════════════════════════════════════════════════
 // SAVINGS
 // ══════════════════════════════════════════════════
 async function loadSavings() {
@@ -2409,6 +2782,15 @@ async function loadSavings() {
     const totalNegTarget = totalAwarded * 0.02; // 2% BEP push-back policy
     // Negotiated reduction: sum of actual push-downs captured after BIC feedback
     const totalNegReduction = scopes.reduce((s,x)=>s+(x.negotiated_reduction||0),0);
+    // Board-approved recognized savings: awarded vs. average of all quotes per scope
+    const totalRecognizedSavings = competed.reduce((sum,s)=>{
+      const sq2 = quotes.filter(x=>x.scope_id===s.id&&(x.total_amount||0)>0);
+      const aw2 = sq2.find(x=>x.is_awarded);
+      if (!aw2||!aw2.total_amount) return sum;
+      const avg2 = sq2.reduce((a,x)=>a+(x.total_amount||0),0)/sq2.length;
+      const saving = avg2 - (aw2.total_amount||0);
+      return sum + (saving > 0 ? saving : 0);
+    },0);
     // Pre-source stats
     const scopesWithPresourceFlag = scopes.filter(s=>s.sourced_before_proposal!==null&&s.sourced_before_proposal!==undefined);
     const preSourcingCount = scopesWithPresourceFlag.filter(s=>s.sourced_before_proposal===true).length;
@@ -2417,8 +2799,9 @@ async function loadSavings() {
     // Business case banner — grounded in Mark/Dave/Ryan value pillars
     const bcPillars = [
       competed.length>0 ? '<span style="color:#22c55e;font-weight:700">📋 ' + competed.length + ' scope' + (competed.length!==1?'s':'') + ' competitively sourced</span>' : null,
+      totalRecognizedSavings>0 ? '<span style="color:#22c55e;font-weight:700">💰 ' + fmt$(totalRecognizedSavings) + ' recognized savings (board-approved method)</span>' : null,
       totalBidSpread>0  ? '<span style="color:#38bdf8;font-weight:700">📉 ' + fmt$(totalBidSpread) + ' bid spread</span>' : null,
-      totalNegReduction>0 ? '<span style="color:#22c55e;font-weight:700">💰 ' + fmt$(totalNegReduction) + ' negotiated reduction (captured)</span>' : null,
+      totalNegReduction>0 ? '<span style="color:#22c55e;font-weight:700">✂ ' + fmt$(totalNegReduction) + ' negotiated reduction (captured)</span>' : null,
       singleSourceRisk>0 ? '<span style="color:#f59e0b;font-weight:700">⚠ ' + fmt$(singleSourceRisk) + ' single-source risk</span>' : null,
       preSourcingCount>0 ? '<span style="color:#a855f7;font-weight:700">🛡 ' + preSourcingCount + ' scope' + (preSourcingCount!==1?'s':'') + ' pre-sourced before proposal</span>' : null,
       budgetVariance>0  ? '<span style="color:#86efac;font-weight:700">🎯 ' + fmt$(budgetVariance) + ' under budget</span>' : null,
@@ -2455,6 +2838,12 @@ async function loadSavings() {
         <div class="metric-label">Scopes Competed</div>
         ${preSourcingCount>0?'<div style="font-size:10px;color:#a855f7;margin-top:4px">'+preSourcingCount+' pre-sourced before proposal 🛡</div>':''}
         <div style="font-size:10px;color:var(--muted);margin-top:3px">Total Awarded: <strong style="color:var(--success)">${fmt$(totalAwarded)}</strong></div>
+      </div>
+      <div class="card metric-card" style="border-color:rgba(34,197,94,0.3);background:rgba(34,197,94,0.04)">
+        <div class="metric-value" style="color:#22c55e;font-size:${totalRecognizedSavings>0?'22':'26'}px">${totalRecognizedSavings>0?fmt$(totalRecognizedSavings):'—'}</div>
+        <div class="metric-label">Recognized Savings</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Board-approved: awarded vs. average of all quotes</div>
+        ${totalNegReduction>0?'<div style="font-size:10px;color:#22c55e;margin-top:3px;font-weight:700">+ '+fmt$(totalNegReduction)+' neg. reduction</div>':''}
       </div>`;
 
     if (!quotes.length) {
