@@ -3178,6 +3178,48 @@ async function generateProjectSupplierFeedback(projectId, supplierName) {
       (bicHolderScopes.length?'<div class="kpi" style="background:#f0fdf4;border-color:#bbf7d0"><div class="kpi-label" style="color:#16a34a">BIC Scopes — You\'re #1</div><div class="kpi-val" style="color:#16a34a">'+bicHolderScopes.length+'</div><div class="kpi-sub">'+bicHolderScopes.map(x=>x.sc.label.split(' ')[0]).join(', ')+'</div></div>':'')+
     '</div></div>'+
 
+    (()=>{
+      const bicRefRows = scopeComps.filter(x=>x.bicAmt>0).map(d=>{
+        const youAre = d.isBIC;
+        const gapToBICAmt = d.theirAmt>0 ? d.theirAmt - d.bicAmt : null;
+        const gapToBICPctVal = gapToBICAmt && d.bicAmt>0 ? (gapToBICAmt/d.bicAmt*100).toFixed(0) : null;
+        return '<tr style="border-bottom:1px solid #e2e8f0;background:'+(youAre?'#f0fdf4':'')+'">' +
+          '<td style="padding:8px 12px;font-size:13px;font-weight:600">'+d.sc.icon+' '+esc(d.sc.label)+'</td>'+
+          '<td style="padding:8px 12px;font-size:13px;font-weight:800;color:#7c3aed;text-align:right">'+fmtN(d.bicAmt)+'</td>'+
+          '<td style="padding:8px 12px;font-size:12px;color:#64748b">'+esc(d.bicSupName)+'</td>'+
+          '<td style="padding:8px 12px;text-align:center">'+(youAre
+            ? '<span style="font-size:11px;font-weight:800;background:#dcfce7;color:#166534;padding:3px 8px;border-radius:4px">🏆 YOU HOLD BIC</span>'
+            : (gapToBICAmt&&gapToBICAmt>0
+              ? '<span style="font-size:11px;font-weight:700;color:#dc2626">▲ '+fmtN(gapToBICAmt)+' ('+gapToBICPctVal+'%) above market floor</span>'
+              : '<span style="font-size:11px;color:#94a3b8">Did not quote</span>')
+          )+'</td>'+
+        '</tr>';
+      }).join('');
+      const totalBICVal = scopeComps.reduce((s,d)=>s+(d.bicAmt||0),0);
+      return '<div class="section">'+
+        '<h2>🏆 Best-in-Class Benchmark Reference</h2>'+
+        '<p style="font-size:11px;color:#64748b;margin-bottom:10px;line-height:1.6">The Best-in-Class (BIC) price is the <strong>lowest price submitted by any supplier</strong> on each scope. This is the true market floor — the number you must reach to be the most competitive option. Scopes where you hold BIC represent genuine cost leadership. Scopes where you are above BIC are your primary improvement targets.</p>'+
+        '<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0">'+
+          '<thead><tr style="background:#f8fafc">'+
+            '<th style="padding:8px 12px;font-size:11px;text-align:left;border-bottom:1px solid #e2e8f0">Scope</th>'+
+            '<th style="padding:8px 12px;font-size:11px;text-align:right;color:#7c3aed;border-bottom:1px solid #e2e8f0">BIC Price (Market Floor)</th>'+
+            '<th style="padding:8px 12px;font-size:11px;border-bottom:1px solid #e2e8f0">BIC Held By</th>'+
+            '<th style="padding:8px 12px;font-size:11px;border-bottom:1px solid #e2e8f0">Your Position</th>'+
+          '</tr></thead>'+
+          '<tbody>'+bicRefRows+'</tbody>'+
+          '<tfoot><tr style="background:#f5f3ff;font-weight:700;border-top:2px solid #d8b4fe">'+
+            '<td style="padding:9px 12px;font-size:12px;color:#4c1d95">FULL PROJECT BIC TOTAL</td>'+
+            '<td style="padding:9px 12px;font-size:14px;color:#7c3aed;text-align:right">'+fmtN(totalBICVal)+'</td>'+
+            '<td colspan="2" style="padding:9px 12px;font-size:11px;color:#64748b">The theoretical minimum cost if the lowest supplier per scope was awarded each one</td>'+
+          '</tr></tfoot>'+
+        '</table>'+
+        (bicHolderScopes.length
+          ? '<div style="margin-top:10px;padding:10px 14px;background:#f0fdf4;border-left:3px solid #22c55e;border-radius:0 6px 6px 0;font-size:12px;color:#166534;line-height:1.6"><strong>Competitive Strength:</strong> You hold the lowest market price on '+bicHolderScopes.length+' scope'+(bicHolderScopes.length>1?'s':'')+': '+bicHolderScopes.map(d=>d.sc.icon+' '+esc(d.sc.label)).join(', ')+'. These are your anchors — lead with them in future proposals and reference them when negotiating bundled scope awards.</div>'
+          : '<div style="margin-top:10px;padding:10px 14px;background:#fef9c3;border-left:3px solid #eab308;border-radius:0 6px 6px 0;font-size:12px;color:#854d0e;line-height:1.6"><strong>No BIC positions held on this project.</strong> Focus on the largest gap scopes first — structural cost improvements to overhead, mobilization, and base labor rates typically drive the most meaningful reductions.</div>'
+        )+
+      '</div>';
+    })()+
+
     '<div class="section"><h2>Project-Level Scope Breakdown</h2>'+
     '<p style="font-size:11px;color:#64748b;margin-bottom:10px">Market Floor = lowest price received from <em>any</em> supplier on this scope. This is the true competitive benchmark — not just the awarded price.</p>'+
     '<table><thead><tr>'+
@@ -3855,6 +3897,11 @@ async function loadSavings() {
         const negRed2    = scope.negotiated_reduction ? Number(scope.negotiated_reduction) : null;
         const preSrc2    = scope.sourced_before_proposal;
         const competed2  = amts.length >= 2;
+        // BIC: lowest price from any supplier on this scope
+        const bicAmt2    = amts.length ? Math.min(...amts) : null;
+        const bicSup2    = bicAmt2 ? (sq.find(x=>(x.total_amount||0)===bicAmt2)||{}).supplier_name||'' : '';
+        const awIsB      = aw && bicAmt2 && (aw.total_amount||0) === bicAmt2;
+        const gapToB     = aw && bicAmt2 && (aw.total_amount||0) > bicAmt2 ? (aw.total_amount||0) - bicAmt2 : null;
         const srcBadge = competed2
           ? `<span style="font-size:9px;font-weight:700;color:#22c55e;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:3px;padding:1px 5px">COMPETED</span>`
           : amts.length===1
@@ -3862,12 +3909,23 @@ async function loadSavings() {
             : '';
         const supCells = SUPPLIERS.map(s => {
           const qx = sq.find(x=>x.supplier_name===s.name);
-          return '<td class="sv-right">' + (qx?.total_amount?fmt$(qx.total_amount):'<span class="sv-muted">—</span>') + '</td>';
+          const isBicSup = qx && bicAmt2 && (qx.total_amount||0)===bicAmt2 && competed2;
+          return '<td class="sv-right">' + (qx?.total_amount
+            ? fmt$(qx.total_amount)+(isBicSup?'<br><span style="font-size:9px;font-weight:700;color:#22c55e">🏆 BIC</span>':'')
+            : '<span class="sv-muted">—</span>') + '</td>';
         }).join('');
+        const bicCell = bicAmt2
+          ? '<td class="sv-right" style="background:rgba(124,58,237,0.04);border-left:1px solid rgba(124,58,237,0.15)">'+
+              '<span style="color:#7c3aed;font-weight:700">'+fmt$(bicAmt2)+'</span>'+
+              '<br><span style="font-size:9px;color:#64748b">'+esc(bicSup2.split(' ').slice(0,2).join(' '))+'</span>'+
+              (gapToB?'<br><span style="font-size:9px;color:#dc2626">awarded +'+fmt$(gapToB)+'</span>':'<br><span style="font-size:9px;color:#22c55e">awarded=BIC ✓</span>')+
+            '</td>'
+          : '<td class="sv-right" style="background:rgba(124,58,237,0.04);border-left:1px solid rgba(124,58,237,0.15)"><span class="sv-muted">—</span></td>';
         return '<tr>' +
           '<td>'+sc.icon+' '+esc(sc.label)+'<br><div style="margin-top:3px">'+srcBadge+'</div></td>' +
           supCells +
           '<td class="sv-right '+(aw?'sv-green':'')+'">'+( aw?.total_amount?fmt$(aw.total_amount):'<span class="sv-muted">—</span>')+'</td>' +
+          bicCell +
           '<td class="sv-right">'+(bg?fmt$(bg)+'<br><span style="font-size:10px;color:#f59e0b">Target: '+fmt$(bgTarget)+'</span>':'<span class="sv-muted">—</span>')+'</td>' +
           '<td class="sv-right">'+(bvAmt!==null?'<span style="font-weight:700;color:'+(bvAmt>=0?'#86efac':'#fca5a5')+'">'+(bvAmt>=0?'▼ '+fmt$(bvAmt)+' under':'▲ '+fmt$(Math.abs(bvAmt))+' over')+'</span>':'<span class="sv-muted">—</span>')+'</td>' +
           '<td class="sv-right '+(spread>0?'':'')+'"><span style="color:#38bdf8;font-weight:'+(spread>0?'700':'400')+'">'+( spread>0?fmt$(spread)+(spreadPct?' <span style="font-size:10px;opacity:0.7">('+spreadPct+'%)</span>':''):'<span class="sv-muted">—</span>')+'</span></td>' +
@@ -3889,6 +3947,16 @@ async function loadSavings() {
             </div>
             <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
               ${projAwarded?`<div style="text-align:right"><div style="font-size:10px;color:var(--muted)">Awarded</div><div style="font-size:14px;font-weight:700;color:#22c55e">${fmt$(projAwarded)}</div></div>`:''}
+              ${(()=>{
+                const projBIC = SCOPE_ORDER.reduce((sum,st2)=>{
+                  const s2=ps.find(x=>x.scope_type===st2); if(!s2) return sum;
+                  const sq3=pq.filter(x=>x.scope_id===s2.id&&(x.total_amount||0)>0);
+                  if(!sq3.length) return sum;
+                  return sum+Math.min(...sq3.map(x=>x.total_amount||0));
+                },0);
+                return projBIC&&projAwarded?
+                  `<div style="text-align:right"><div style="font-size:10px;color:var(--muted)">🏆 Full-Project BIC</div><div style="font-size:14px;font-weight:700;color:#7c3aed">${fmt$(projBIC)}</div><div style="font-size:9px;color:var(--muted);margin-top:1px">market floor / scope</div></div>`:'';
+              })()}
               ${projProfP>0?`<div style="text-align:right"><div style="font-size:10px;color:var(--muted)">Neg. Target (2%)</div><div style="font-size:14px;font-weight:700;color:#a855f7">${fmt$(projProfP)}</div></div>`:''}
               <div style="text-align:right"><div style="font-size:10px;color:var(--muted)">Sourcing</div><div style="font-size:13px;font-weight:700;color:${projCompeted===projScopes.length?'#22c55e':'#f59e0b'}">${projCompeted}/${projScopes.length} competed</div></div>
             </div>
@@ -3898,6 +3966,7 @@ async function loadSavings() {
               <th>Scope</th>
               ${SUPPLIERS.map(s=>'<th class="sv-right">'+esc(s.name.split(' ').slice(0,2).join(' '))+'</th>').join('')}
               <th class="sv-right">Awarded ✓</th>
+              <th class="sv-right" style="color:#7c3aed;background:rgba(124,58,237,0.04)">🏆 BIC<br><span style="font-weight:400;font-size:9px;color:var(--muted)">Market Floor</span></th>
               <th class="sv-right">Budget · Target (−5%)</th>
               <th class="sv-right">vs. Budget</th>
               <th class="sv-right" style="color:#38bdf8">Bid Spread</th>
@@ -3920,10 +3989,17 @@ async function loadSavings() {
                 const t=pq.filter(x=>x.supplier_name===s.name).reduce((sum,x)=>sum+(x.total_amount||0),0);
                 return '<td class="sv-right" style="padding:8px;font-size:12px">'+(t?fmt$(t):'—')+'</td>';
               }).join('');
+              const totBIC = SCOPE_ORDER.reduce((sum,st2)=>{
+                const s2=ps.find(x=>x.scope_type===st2); if(!s2) return sum;
+                const sq3=pq.filter(x=>x.scope_id===s2.id&&(x.total_amount||0)>0);
+                if(!sq3.length) return sum;
+                return sum+Math.min(...sq3.map(x=>x.total_amount||0));
+              },0);
               return '<tfoot><tr style="background:rgba(255,255,255,0.03);font-weight:700;border-top:2px solid var(--border)">' +
                 '<td style="padding:8px;font-size:12px;color:var(--muted)">PROJECT TOTAL</td>' +
                 supTotCells +
                 '<td class="sv-right" style="padding:8px;font-size:13px;color:#22c55e">' + (totAw?fmt$(totAw):'—') + '</td>' +
+                '<td class="sv-right" style="padding:8px;font-size:13px;color:#7c3aed;background:rgba(124,58,237,0.06)">' + (totBIC?fmt$(totBIC)+'<div style="font-size:9px;font-weight:400;color:var(--muted);margin-top:2px">Full project BIC</div>':'—') + '</td>' +
                 '<td colspan="2" style="padding:8px"></td>' +
                 '<td class="sv-right" style="padding:8px;font-size:12px;color:#38bdf8;font-weight:700">' + (totSpread?fmt$(totSpread):'—') + '</td>' +
                 '<td class="sv-right" style="padding:8px;font-size:12px;color:#22c55e">' + (()=>{const t=ps.reduce((s,x)=>s+(x.negotiated_reduction||0),0);return t?fmt$(t):'—';})() + '</td>' +
@@ -3938,6 +4014,7 @@ async function loadSavings() {
       <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:11px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;line-height:1.6">
         <div style="font-weight:700;color:var(--text);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;width:100%;margin-bottom:2px">How to read this table</div>
         <div><strong style="color:var(--text)">Awarded ✓</strong> — quote selected for execution; drives SOW and PO</div>
+        <div><strong style="color:#7c3aed">🏆 BIC (Market Floor)</strong> — Best-in-Class: the lowest price received from <em>any</em> supplier on that scope. Shows who holds it and whether the awarded price matches. A gap between Awarded and BIC is value left on the table — the target for post-award negotiation</div>
         <div><strong style="color:var(--text)">Budget · Target (−5%)</strong> — AE's preliminary estimate; Target = budget −5%, the bogey BEP must beat before awarding</div>
         <div><strong style="color:#86efac">▼ under</strong> / <strong style="color:#fca5a5">▲ over</strong> — awarded amount vs. AE budget; green = genuine budget saving</div>
         <div><strong style="color:#38bdf8">Bid Spread</strong> — dollar gap between highest and lowest bid; the competitive spread Mark calls a "powerful story to stakeholders." Value created by sourcing competitively instead of single-source</div>
