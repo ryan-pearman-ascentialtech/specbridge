@@ -1013,7 +1013,7 @@ async function loadProjectDetail(projectId) {
       : totalAwarded > 100000
         ? { name: 'Mike Pish',   color: '#f59e0b', borderColor: 'rgba(245,158,11,0.35)', icon: '🟡', label: '$100K–$500K — Director Approval Required', sub: 'Requires Mike Pish sign-off before award execution' }
         : totalAwarded > 0
-          ? { name: 'Mark',      color: '#22c55e', borderColor: 'rgba(34,197,94,0.35)',   icon: '🟢', label: 'Up to $100K — Manager Level', sub: 'Mark approval threshold — within manager authority' }
+          ? { name: 'Mark',      color: '#22c55e', borderColor: 'rgba(34,197,94,0.35)',   icon: '🟢', label: 'Up to $100K — Director Level', sub: 'Mark Mensonides approval threshold — within director authority' }
           : null;
     const govBanner = govTier && totalAwarded > 0 ? `
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
@@ -1049,7 +1049,7 @@ async function loadProjectDetail(projectId) {
               <div style="display:flex;align-items:center;gap:10px;padding:4px 8px;border-radius:4px;${totalAwarded>0&&totalAwarded<100000?'background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2)':''}">
                 <span style="font-size:8px;color:#22c55e">●</span>
                 <span style="font-size:11px;font-weight:600;color:${totalAwarded>0&&totalAwarded<100000?'#22c55e':'#94a3b8'};flex:1">&lt; $100K</span>
-                <span style="font-size:11px;color:${totalAwarded>0&&totalAwarded<100000?'#22c55e':'#64748b'}">Mark Mensonides · Manager</span>
+                <span style="font-size:11px;color:${totalAwarded>0&&totalAwarded<100000?'#22c55e':'#64748b'}">Mark Mensonides · Director</span>
                 ${totalAwarded>0&&totalAwarded<100000?'<span style="font-size:9px;font-weight:700;color:#22c55e;background:rgba(34,197,94,0.15);border-radius:3px;padding:1px 6px;margin-left:4px">ACTIVE</span>':''}
               </div>
             </div>
@@ -2760,7 +2760,7 @@ async function generateAwardSummary(projectId) {
       ? { name: 'Scott Watts', title: 'VP / Executive Sponsor', level: 3 }
       : totalAwarded > 100000
         ? { name: 'Mike Pish',  title: 'Director of Procurement', level: 2 }
-        : { name: 'Mark',       title: 'Procurement Manager',     level: 1 };
+        : { name: 'Mark',       title: 'Director of Procurement', level: 1 };
 
     // Build scope rows
     const scopeRows = SCOPE_ORDER.map(st => {
@@ -2866,7 +2866,7 @@ async function generateAwardSummary(projectId) {
       <div class="gov-box" style="border-color:${totalAwarded>500000?'#dc2626':totalAwarded>100000?'#b45309':'#16a34a'};background:${totalAwarded>500000?'#fff5f5':totalAwarded>100000?'#fffbeb':'#f0fdf4'}">
         <div style="font-size:28px">${totalAwarded>500000?'🔴':totalAwarded>100000?'🟡':'🟢'}</div>
         <div>
-          <div style="font-size:13px;font-weight:700;color:${totalAwarded>500000?'#dc2626':totalAwarded>100000?'#b45309':'#16a34a'}">${govTier.level===3?'>$500K — VP Approval Required':govTier.level===2?'$100K–$500K — Director Approval Required':'Up to $100K — Manager Authority'}</div>
+          <div style="font-size:13px;font-weight:700;color:${totalAwarded>500000?'#dc2626':totalAwarded>100000?'#b45309':'#16a34a'}">${govTier.level===3?'>$500K — VP Approval Required':govTier.level===2?'$100K–$500K — Director Approval Required':'Up to $100K — Director Authority'}</div>
           <div style="font-size:12px;color:#475569;margin-top:4px">Total awarded spend of <strong>${fmtN(totalAwarded)}</strong> requires sign-off from <strong>${govTier.name}</strong> (${govTier.title}) per Ascential Technologies Procurement Governance Policy.</div>
           <div style="font-size:11px;color:#64748b;margin-top:6px">This document constitutes the sourcing package for ${awardedQs.length === allQuotes.filter(x=>x.total_amount>0).length ? 'post-award' : 'pre-award'} ratification. Attach to SharePoint approval workflow for routing.</div>
         </div>
@@ -3437,7 +3437,7 @@ async function generateBICNegotiationBrief(projectId) {
       ? { name: 'Scott Watts',  title: 'VP / Executive Sponsor',    color: '#ef4444' }
       : awardedTotal > 100000
         ? { name: 'Mike Pish',  title: 'Director of Procurement',   color: '#f59e0b' }
-        : { name: 'Mark',       title: 'Procurement Manager',       color: '#22c55e' };
+        : { name: 'Mark',       title: 'Director of Procurement',   color: '#22c55e' };
 
     // Per-scope BIC analysis
     const scopeData = SCOPE_ORDER.map(st => {
@@ -4801,7 +4801,7 @@ async function generateExecutiveSourcingSummary() {
           '<div>• <strong>Two-iteration framework:</strong> AE quotes customer at median market (Iteration 1); procurement sources at lowest cost to capture margin spread (Iteration 2)</div>'+
           '<div style="margin-top:6px">• <strong>Board-approved savings metric:</strong> Awarded price vs. average of all quotes received per scope</div>'+
           '<div style="margin-top:6px">• <strong>BIC (Best-in-Class):</strong> The lowest price from any supplier per scope — the true market floor used for post-award negotiation briefings</div>'+
-          '<div style="margin-top:6px">• <strong>Governance thresholds:</strong> &lt;$100K = Manager · $100K–$500K = Director (Mike Pish) · &gt;$500K = VP (Scott Watts)</div>'+
+          '<div style="margin-top:6px">• <strong>Governance thresholds:</strong> &lt;$100K = Director (Mark Mensonides) · $100K–$500K = Director (Mike Pish) · &gt;$500K = VP (Scott Watts)</div>'+
         '</div>'+
       '</div>'+
       '<div style="flex:1;min-width:260px;border:1px solid #e2e8f0;border-radius:8px;padding:18px 20px">'+
