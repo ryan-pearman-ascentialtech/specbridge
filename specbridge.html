@@ -1016,21 +1016,71 @@ async function loadProjectDetail(projectId) {
           ? { name: 'Mark',      color: '#22c55e', borderColor: 'rgba(34,197,94,0.35)',   icon: '🟢', label: 'Up to $100K — Manager Level', sub: 'Mark approval threshold — within manager authority' }
           : null;
     const govBanner = govTier && totalAwarded > 0 ? `
-      <div style="display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.02);border:1px solid ${govTier.borderColor};border-radius:10px;padding:14px 20px;margin-bottom:16px;flex-wrap:wrap">
-        <div style="font-size:22px">${govTier.icon}</div>
-        <div style="flex:1;min-width:200px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:${govTier.color}">${govTier.label}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:3px">${govTier.sub}</div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:12px;margin-bottom:16px;align-items:start">
+
+        <!-- Left: active tier + action buttons -->
+        <div style="background:rgba(255,255,255,0.02);border:1px solid ${govTier.borderColor};border-radius:10px;padding:14px 18px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="font-size:20px">${govTier.icon}</div>
+            <div style="flex:1">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:${govTier.color}">${govTier.label}</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px">${govTier.sub}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:2px">Required Approver</div>
+              <div style="font-size:14px;font-weight:700;color:${govTier.color}">${govTier.name}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-sm" style="background:rgba(79,124,255,0.12);color:#7da4ff;border:1px solid rgba(79,124,255,0.25)" onclick="generateAwardSummary('${projectId}')">📋 Award Summary</button>
+            <button class="btn btn-sm" style="background:rgba(56,189,248,0.1);color:#38bdf8;border:1px solid rgba(56,189,248,0.25)" onclick="generateProjectQuoteSummary('${projectId}')">📊 Quote Summary</button>
+            <button class="btn btn-sm" style="background:rgba(168,85,247,0.12);color:#a855f7;border:1px solid rgba(168,85,247,0.3)" onclick="generateProjectSourcingSummary('${projectId}')">📤 Sourcing Summary</button>
+            <button class="btn btn-sm" style="background:rgba(234,179,8,0.12);color:#eab308;border:1px solid rgba(234,179,8,0.3)" onclick="generateBICNegotiationBrief('${projectId}')">🔍 BIC Brief</button>
+            <button class="btn btn-sm" style="background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.3)" onclick="submitForApproval('${projectId}','${govTier.name}','${safeJs(govTier.name+' — '+govTier.label)}')">📤 Approve</button>
+          </div>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:10px;color:var(--muted);margin-bottom:2px">Required Approver</div>
-          <div style="font-size:15px;font-weight:700;color:${govTier.color}">${govTier.name}</div>
+
+        <!-- Right: threshold legend + approval workflow -->
+        <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:13px 16px;min-width:220px;max-width:260px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#475569;margin-bottom:10px">Approval Thresholds</div>
+          <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;${totalAwarded>500000?'background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25)':'border:1px solid transparent'}">
+              <span style="font-size:9px;font-weight:700;color:#ef4444;width:7px;text-align:center">●</span>
+              <div style="flex:1">
+                <div style="font-size:11px;font-weight:600;color:${totalAwarded>500000?'#ef4444':'#94a3b8'}"> &gt; $500K</div>
+                <div style="font-size:10px;color:#64748b">Scott Watts · VP</div>
+              </div>
+              ${totalAwarded>500000?'<span style="font-size:9px;font-weight:700;color:#ef4444;background:rgba(239,68,68,0.15);border-radius:3px;padding:1px 5px">ACTIVE</span>':''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;${totalAwarded>=100000&&totalAwarded<=500000?'background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25)':'border:1px solid transparent'}">
+              <span style="font-size:9px;font-weight:700;color:#f59e0b;width:7px;text-align:center">●</span>
+              <div style="flex:1">
+                <div style="font-size:11px;font-weight:600;color:${totalAwarded>=100000&&totalAwarded<=500000?'#f59e0b':'#94a3b8'}">$100K – $500K</div>
+                <div style="font-size:10px;color:#64748b">Mike Pish · Director</div>
+              </div>
+              ${totalAwarded>=100000&&totalAwarded<=500000?'<span style="font-size:9px;font-weight:700;color:#f59e0b;background:rgba(245,158,11,0.15);border-radius:3px;padding:1px 5px">ACTIVE</span>':''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;${totalAwarded>0&&totalAwarded<100000?'background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25)':'border:1px solid transparent'}">
+              <span style="font-size:9px;font-weight:700;color:#22c55e;width:7px;text-align:center">●</span>
+              <div style="flex:1">
+                <div style="font-size:11px;font-weight:600;color:${totalAwarded>0&&totalAwarded<100000?'#22c55e':'#94a3b8'}"> &lt; $100K</div>
+                <div style="font-size:10px;color:#64748b">Mark Pearman · Manager</div>
+              </div>
+              ${totalAwarded>0&&totalAwarded<100000?'<span style="font-size:9px;font-weight:700;color:#22c55e;background:rgba(34,197,94,0.15);border-radius:3px;padding:1px 5px">ACTIVE</span>':''}
+            </div>
+          </div>
+          <div style="border-top:1px solid var(--border);padding-top:9px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#475569;margin-bottom:7px">Approval Flow</div>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:10px;color:#64748b">
+              <div style="display:flex;align-items:center;gap:6px"><span style="background:#1e3a5f;color:#60a5fa;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">1</span>Competitive quotes (2+ bids)</div>
+              <div style="display:flex;align-items:center;gap:6px"><span style="background:#1e3a5f;color:#60a5fa;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">2</span>Award decision + rationale</div>
+              <div style="display:flex;align-items:center;gap:6px"><span style="background:#1e3a5f;color:#60a5fa;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">3</span>Generate sourcing package</div>
+              <div style="display:flex;align-items:center;gap:6px"><span style="background:#2d1b4e;color:#a78bfa;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">4</span>Route to <strong style="color:${govTier.color}">${govTier.name}</strong> for sign-off</div>
+              <div style="display:flex;align-items:center;gap:6px"><span style="background:#14532d;color:#4ade80;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">5</span>Execute PO</div>
+            </div>
+          </div>
         </div>
-        <button class="btn btn-sm" style="background:rgba(79,124,255,0.12);color:#7da4ff;border:1px solid rgba(79,124,255,0.25);margin-left:8px" onclick="generateAwardSummary('${projectId}')">📋 Award Summary</button>
-        <button class="btn btn-sm" style="background:rgba(56,189,248,0.1);color:#38bdf8;border:1px solid rgba(56,189,248,0.25);margin-left:4px" onclick="generateProjectQuoteSummary('${projectId}')">📊 Quote Summary</button>
-        <button class="btn btn-sm" style="background:rgba(168,85,247,0.12);color:#a855f7;border:1px solid rgba(168,85,247,0.3);margin-left:4px" onclick="generateProjectSourcingSummary('${projectId}')">📤 Sourcing Summary</button>
-        <button class="btn btn-sm" style="background:rgba(234,179,8,0.12);color:#eab308;border:1px solid rgba(234,179,8,0.3);margin-left:4px" onclick="generateBICNegotiationBrief('${projectId}')">🔍 BIC Brief</button>
-        <button class="btn btn-sm" style="background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.3);margin-left:4px" onclick="submitForApproval('${projectId}','${govTier.name}','${safeJs(govTier.name+' — '+govTier.label)}')">📤 Approve</button>
+
       </div>` : '';
 
     const rollupHtml = (totalAwarded>0 || scopesCompeted>0) ? `
