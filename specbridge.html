@@ -1024,7 +1024,7 @@ async function loadProjectDetail(projectId) {
           <button class="btn btn-sm" style="background:rgba(56,189,248,0.1);color:#38bdf8;border:1px solid rgba(56,189,248,0.25)" onclick="generateProjectQuoteSummary('${projectId}')">📊 Quote Summary</button>
           <button class="btn btn-sm" style="background:rgba(168,85,247,0.12);color:#a855f7;border:1px solid rgba(168,85,247,0.3)" onclick="generateProjectSourcingSummary('${projectId}')">📤 Sourcing Summary</button>
           <button class="btn btn-sm" style="background:rgba(234,179,8,0.12);color:#eab308;border:1px solid rgba(234,179,8,0.3)" onclick="generateBICNegotiationBrief('${projectId}')">🔍 BIC Brief</button>
-          <button class="btn btn-sm" style="background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.3)" onclick="submitForApproval('${projectId}','${govTier.name}','${safeJs(govTier.name+' — '+govTier.label)}')">📤 Approve</button>
+          <button class="btn btn-sm" style="background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.3)" onclick="generateApprovalPackagePDF('${projectId}','${safeJs(govTier.name)}')">📋 Approval Package</button>
         </div>
 
         <!-- Approval threshold + workflow legend box -->
@@ -2672,70 +2672,213 @@ async function saveAwardRationale(projectId) {
 // SEND FOR APPROVAL — Pre-populate approval email
 // ══════════════════════════════════════════════════
 async function submitForApproval(projectId, approverName, approverLabel) {
+  // Redirects to PDF approval package generator
+  await generateApprovalPackagePDF(projectId, approverName);
+}
+
+async function generateApprovalPackagePDF(projectId, approverName) {
+  toast('Building Approval Package…','info');
   try {
-    const [proj]     = await q('rfq_projects','select',{eq:['id',projectId]});
-    const scopes     = await q('rfq_scopes','select',{eq:['project_id',projectId]});
-    const scopeIds   = scopes.map(s=>s.id);
-    const allQuotes  = scopeIds.length ? await q('rfq_quotes','select',{in:['scope_id',scopeIds]}) : [];
-    const awardedQs  = allQuotes.filter(x=>x.is_awarded);
+    const [proj]   = await q('rfq_projects','select',{eq:['id',projectId]});
+    const scopes   = await q('rfq_scopes','select',{eq:['project_id',projectId]});
+    const scopeIds = scopes.map(s=>s.id);
+    const allQuotes = scopeIds.length ? await q('rfq_quotes','select',{in:['scope_id',scopeIds]}) : [];
+    const awardedQs   = allQuotes.filter(x=>x.is_awarded);
     const totalAwarded = awardedQs.reduce((s,x)=>s+(x.total_amount||0),0);
     const awardedNames = [...new Set(awardedQs.map(x=>x.supplier_name))];
+    const today = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    const fmtN = n => n!=null ? fmt$(n) : '—';
 
-    const rationale = proj.award_rationale ||
-      (document.getElementById('award-rationale-input-'+projectId)||{}).value ||
-      '[No rationale captured — please add in SpecBridge before sending]';
+    const govTier = totalAwarded > 500000
+      ? { name:'Scott Watts', title:'VP / Executive Sponsor',    color:'#dc2626', bg:'#fff5f5', borderColor:'#dc2626', tier:'>$500K' }
+      : totalAwarded > 100000
+        ? { name:'Mike Pish',  title:'Director of Procurement',  color:'#b45309', bg:'#fffbeb', borderColor:'#b45309', tier:'$100K–$500K' }
+        : { name:'Mark Mensonides', title:'Director of Procurement', color:'#16a34a', bg:'#f0fdf4', borderColor:'#16a34a', tier:'< $100K' };
 
-    const approverEmails = {
-      'Scott Watts': 'swatts@burkeporter.com',
-      'Mike Pish':   'mpish@burkeporter.com',
-      'Mark':        'mark@burkeporter.com',
-    };
-    const toEmail = approverEmails[approverName] || '';
+    const allAmts = allQuotes.filter(x=>x.total_amount>0).map(x=>x.total_amount);
+    const marketAvg = allAmts.length ? allAmts.reduce((s,a)=>s+a,0)/allAmts.length : null;
+    const recognizedSavings = marketAvg && totalAwarded > 0 && totalAwarded < marketAvg ? marketAvg - totalAwarded : null;
+    const uniqueSuppliers = [...new Set(allQuotes.filter(x=>x.total_amount>0).map(x=>x.supplier_name))];
 
-    const scopeLines = SCOPE_ORDER.map(st => {
+    // Scope breakdown rows
+    const scopeRows = SCOPE_ORDER.map(st => {
       const scope = scopes.find(s=>s.scope_type===st);
-      if (!scope) return null;
-      const aw = allQuotes.find(x=>x.scope_id===scope.id&&x.is_awarded);
-      if (!aw) return null;
-      return '  • '+SCOPES[st].label+': '+fmt$(aw.total_amount||0)+' — '+esc(aw.supplier_name);
-    }).filter(Boolean).join('\n');
+      const sc    = SCOPES[st];
+      if (!scope) return '';
+      const sq  = allQuotes.filter(x=>x.scope_id===scope.id&&(x.total_amount||0)>0);
+      const aw  = sq.find(x=>x.is_awarded);
+      if (!sq.length) return '';
+      const amts = sq.map(x=>x.total_amount||0);
+      const bic  = Math.min(...amts);
+      const awAmt = aw?.total_amount||0;
+      const budg  = scope.budget_guidance ? Number(scope.budget_guidance) : null;
+      const suppRows = sq.map(x =>
+        '<tr style="border-bottom:1px solid #e2e8f0">' +
+          '<td style="padding:6px 10px;font-size:12px">' + esc(x.supplier_name) +
+            (x.is_awarded ? ' <span style="background:#dcfce7;color:#166534;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:4px">AWARDED</span>' : '') +
+          '</td>' +
+          '<td style="padding:6px 10px;font-size:12px;text-align:right;font-weight:'+(x.is_awarded?700:400)+'">' + fmtN(x.total_amount) + '</td>' +
+          '<td style="padding:6px 10px;font-size:12px;text-align:right;color:'+(x.total_amount===bic&&sq.length>1?'#16a34a':'#94a3b8')+'">' + (sq.length>1?fmtN(bic):'—') + '</td>' +
+          '<td style="padding:6px 10px;font-size:11px;color:#64748b">' + (x.payment_terms?.terms ? esc(x.payment_terms.terms) : '—') + '</td>' +
+        '</tr>'
+      ).join('');
+      return '<div style="margin-bottom:20px">' +
+        '<div style="font-size:12px;font-weight:700;color:#0f172a;padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px 4px 0 0">' + sc.icon + ' ' + esc(sc.label) +
+          (budg ? ' <span style="float:right;font-weight:400;color:#64748b">Budget: '+fmtN(budg)+(awAmt&&budg?' · '+(awAmt<budg?'<span style="color:#16a34a">▼ '+fmtN(budg-awAmt)+' under</span>':'<span style="color:#dc2626">▲ '+fmtN(awAmt-budg)+' over</span>'):'')+'</span>' : '') +
+        '</div>' +
+        '<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-top:0">' +
+          '<thead><tr style="background:#f8fafc">' +
+            '<th style="padding:6px 10px;font-size:10px;font-weight:600;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0">Supplier</th>' +
+            '<th style="padding:6px 10px;font-size:10px;font-weight:600;color:#64748b;text-align:right;border-bottom:1px solid #e2e8f0">Quote Total</th>' +
+            '<th style="padding:6px 10px;font-size:10px;font-weight:600;color:#16a34a;text-align:right;border-bottom:1px solid #e2e8f0">Market Floor</th>' +
+            '<th style="padding:6px 10px;font-size:10px;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0">Payment Terms</th>' +
+          '</tr></thead><tbody>' + suppRows + '</tbody>' +
+        '</table></div>';
+    }).filter(Boolean).join('');
 
-    const competeCount = [...new Set(allQuotes.filter(x=>x.total_amount>0).map(x=>x.supplier_name))].length;
+    // Update DB status
+    try {
+      await q('rfq_projects','update',{data:{approval_status:'submitted',approval_submitted_at:new Date().toISOString()},eq:['id',projectId]});
+      if (window._projectData && window._projectData.id === projectId) window._projectData.approval_status = 'submitted';
+    } catch(_e) { /* non-blocking */ }
 
-    const subject = encodeURIComponent('Award Ratification Request — '+proj.name+' ('+fmt$(totalAwarded)+')');
-    const body = encodeURIComponent(
-      approverName+',\n\n'+
-      'Please review and approve the following sourcing award for routing per our procurement governance policy.\n\n'+
-      '━━━━━━━━━━━━━━━━━━━━━━\n'+
-      'PROJECT:  '+proj.name+'\n'+
-      'CUSTOMER: '+(proj.customer||'—')+'\n'+
-      'JO#:      '+(proj.jo_numbers||'—')+'\n'+
-      'TOTAL:    '+fmt$(totalAwarded)+'\n'+
-      'AWARDED TO: '+awardedNames.join(', ')+'\n'+
-      'QUOTES RECEIVED: '+competeCount+' suppliers\n'+
-      '━━━━━━━━━━━━━━━━━━━━━━\n\n'+
-      'SCOPE BREAKDOWN:\n'+scopeLines+'\n\n'+
-      'AWARD RATIONALE:\n'+rationale+'\n\n'+
-      '━━━━━━━━━━━━━━━━━━━━━━\n'+
-      'Full Award Summary, Quote Comparison, and sourcing documentation have been generated in SpecBridge.\n\n'+
-      'Please reply with your approval or any questions.\n\n'+
-      'Thank you,\nAscential Technologies — Procurement\nBurke Porter Group'
-    );
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Approval Routing Package — ${esc(proj.name)}</title>
+    <style>
+      * { box-sizing:border-box; margin:0; padding:0; }
+      body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; font-size:13px; color:#0f172a; background:#fff; padding:36px; max-width:900px; margin:0 auto; }
+      h1  { font-size:22px; font-weight:800; color:#0f172a; letter-spacing:-0.01em; }
+      h2  { font-size:12px; font-weight:700; color:#334155; margin-bottom:10px; padding-bottom:5px; border-bottom:2px solid #e2e8f0; text-transform:uppercase; letter-spacing:0.07em; }
+      .section { margin-bottom:26px; }
+      .meta    { font-size:11px; color:#64748b; margin-top:3px; }
+      .kpi-row { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:20px; }
+      .kpi     { flex:1; min-width:130px; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px; }
+      .kpi-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#64748b; margin-bottom:5px; }
+      .kpi-val   { font-size:20px; font-weight:800; }
+      .kpi-sub   { font-size:10px; color:#94a3b8; margin-top:3px; line-height:1.4; }
+      .routing-banner { background:${govTier.bg}; border:2px solid ${govTier.borderColor}; border-radius:8px; padding:14px 18px; margin-bottom:20px; }
+      .rationale-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:14px 16px; line-height:1.7; color:#334155; }
+      .sign-block { display:flex; gap:28px; flex-wrap:wrap; margin-top:10px; }
+      .sign-field { flex:1; min-width:190px; }
+      .sign-line  { border-bottom:1px solid #94a3b8; margin-top:44px; margin-bottom:6px; }
+      .sign-label { font-size:10px; color:#64748b; }
+      .footer     { margin-top:36px; padding-top:12px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; }
+      .instructions { background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:10px 14px; font-size:11px; color:#92400e; margin-bottom:20px; }
+      @media print { body { padding:20px; } .no-print { display:none !important; } }
+    </style>
+    ${PDF_DL_SCRIPTS}
+    <script>window._PDF_FILENAME = 'Approval-Package-${esc(proj.name).replace(/[^a-zA-Z0-9]/g,'-')}.pdf';<\/script>
+    </head><body id="pdf-content">
 
-    // Update approval_status to 'submitted' in DB
-    await q('rfq_projects','update',{eq:['id',projectId],set:{approval_status:'submitted',approval_submitted_at:new Date().toISOString()}});
-    if (_projectData && _projectData.id === projectId) {
-      _projectData.approval_status = 'submitted';
-    }
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;margin-bottom:5px">Procurement Approval Routing Package</div>
+        <h1>${esc(proj.name)}</h1>
+        <div class="meta">${esc(proj.customer||'—')}${proj.jo_numbers?' · JO: '+esc(proj.jo_numbers):''}${proj.site_address?' · '+esc(proj.site_address):''}</div>
+        <div class="meta">Prepared: ${today} · Burke Porter | Ascential Technologies</div>
+      </div>
+      <div style="text-align:right" class="no-print">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:8px">CONFIDENTIAL — INTERNAL USE ONLY</div>
+        <div style="display:flex;gap:6px;justify-content:flex-end">
+          <button onclick="window.print()" style="${PDF_BTN_STYLE};background:#f1f5f9;color:#334155">🖨 Print</button>
+          <button id="dl-pdf-btn" onclick="downloadPDF()" style="${PDF_BTN_STYLE};background:#0f172a;color:#fff;font-weight:700">⬇ Download PDF</button>
+        </div>
+        <div style="font-size:10px;color:#64748b;margin-top:8px;max-width:200px;text-align:right">Download and attach to your approval email</div>
+      </div>
+    </div>
 
-    // Open mail client with pre-populated draft
-    window.location.href = 'mailto:'+toEmail+'?subject='+subject+'&body='+body;
+    <!-- Instructions banner -->
+    <div class="instructions no-print">
+      <strong>How to submit:</strong> Click <strong>⬇ Download PDF</strong> above, then attach the file to your email to <strong>${esc(govTier.name)}</strong> requesting approval. The PDF contains all sourcing documentation needed for sign-off.
+    </div>
 
-    toast('Approval email opened · Status updated to Pending','success');
+    <!-- Routing / governance box -->
+    <div class="section">
+      <h2>Approval Routing</h2>
+      <div class="routing-banner">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="font-size:28px">${totalAwarded>500000?'🔴':totalAwarded>100000?'🟡':'🟢'}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700;color:${govTier.color}">Routing To: ${esc(govTier.name)} · ${esc(govTier.title)}</div>
+            <div style="font-size:12px;color:#475569;margin-top:3px">Total awarded spend of <strong>${fmtN(totalAwarded)}</strong> falls within the <strong>${govTier.tier}</strong> threshold — requires ${esc(govTier.name)}'s sign-off per Ascential Technologies Procurement Governance Policy.</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:10px;color:#64748b">Threshold</div>
+            <div style="font-size:16px;font-weight:800;color:${govTier.color}">${govTier.tier}</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid ${govTier.borderColor}30;display:flex;gap:20px;flex-wrap:wrap;font-size:11px;color:#475569">
+          <span><strong>All thresholds:</strong></span>
+          <span>🟢 &lt; $100K → Mark Mensonides · Director</span>
+          <span>🟡 $100K–$500K → Mike Pish · Director</span>
+          <span>🔴 &gt; $500K → Scott Watts · VP</span>
+        </div>
+      </div>
+    </div>
 
-    // Refresh the badge display
+    <!-- KPI summary -->
+    <div class="section">
+      <h2>Award Summary</h2>
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-label">Total Awarded</div><div class="kpi-val" style="color:#16a34a">${fmtN(totalAwarded)}</div><div class="kpi-sub">Across ${awardedQs.length} scope${awardedQs.length!==1?'s':''}</div></div>
+        <div class="kpi"><div class="kpi-label">Awarded To</div><div class="kpi-val" style="font-size:13px;line-height:1.4;margin-top:4px">${awardedNames.map(n=>esc(n)).join('<br>')}</div></div>
+        <div class="kpi"><div class="kpi-label">Quotes Received</div><div class="kpi-val" style="color:#0284c7">${allQuotes.filter(x=>x.total_amount>0).length}</div><div class="kpi-sub">${uniqueSuppliers.length} suppliers competed</div></div>
+        ${recognizedSavings ? '<div class="kpi"><div class="kpi-label">Recognized Savings</div><div class="kpi-val" style="color:#16a34a">'+fmtN(recognizedSavings)+'</div><div class="kpi-sub">vs. market avg — board-approved method</div></div>' : ''}
+        ${proj.jo_numbers ? '<div class="kpi"><div class="kpi-label">JO Number(s)</div><div class="kpi-val" style="font-size:14px;margin-top:4px">'+esc(proj.jo_numbers)+'</div></div>' : ''}
+      </div>
+    </div>
+
+    <!-- Award rationale -->
+    <div class="section">
+      <h2>Award Rationale</h2>
+      <div class="rationale-box">
+        Following competitive solicitation across ${uniqueSuppliers.length} qualified supplier${uniqueSuppliers.length!==1?'s':''}, the sourcing team recommends award to <strong>${awardedNames.map(n=>esc(n)).join(', ')}</strong> for the ${esc(proj.name)} project at ${esc(proj.customer||'the customer site')}.
+        ${proj.award_rationale
+          ? '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0">'+esc(proj.award_rationale)+'</div>'
+          : '<div style="margin-top:10px;color:#64748b;font-style:italic">No custom rationale captured. Add your rationale in the project detail (Award Rationale field) and re-generate this package.</div>'
+        }
+      </div>
+      ${!proj.award_rationale ? '<div style="margin-top:8px;font-size:11px;color:#9a3412;padding:7px 12px;border-left:3px solid #f97316;background:#fff7ed">⚠ Enter your award rationale in the project before generating the final package for routing.</div>' : ''}
+    </div>
+
+    <!-- Competitive quote detail -->
+    <div class="section">
+      <h2>Competitive Quote Detail</h2>
+      ${scopeRows || '<p style="color:#94a3b8;font-style:italic">No quote data — enter supplier quotes in SpecBridge to populate this section.</p>'}
+    </div>
+
+    <!-- Signature block -->
+    <div class="section">
+      <h2>Sign-off</h2>
+      <div class="sign-block">
+        <div class="sign-field">
+          <div class="sign-line"></div>
+          <div class="sign-label">Procurement Lead (Ryan Pearman) — Signature &amp; Date</div>
+        </div>
+        <div class="sign-field">
+          <div class="sign-line"></div>
+          <div class="sign-label">${esc(govTier.name)} (${esc(govTier.title)}) — Approval Signature &amp; Date</div>
+        </div>
+        <div class="sign-field">
+          <div class="sign-line"></div>
+          <div class="sign-label">Project Manager — Signature &amp; Date</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Burke Porter | Ascential Technologies · SpecBridge Procurement · Confidential — Internal Use Only</span>
+      <span>Generated: ${today}</span>
+    </div>
+    </body></html>`;
+
+    const w = window.open('','_blank','width=960,height=780');
+    w.document.write(html);
+    w.document.close();
+    toast('Approval package ready — Download PDF and attach to email for '+(approverName||govTier.name),'success');
     setTimeout(()=>loadProjectDetail(projectId),1200);
-  } catch(e) { toast('Error: '+e.message,'error'); }
+  } catch(e) { toast('Error generating approval package: '+e.message,'error'); }
 }
 
 async function generateAwardSummary(projectId) {
