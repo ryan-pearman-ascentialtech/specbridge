@@ -351,6 +351,7 @@
   <button class="nav-link" id="nav-dashboard"  onclick="showPage('dashboard')">Projects</button>
   <button class="nav-link" id="nav-savings"    onclick="showPage('savings')">Savings</button>
   <button class="nav-link" id="nav-ae-review"  onclick="showPage('ae-review')" style="position:relative">AE Queue <span id="ae-nav-badge" style="display:none;background:#a855f7;color:#fff;border-radius:10px;font-size:10px;padding:1px 7px;margin-left:5px;font-weight:700;vertical-align:middle">0</span></button>
+  <button class="nav-link" id="nav-suppliers" onclick="showPage('suppliers')">Suppliers</button>
   <button class="nav-link" id="nav-admin" onclick="showPage('admin')">⚙ Admin</button>
   <div class="nav-right">
     <div id="breadcrumb-area" class="breadcrumb" style="display:none"></div>
@@ -787,6 +788,9 @@ async function q(table, op, opts={}) {
     if (opts.sel) query = query.select(opts.sel);
   } else if (op === 'delete') {
     query = query.delete().eq(opts.eq[0], opts.eq[1]);
+  } else if (op === 'upsert') {
+    query = query.upsert(opts.data, {onConflict: opts.onConflict||'id', ignoreDuplicates: false});
+    if (opts.sel) query = query.select(opts.sel);
   }
   const { data, error } = await query;
   if (error) throw error;
@@ -802,6 +806,7 @@ function showPage(id) {
   if (id==='dashboard') { setNav('dashboard');  setBreadcrumb(null); loadDashboard(); }
   else if (id==='savings')   { setNav('savings');    setBreadcrumb(null); loadSavings(); }
   else if (id==='ae-review') { setNav('ae-review');  setBreadcrumb(null); loadAEReview(); }
+  else if (id==='suppliers') { setNav('suppliers');  setBreadcrumb(null); loadSuppliers(); }
   else if (id==='admin')     { setNav('admin');      setBreadcrumb(null); }
   else if (id==='new-project') {
     setBreadcrumb([{label:'Projects',fn:"showPage('dashboard')"},{label:'New Project'}]);
@@ -1920,6 +1925,22 @@ async function saveQuote(scopeId, supplierName) {
       const s = SUPPLIERS.find(x=>x.name===supplierName);
       await q('rfq_quotes','insert',{data:{scope_id:scopeId,supplier_name:supplierName,supplier_contact:s?s.contact:null,line_items:lineItems,total_amount:total,payment_terms:paymentTerms,submitted_date:submittedDate,notes:quoteNote||null,supplier_feedback:feedbackNote||null}});
     }
+    // Auto-register supplier in supplier_profiles (non-blocking)
+    try {
+      const supObj = SUPPLIERS.find(x=>x.name===supplierName);
+      await q('supplier_profiles','upsert',{
+        data:{
+          name: supplierName,
+          contact_name: supObj?supObj.contact:null,
+          contact_email: supObj?supObj.email:null,
+          contact_phone: supObj?supObj.phone:null,
+          preferred: supObj?!!supObj.preferred:false,
+          updated_at: new Date().toISOString()
+        },
+        onConflict: 'name'
+      });
+    } catch(_e) { /* non-blocking — don't fail quote save if profile upsert fails */ }
+
     // Auto-advance to quotes_received if both quotes exist and scope is rfq_sent
     const updatedQs = await q('rfq_quotes','select',{eq:['scope_id',scopeId]});
     const [scope]   = await q('rfq_scopes','select',{eq:['id',scopeId]});
@@ -4090,6 +4111,228 @@ async function loadSavings() {
 }
 
 // ══════════════════════════════════════════════════
+// SUPPLIER DATABASE
+// ══════════════════════════════════════════════════
+async function loadSuppliers() {
+  const el = document.getElementById('page-suppliers');
+  if (!el) return;
+  el.innerHTML = '<div style="padding:40px;text-align:center;color:#64748b"><span class="spinner"></span> Loading suppliers…</div>';
+  try {
+    const [profiles, allQuotes, allScopes, allProjects] = await Promise.all([
+      q('supplier_profiles','select',{order:['name',true]}),
+      q('rfq_quotes','select'),
+      q('rfq_scopes','select'),
+      q('rfq_projects','select')
+    ]);
+
+    const scopeMap    = Object.fromEntries(allScopes.map(s=>[s.id,s]));
+    const projectMap  = Object.fromEntries(allProjects.map(p=>[p.id,p]));
+    const SCOPE_LABEL = {
+      steel_cover_plates:'Steel Structures',
+      crane_rigging:'Crane & Rigging',
+      mechanical_compressed_air:'Mechanical',
+      electrical:'Electrical'
+    };
+
+    // Build per-supplier stats from quotes
+    const statsMap = {};
+    for (const q_ of allQuotes) {
+      const sc = scopeMap[q_.scope_id];
+      const pr = sc ? projectMap[sc.project_id] : null;
+      if (!sc || !pr) continue;
+      if (!statsMap[q_.supplier_name]) {
+        statsMap[q_.supplier_name] = { quotes:[], totalBid:0, awards:0, projects:new Set(), scopeTypes:new Set() };
+      }
+      const s = statsMap[q_.supplier_name];
+      s.quotes.push({ ...q_, scopeType: sc.scope_type, projectName: pr.name, projectId: pr.id, budget: sc.budget_guidance });
+      s.totalBid  += (q_.total_amount||0);
+      if (q_.is_awarded) s.awards++;
+      s.projects.add(pr.id);
+      s.scopeTypes.add(sc.scope_type);
+    }
+
+    // Total KPIs
+    const totalSuppliers = profiles.length;
+    const totalQuoted    = Object.values(statsMap).reduce((s,x)=>s+x.totalBid,0);
+    const totalAwards    = Object.values(statsMap).reduce((s,x)=>s+x.awards,0);
+    const projectsActive = new Set(allProjects.map(p=>p.id)).size;
+
+    const fmt$ = v => '$'+Math.round(v||0).toLocaleString();
+
+    // Build supplier cards
+    const cards = profiles.map(prof => {
+      const st = statsMap[prof.name] || { quotes:[], totalBid:0, awards:0, projects:new Set(), scopeTypes:new Set() };
+      const quoteCount  = st.quotes.length;
+      const winRate     = quoteCount>0 ? Math.round((st.awards/quoteCount)*100) : 0;
+      const projCount   = st.projects.size;
+      const scopes      = [...st.scopeTypes].map(t=>SCOPE_LABEL[t]||t);
+      const hasActivity = quoteCount > 0;
+
+      const scopeBadges = scopes.map(s=>'<span style="font-size:10px;background:#1e3a5f;color:#93c5fd;border-radius:4px;padding:2px 7px;margin-right:3px">'+s+'</span>').join('');
+      const prefBadge   = prof.preferred ? '<span style="font-size:10px;background:#14532d;color:#4ade80;border-radius:4px;padding:2px 8px;font-weight:700;margin-left:6px">PREFERRED</span>' : '';
+
+      return '<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;">'
+        +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">'
+          +'<div>'
+            +'<div style="font-size:14px;font-weight:700;color:#f1f5f9">'+esc(prof.name)+prefBadge+'</div>'
+            +'<div style="font-size:12px;color:#64748b;margin-top:2px">'+(prof.contact_name&&prof.contact_name!=='Contact TBD'?esc(prof.contact_name):'—')+(prof.contact_email?' · <span style="color:#60a5fa">'+esc(prof.contact_email)+'</span>':'')+(prof.contact_phone?' · '+esc(prof.contact_phone):'')+'</div>'
+          +'</div>'
+          +(hasActivity?'<button onclick="showSupplierDetail('+JSON.stringify(safeJs(prof.name))+')" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">View History →</button>':'<span style="font-size:11px;color:#475569;padding:5px 0">No quotes yet</span>')
+        +'</div>'
+        +(hasActivity
+          ?'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid #334155;padding-top:10px;">'
+            +'<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:#f1f5f9">'+quoteCount+'</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em">Quotes</div></div>'
+            +'<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:#f1f5f9">'+projCount+'</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em">Projects</div></div>'
+            +'<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:'+(st.awards>0?'#4ade80':'#94a3b8')+'">'+st.awards+'</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em">Awards</div></div>'
+            +'<div style="text-align:center"><div style="font-size:14px;font-weight:700;color:#f1f5f9">'+fmt$(st.totalBid)+'</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em">Total Bid</div></div>'
+          +'</div>'
+          +'<div>'+scopeBadges+'</div>'
+          :'<div style="font-size:11px;color:#475569;font-style:italic">This supplier is registered but has not submitted quotes on any active project.</div>')
+        +'</div>';
+    });
+
+    // Suppliers with quotes but not in profiles (auto-registered, not yet in profiles)
+    const knownNames = new Set(profiles.map(p=>p.name));
+    const orphans    = Object.keys(statsMap).filter(n=>!knownNames.has(n));
+    const orphanCards = orphans.map(name=>{
+      const st = statsMap[name];
+      return '<div style="background:#1e293b;border:1px dashed #475569;border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;">'
+        +'<div><div style="font-size:13px;font-weight:600;color:#f1f5f9">'+esc(name)+'</div><div style="font-size:11px;color:#64748b;margin-top:2px">Auto-registered · '+st.quotes.length+' quote(s)</div></div>'
+        +'<button onclick="showSupplierDetail('+JSON.stringify(safeJs(name))+')" style="background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer">View History →</button>'
+        +'</div>';
+    });
+
+    el.innerHTML = '<div style="padding:24px 32px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
+        +'<div><h1 style="font-size:20px;font-weight:700;color:#f1f5f9;margin:0">Supplier Database</h1>'
+        +'<div style="font-size:12px;color:#64748b;margin-top:3px">Quote history and performance across all projects — auto-populated as quotes are logged</div></div>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0 24px">'
+        +'<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:14px 18px"><div style="font-size:24px;font-weight:700;color:#f1f5f9">'+totalSuppliers+'</div><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-top:2px">Registered Suppliers</div></div>'
+        +'<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:14px 18px"><div style="font-size:24px;font-weight:700;color:#f1f5f9">'+projectsActive+'</div><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-top:2px">Active Projects</div></div>'
+        +'<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:14px 18px"><div style="font-size:18px;font-weight:700;color:#f1f5f9">'+fmt$(totalQuoted)+'</div><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-top:2px">Total Market Intelligence</div></div>'
+        +'<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:14px 18px"><div style="font-size:24px;font-weight:700;color:#4ade80">'+totalAwards+'</div><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-top:2px">Contracts Awarded</div></div>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px">'
+        +cards.join('')
+        +(orphanCards.length ? orphanCards.join('') : '')
+      +'</div>'
+    +'</div>';
+
+    // Store data globally for modal detail view
+    window._supplierQuotes   = allQuotes;
+    window._supplierScopes   = allScopes;
+    window._supplierProjects = allProjects;
+    window._supplierProfiles = profiles;
+  } catch(e) {
+    document.getElementById('page-suppliers').innerHTML = '<div style="padding:40px;text-align:center;color:#f87171">Error loading suppliers: '+esc(e.message)+'</div>';
+  }
+}
+
+async function showSupplierDetail(supplierName) {
+  const allQuotes   = window._supplierQuotes   || await q('rfq_quotes','select');
+  const allScopes   = window._supplierScopes   || await q('rfq_scopes','select');
+  const allProjects = window._supplierProjects || await q('rfq_projects','select');
+  const profiles    = window._supplierProfiles || await q('supplier_profiles','select');
+
+  const scopeMap   = Object.fromEntries(allScopes.map(s=>[s.id,s]));
+  const projectMap = Object.fromEntries(allProjects.map(p=>[p.id,p]));
+  const SCOPE_LABEL = {
+    steel_cover_plates:'Steel Structures & Cover Plates',
+    crane_rigging:'Crane & Rigging',
+    mechanical_compressed_air:'Mechanical / Compressed Air',
+    electrical:'Electrical'
+  };
+
+  const prof   = profiles.find(p=>p.name===supplierName) || { name:supplierName, contact_name:'', contact_email:'', contact_phone:'', preferred:false, notes:'' };
+  const myQs   = allQuotes.filter(q=>q.supplier_name===supplierName);
+  const fmt$   = v => v?'$'+Math.round(v).toLocaleString():'—';
+
+  // Group by scope type for historical pricing
+  const byScope = {};
+  for (const q_ of myQs) {
+    const sc = scopeMap[q_.scope_id];
+    const pr = sc ? projectMap[sc.project_id] : null;
+    if (!sc || !pr) continue;
+    const st = sc.scope_type;
+    if (!byScope[st]) byScope[st] = [];
+    // Get BIC for this scope
+    const scQuotes = allQuotes.filter(x=>x.scope_id===sc.id&&(x.total_amount||0)>0);
+    const bic      = scQuotes.length ? Math.min(...scQuotes.map(x=>x.total_amount||Infinity)) : null;
+    const isBIC    = bic && (q_.total_amount||0) <= bic + 1;
+    byScope[st].push({ q:q_, sc, pr, bic, isBIC });
+  }
+
+  // Quote history table rows
+  const rows = myQs.map(q_=>{
+    const sc  = scopeMap[q_.scope_id];
+    const pr  = sc ? projectMap[sc.project_id] : null;
+    if (!sc || !pr) return '';
+    const scQuotes = allQuotes.filter(x=>x.scope_id===sc.id&&(x.total_amount||0)>0);
+    const bic      = scQuotes.length ? Math.min(...scQuotes.map(x=>x.total_amount||Infinity)) : null;
+    const isBIC    = bic && (q_.total_amount||0) <= bic + 1;
+    const vsFloor  = bic && (q_.total_amount||0)>0 ? (q_.total_amount - bic) : null;
+    const vsFloorPct = bic && (q_.total_amount||0)>0 ? ((q_.total_amount - bic)/bic*100) : null;
+    return '<tr style="border-bottom:1px solid #1e293b">'
+      +'<td style="padding:9px 12px;font-size:12px;color:#e2e8f0">'+esc(pr.name)+'</td>'
+      +'<td style="padding:9px 12px;font-size:12px;color:#94a3b8">'+esc(SCOPE_LABEL[sc.scope_type]||sc.scope_type)+'</td>'
+      +'<td style="padding:9px 12px;font-size:12px;color:#f1f5f9;text-align:right">'+fmt$(q_.total_amount)+'</td>'
+      +'<td style="padding:9px 12px;font-size:12px;text-align:right">'+(bic?'<span style="color:'+(isBIC?'#4ade80':'#94a3b8')+'">'+fmt$(bic)+'</span>':'—')+'</td>'
+      +'<td style="padding:9px 12px;font-size:12px;text-align:right">'+(vsFloor!==null?(isBIC?'<span style="color:#4ade80;font-weight:700">Market Floor</span>':'<span style="color:'+(vsFloor>0?'#f87171':'#94a3b8')+'">+'+(fmt$(vsFloor))+' ('+Math.round(vsFloorPct)+'%)</span>'):'—')+'</td>'
+      +'<td style="padding:9px 12px;font-size:12px;text-align:center">'+(q_.is_awarded?'<span style="background:#14532d;color:#4ade80;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700">AWARDED</span>':'<span style="color:#475569;font-size:11px">—</span>')+'</td>'
+      +'<td style="padding:9px 12px;font-size:12px;color:#64748b">'+(q_.submitted_date||'—')+'</td>'
+    +'</tr>';
+  }).join('');
+
+  const totalBid = myQs.reduce((s,q)=>s+(q.total_amount||0),0);
+  const awards   = myQs.filter(q=>q.is_awarded).length;
+  const winRate  = myQs.length ? Math.round((awards/myQs.length)*100) : 0;
+
+  const scTypesHeld = Object.entries(byScope).filter(([,arr])=>arr.some(x=>x.isBIC)).map(([st])=>SCOPE_LABEL[st]||st);
+
+  let modal = document.getElementById('supplier-detail-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'supplier-detail-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:24px';
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = '<div style="background:#0f172a;border:1px solid #334155;border-radius:12px;max-width:860px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,0.5)">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #334155;position:sticky;top:0;background:#0f172a;z-index:1">'
+      +'<div><div style="font-size:17px;font-weight:700;color:#f1f5f9">'+esc(supplierName)+'</div>'
+      +'<div style="font-size:12px;color:#64748b;margin-top:2px">'+(prof.contact_name&&prof.contact_name!=='Contact TBD'?esc(prof.contact_name):'')+(prof.contact_email?' · '+esc(prof.contact_email):'')+(prof.contact_phone?' · '+esc(prof.contact_phone):'')+'</div></div>'
+      +'<button onclick="document.getElementById(\'supplier-detail-modal\').style.display=\'none\'" style="background:#334155;color:#94a3b8;border:none;border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer">✕ Close</button>'
+    +'</div>'
+    +'<div style="padding:20px 24px">'
+      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">'
+        +'<div style="background:#1e293b;border-radius:8px;padding:12px 14px;text-align:center"><div style="font-size:22px;font-weight:700;color:#f1f5f9">'+myQs.length+'</div><div style="font-size:10px;color:#64748b;text-transform:uppercase">Total Quotes</div></div>'
+        +'<div style="background:#1e293b;border-radius:8px;padding:12px 14px;text-align:center"><div style="font-size:16px;font-weight:700;color:#f1f5f9">'+fmt$(totalBid)+'</div><div style="font-size:10px;color:#64748b;text-transform:uppercase">Total Bid Volume</div></div>'
+        +'<div style="background:#1e293b;border-radius:8px;padding:12px 14px;text-align:center"><div style="font-size:22px;font-weight:700;color:'+(awards>0?'#4ade80':'#94a3b8')+'">'+awards+'</div><div style="font-size:10px;color:#64748b;text-transform:uppercase">Awards</div></div>'
+        +'<div style="background:#1e293b;border-radius:8px;padding:12px 14px;text-align:center"><div style="font-size:22px;font-weight:700;color:'+(scTypesHeld.length>0?'#4ade80':'#94a3b8')+'">'+scTypesHeld.length+'</div><div style="font-size:10px;color:#64748b;text-transform:uppercase">Scopes at Market Floor</div></div>'
+      +'</div>'
+      +(scTypesHeld.length?'<div style="background:#0d2b1a;border:1px solid #16a34a;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#4ade80"><strong>Market floor holder on:</strong> '+scTypesHeld.join(', ')+'</div>':'')
+      +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
+        +'<thead><tr style="background:#1e293b">'
+          +'<th style="padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:700">Project</th>'
+          +'<th style="padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:700">Scope</th>'
+          +'<th style="padding:9px 12px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:700">Their Quote</th>'
+          +'<th style="padding:9px 12px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:700">Market Floor</th>'
+          +'<th style="padding:9px 12px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:700">vs Floor</th>'
+          +'<th style="padding:9px 12px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:700">Outcome</th>'
+          +'<th style="padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:700">Date</th>'
+        +'</tr></thead>'
+        +'<tbody style="background:#0f172a">'+rows+'</tbody>'
+      +'</table>'
+      +(myQs.length===0?'<div style="text-align:center;color:#64748b;padding:24px;font-size:13px">No quotes on record yet.</div>':'')
+    +'</div>'
+  +'</div>';
+
+  modal.style.display = 'flex';
+  modal.onclick = function(e){ if(e.target===modal) modal.style.display='none'; };
+}
+
+// ══════════════════════════════════════════════════
 // PER-PROJECT EXECUTIVE SOURCING SUMMARY PDF
 // ══════════════════════════════════════════════════
 async function generateProjectSourcingSummary(projectId) {
@@ -4988,6 +5231,9 @@ async function aeHoldFromQueue(scopeId) {
 // ══════════════════════════════════════════════════
 loadDashboard();
 </script>
+
+  <!-- ═══════════════════════════════ SUPPLIERS PAGE ════════════════════════════ -->
+  <div id="page-suppliers" class="page"></div>
 
   <!-- ═══════════════════════════════ ADMIN PAGE ═══════════════════════════════ -->
   <div id="page-admin" class="page">
