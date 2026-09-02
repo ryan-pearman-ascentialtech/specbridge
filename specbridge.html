@@ -333,7 +333,33 @@
       body.printing-comparison #print-close-btn { display: none !important; }
       #print-comparison-frame.visible { position: static !important; }
     }
-  </style>
+  
+    /* FEEDBACK BUTTON */
+    #feedback-btn { position:fixed;bottom:22px;right:22px;z-index:8000;background:var(--accent);color:#fff;border:none;border-radius:24px;padding:9px 16px 9px 13px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 4px 16px rgba(79,124,255,0.35);transition:background 0.15s,transform 0.12s;font-family:var(--font); }
+    #feedback-btn:hover { background:var(--accent-hover);transform:translateY(-2px); }
+    .fb-modal { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:440px;width:100%; }
+    .fb-modal h3 { font-size:15px;font-weight:700;margin-bottom:4px; }
+    .fb-modal p { font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.5; }
+    .fb-type-row { display:flex;gap:8px;margin-bottom:14px; }
+    .fb-type-btn { flex:1;padding:7px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font);transition:all 0.12s;text-align:center; }
+    .fb-type-btn:hover { border-color:var(--accent);color:var(--text); }
+    .fb-type-btn.active { border-color:var(--accent);background:rgba(79,124,255,0.1);color:var(--accent);font-weight:700; }
+    .upload-zone { border:2px dashed var(--border);border-radius:10px;padding:28px 20px;text-align:center;cursor:pointer;transition:border-color 0.15s,background 0.15s;background:var(--bg);margin-bottom:16px; }
+    .upload-zone:hover,.upload-zone.drag-over { border-color:var(--accent);background:rgba(79,124,255,0.04); }
+    .upload-zone-icon { font-size:28px;margin-bottom:8px; }
+    .upload-zone-text { font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px; }
+    .upload-zone-sub { font-size:11px;color:var(--muted); }
+    .upload-processing { background:rgba(79,124,255,0.06);border:1px solid rgba(79,124,255,0.2);border-radius:8px;padding:14px 16px;margin-bottom:12px;display:none; }
+    .upload-gap-flags { background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:14px 16px;margin-bottom:12px;display:none; }
+    .gap-flag-item { display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:12px;color:var(--warning);line-height:1.5; }
+    .compliance-flag { display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:12px;line-height:1.5; }
+    .compliance-flag.warn { color:var(--warning); }
+    .compliance-flag.error { color:var(--danger); }
+    .gov-badge-preferred { font-size:10px;background:#14532d;color:#4ade80;border-radius:4px;padding:2px 8px;font-weight:700; }
+    .gov-badge-approved { font-size:10px;background:#1e293b;color:#64748b;border-radius:4px;padding:2px 8px;font-weight:600;border:1px solid #334155; }
+    .gov-badge-restricted { font-size:10px;background:#7f1d1d;color:#fca5a5;border-radius:4px;padding:2px 8px;font-weight:700; }
+    .cap-scope-tag { font-size:10px;background:#1e3a5f;color:#93c5fd;border-radius:4px;padding:2px 7px;margin-right:3px; }
+</style>
 </head>
 <body>
 
@@ -2867,7 +2893,34 @@ async function generateApprovalPackagePDF(projectId, approverName) {
       <span>Burke Porter | Ascential Technologies · SpecBridge Procurement · Confidential — Internal Use Only</span>
       <span>Generated: ${today}</span>
     </div>
-    </body></html>`;
+    
+<button id="feedback-btn" onclick="openFeedback()">&#128172; <span>Feedback</span></button>
+<div id="feedback-overlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeFeedback()">
+  <div class="fb-modal">
+    <h3>Send Feedback</h3>
+    <p>Spotted a bug or have a suggestion? Let the team know.</p>
+    <div class="fb-type-row">
+      <button class="fb-type-btn active" id="fb-type-bug" onclick="setFbType('bug')">Bug</button>
+      <button class="fb-type-btn" id="fb-type-suggestion" onclick="setFbType('suggestion')">Suggestion</button>
+      <button class="fb-type-btn" id="fb-type-other" onclick="setFbType('other')">Other</button>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Current page</label>
+      <input type="text" id="fb-page" readonly style="color:var(--muted)" />
+    </div>
+    <div class="form-group" style="margin-bottom:18px">
+      <label class="req">Description</label>
+      <textarea id="fb-desc" rows="4" placeholder="Describe what happened or what you would like to see" style="resize:vertical"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary btn-sm" onclick="closeFeedback()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="fb-submit-btn" onclick="submitFeedback()">Send Feedback</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="project-doc-input" accept=".pdf,.doc,.docx,.txt,.eml,image/*" style="display:none" onchange="handleProjectDocUpload(this)" />
+<input type="file" id="quote-doc-input" accept=".pdf,.doc,.docx,.txt,.eml,image/*" style="display:none" onchange="handleQuoteDocUpload(this)" />
+</body></html>`;
 
     const w = window.open('','_blank','width=960,height=780');
     w.document.write(html);
@@ -5568,6 +5621,164 @@ loadDashboard();
       ['new-sup-name','new-sup-contact','new-sup-loc'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('add-supplier-form').style.display = 'none';
     }
-  </script>
+  
+const EDGE_URL = 'https://vvukjjuxjhlpuczcxirp.supabase.co/functions/v1/claude-proxy';
+const EDGE_HEADERS = { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON };
+
+async function callEdge(action, payload) {
+  const res = await fetch(EDGE_URL, { method:'POST', headers:EDGE_HEADERS, body:JSON.stringify({action,payload}) });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data.result;
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve,reject) => { const r=new FileReader(); r.onload=()=>resolve(r.result.split(',')[1]); r.onerror=()=>reject(new Error('Failed to read file')); r.readAsDataURL(file); });
+}
+function fileToText(file) {
+  return new Promise((resolve,reject) => { const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=()=>reject(new Error('Failed to read file')); r.readAsText(file); });
+}
+function setIfEmpty(id,value) { const el=document.getElementById(id); if(el&&!el.value&&value) el.value=value; }
+
+let _fbType='bug';
+function openFeedback() {
+  const activeNav=document.querySelector('.nav-link.active');
+  document.getElementById('fb-page').value=activeNav?activeNav.textContent.trim():'Unknown';
+  document.getElementById('fb-desc').value='';
+  setFbType('bug');
+  document.getElementById('feedback-overlay').style.display='flex';
+  setTimeout(()=>document.getElementById('fb-desc')&&document.getElementById('fb-desc').focus(),60);
+}
+function closeFeedback() { document.getElementById('feedback-overlay').style.display='none'; }
+function setFbType(type) {
+  _fbType=type;
+  ['bug','suggestion','other'].forEach(t=>document.getElementById('fb-type-'+t)&&document.getElementById('fb-type-'+t).classList.toggle('active',t===type));
+}
+async function submitFeedback() {
+  const desc=(document.getElementById('fb-desc').value||'').trim();
+  const page=document.getElementById('fb-page').value||'Unknown';
+  if(!desc){toast('Please describe the issue','error');return;}
+  const btn=document.getElementById('fb-submit-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Sending';
+  try {
+    await q('feedback','insert',{data:{page,type:_fbType,description:desc,user_agent:navigator.userAgent.slice(0,200)}});
+    closeFeedback(); toast('Feedback sent - thank you!','success');
+  } catch(e) { toast('Error: '+e.message,'error'); btn.disabled=false; btn.textContent='Send Feedback'; }
+}
+
+async function showAdminFeedback() {
+  const el=document.getElementById('admin-feedback-content');
+  if(!el) return;
+  el.innerHTML='<div style="padding:16px;text-align:center"><span class="spinner"></span></div>';
+  try {
+    const items=await q('feedback','select',{order:['created_at',false]});
+    if(!items||!items.length){el.innerHTML='<div style="color:var(--muted);padding:24px;font-size:13px">No feedback yet</div>';return;}
+    el.innerHTML=items.map(item=>'<div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:14px 16px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:'+(item.type==='bug'?'#7f1d1d':item.type==='suggestion'?'#14532d':'#1e293b')+';color:'+(item.type==='bug'?'#fca5a5':item.type==='suggestion'?'#4ade80':'#94a3b8')+'">'+item.type.toUpperCase()+'</span><span style="font-size:10px;color:#475569">'+new Date(item.created_at).toLocaleString()+'</span></div><div style="font-size:11px;color:#64748b;margin-bottom:4px">Page: '+esc(item.page)+'</div><div style="font-size:13px;color:#e2e8f0;line-height:1.5">'+esc(item.description)+'</div></div>').join('');
+  } catch(e){el.innerHTML='<div style="color:var(--danger)">Error: '+esc(e.message)+'</div>';}
+}
+
+function injectProjectUploadZone() {
+  if(document.getElementById('project-upload-zone')) return;
+  const ta=document.getElementById('np-machines'); if(!ta) return;
+  const formEl=ta.closest('.np-form'); if(!formEl) return;
+  const div=document.createElement('div');
+  div.innerHTML='<div><div class="section-title" style="margin-bottom:12px">Auto-fill from document <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">optional</span></div><div class="upload-zone" id="project-upload-zone" onclick="document.getElementById('project-doc-input').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');handleProjectDocDrop(event)"><div class="upload-zone-icon">&#128196;</div><div class="upload-zone-text">Drop a customer document here</div><div class="upload-zone-sub">PDF, Word, email, or image - AI reads it and pre-fills the form</div></div><div class="upload-processing" id="project-upload-proc"><div style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600"><span class="spinner"></span> Reading document...</div></div><div class="upload-gap-flags" id="project-gap-flags"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--warning);margin-bottom:8px">Missing from document</div><div id="project-gap-flags-list"></div></div></div>';
+  formEl.insertBefore(div.firstElementChild,formEl.firstElementChild);
+}
+
+function handleProjectDocDrop(e){const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)processProjectDoc(f);}
+function handleProjectDocUpload(input){const f=input&&input.files&&input.files[0];if(f)processProjectDoc(f);input.value='';}
+
+async function processProjectDoc(file) {
+  const proc=document.getElementById('project-upload-proc');
+  const zone=document.getElementById('project-upload-zone');
+  const gapDiv=document.getElementById('project-gap-flags');
+  const gapList=document.getElementById('project-gap-flags-list');
+  if(proc)proc.style.display='block';
+  if(zone){zone.style.opacity='0.5';zone.style.pointerEvents='none';}
+  if(gapDiv)gapDiv.style.display='none';
+  try {
+    let payload={};
+    if(file.type.startsWith('image/')||file.type==='application/pdf'){const b=await fileToBase64(file);payload={base64:b,media_type:file.type};}
+    else{const t=await fileToText(file);payload={text:t};}
+    const extracted=await callEdge('extract_project_doc',payload);
+    if(typeof extracted!=='object'){toast('Could not parse document','error');return;}
+    setIfEmpty('np-name',extracted.name);
+    setIfEmpty('np-customer',extracted.customer);
+    setIfEmpty('np-site',extracted.site_address);
+    setIfEmpty('np-pm',extracted.pm_name);
+    setIfEmpty('np-jo',extracted.jo_numbers);
+    setIfEmpty('np-machines',extracted.machines);
+    setIfEmpty('np-notes',extracted.notes);
+    if(extracted.install_date)setIfEmpty('np-date',extracted.install_date);
+    if(zone)zone.innerHTML='<div class="upload-zone-icon">&#9989;</div><div class="upload-zone-text">'+esc(file.name)+'</div><div class="upload-zone-sub">Fields pre-filled - review and adjust below</div>';
+    const gaps=extracted.gaps||[];
+    if(gaps.length&&gapDiv&&gapList){gapList.innerHTML=gaps.map(g=>'<div class="gap-flag-item">&#9888; <span>'+esc(g)+'</span></div>').join('');gapDiv.style.display='block';}
+    toast('Document read - fields pre-filled','success');
+  } catch(e){toast('Error: '+e.message,'error');if(zone){zone.style.opacity='1';zone.style.pointerEvents='';}}
+  finally{if(proc)proc.style.display='none';if(zone&&zone.style.opacity==='0.5'){zone.style.opacity='1';zone.style.pointerEvents='';}}
+}
+
+function injectQuoteUploadZone() {
+  if(document.getElementById('quote-upload-zone'))return;
+  const tabsEl=document.querySelector('.supplier-tabs');if(!tabsEl)return;
+  const div=document.createElement('div');div.id='quote-upload-zone';div.style.cssText='margin-bottom:16px';
+  div.innerHTML='<div class="upload-zone" style="padding:16px 20px;display:flex;align-items:center;gap:14px;text-align:left" onclick="document.getElementById('quote-doc-input').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');handleQuoteDocDrop(event)"><div style="font-size:22px;flex-shrink:0">&#128203;</div><div><div class="upload-zone-text" style="margin-bottom:2px">Upload a supplier quote</div><div class="upload-zone-sub">PDF, Word, or image - AI extracts line items and flags compliance gaps</div></div><div style="margin-left:auto;flex-shrink:0"><span class="btn btn-ghost btn-sm">Browse</span></div></div><div class="upload-processing" id="quote-upload-proc"><div style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600"><span class="spinner"></span> Reading quote...</div></div><div class="upload-gap-flags" id="quote-compliance-flags"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--warning);margin-bottom:8px">Compliance flags</div><div id="quote-compliance-list"></div></div>';
+  tabsEl.parentNode.insertBefore(div,tabsEl);
+}
+
+function handleQuoteDocDrop(e){const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)processQuoteDoc(f);}
+function handleQuoteDocUpload(input){const f=input&&input.files&&input.files[0];if(f)processQuoteDoc(f);input.value='';}
+
+async function processQuoteDoc(file) {
+  const proc=document.getElementById('quote-upload-proc');
+  const compDiv=document.getElementById('quote-compliance-flags');
+  const compList=document.getElementById('quote-compliance-list');
+  if(proc)proc.style.display='block';
+  if(compDiv)compDiv.style.display='none';
+  try {
+    const sc=SCOPES[_scopeType];if(!sc){toast('Open a scope first','error');return;}
+    let payload={scope_label:sc.label,line_item_keys:sc.items.map(function(i){return i.key;})};
+    if(file.type.startsWith('image/')||file.type==='application/pdf'){const b=await fileToBase64(file);payload=Object.assign({},payload,{base64:b,media_type:file.type});}
+    else{const t=await fileToText(file);payload=Object.assign({},payload,{text:t});}
+    const extracted=await callEdge('extract_quote_doc',payload);
+    if(typeof extracted!=='object'){toast('Could not parse quote','error');return;}
+    (extracted.line_items||[]).forEach(function(item){
+      const a=document.getElementById('li-'+item.key);const n=document.getElementById('ln-'+item.key);
+      if(a&&item.amount>0)a.value=item.amount;if(n&&item.notes)n.value=item.notes;
+    });
+    const pt=extracted.payment_terms||{};
+    const ptEl=document.getElementById('pt-terms');
+    if(ptEl&&pt.terms){var opts=ptEl.options;for(var i=0;i<opts.length;i++){if(opts[i].value===pt.terms){ptEl.value=pt.terms;break;}}}
+    const ptV=document.getElementById('pt-validity');if(ptV&&pt.validity)ptV.value=pt.validity;
+    if(extracted.submitted_date){const d=document.getElementById('pt-submitted');if(d)d.value=extracted.submitted_date;}
+    if(extracted.scope_notes){const n=document.getElementById('quote-note');if(n)n.value=extracted.scope_notes;}
+    if(typeof calcTotal==='function')calcTotal();
+    const flags=extracted.compliance_flags||[];
+    if(flags.length&&compDiv&&compList){
+      compList.innerHTML=flags.map(function(f){return '<div class="compliance-flag '+(f.severity==='error'?'error':'warn')+'">'+(f.severity==='error'?'&#128683;':'&#9888;')+' <div><strong>'+esc(f.message)+'</strong>'+(f.detail?'<div style="font-size:11px;opacity:0.8;margin-top:2px">'+esc(f.detail)+'</div>':'')+'</div></div>';}).join('');
+      compDiv.style.display='block';
+    }
+    const filled=(extracted.line_items||[]).filter(function(i){return i.amount>0;}).length;
+    toast('Quote read - '+filled+' line items filled'+(flags.length?' - '+flags.length+' compliance flag(s)':''),flags.length?'info':'success');
+  } catch(e){toast('Error: '+e.message,'error');}
+  finally{if(proc)proc.style.display='none';}
+}
+
+const _quoteMutObs=new MutationObserver(function(){if(document.querySelector('.supplier-tabs')&&!document.getElementById('quote-upload-zone'))injectQuoteUploadZone();});
+_quoteMutObs.observe(document.body,{childList:true,subtree:true});
+
+document.addEventListener('DOMContentLoaded',function(){
+  const adminPage=document.getElementById('page-admin');if(!adminPage)return;
+  const card=document.createElement('div');
+  card.style.cssText='background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:1.25rem 1.5rem;margin-top:1.25rem;';
+  card.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem"><div><div style="font-size:14px;font-weight:700;color:#f1f5f9">User Feedback</div><div style="font-size:11px;color:#475569;margin-top:2px">Bug reports and suggestions from users</div></div><button onclick="showAdminFeedback()" style="background:#3b82f6;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer">Load</button></div><div id="admin-feedback-content" style="min-height:48px;color:#475569;font-size:12px;font-style:italic">Click Load to see submissions.</div>';
+  const container=adminPage.querySelector('.container');if(container)container.appendChild(card);
+
+  const npBtn=document.getElementById('np-btn');
+  if(npBtn)npBtn.addEventListener('click',function(){},false);
+  setTimeout(function(){if(document.getElementById('page-new-project')&&document.getElementById('page-new-project').classList.contains('active'))injectProjectUploadZone();},200);
+});
+</script>
 </body>
 </html>
