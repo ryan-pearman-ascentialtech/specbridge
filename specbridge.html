@@ -2467,6 +2467,14 @@ async function awardQuote(quoteId, scopeId) {
 async function generateRFQ(scopeId) {
   try {
     const [scope]  = await q('rfq_scopes','select',{eq:['id',scopeId]});
+    // Generating the RFQ document is the moment the RFQ actually goes out to suppliers —
+    // use it as the real signal to advance status, rather than requiring a separate manual click.
+    if (scope.status === 'draft') {
+      await q('rfq_scopes','update',{data:{status:'rfq_sent'},eq:['id',scopeId]});
+      scope.status = 'rfq_sent';
+      _scopeStatus = 'rfq_sent';
+      loadScopeDetail();
+    }
     const proj     = _projectData || (await q('rfq_projects','select',{eq:['id',_projectId]}))[0];
     const sc       = SCOPES[_scopeType];
 
