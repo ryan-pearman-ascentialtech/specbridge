@@ -585,6 +585,7 @@ let _scopeId        = null;
 let _scopeType      = null;
 let _scopeStatus    = null;
 let _activeTab      = 'dhgriffin';
+let _pendingNewSupplier = null; // {id,name} for a supplier added via "+ New Supplier" on the quote form, before their first quote is saved
 
 // ══════════════════════════════════════════════════
 // STATIC CONFIG
@@ -1299,6 +1300,7 @@ async function loadProjectDetail(projectId) {
 async function openScope(scopeId, scopeType, projectName) {
   _scopeId   = scopeId;
   _scopeType = scopeType;
+  _pendingNewSupplier = null;
   if (projectName) _projectName = projectName;
   _activeTab = 'culver';
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1349,14 +1351,25 @@ function renderScope(scope, quotes) {
     </div>` : '';
 
   // Scope completeness detail
-  // Dynamic supplier tab lookup
-  const activeS  = SUPPLIERS.find(s=>s.id===_activeTab) || SUPPLIERS[0];
+  // Dynamic supplier tab lookup — SUPPLIERS is the fixed roster; extraSuppliers covers any
+  // supplier a user has added ad hoc via "+ New Supplier" or already quoted but isn't on the roster.
+  const extraNames = Array.from(new Set(quotes.map(q=>q.supplier_name).filter(n=>n && !SUPPLIERS.some(s=>s.name===n))));
+  if (_pendingNewSupplier && !SUPPLIERS.some(s=>s.name===_pendingNewSupplier.name) && !extraNames.includes(_pendingNewSupplier.name)) {
+    extraNames.push(_pendingNewSupplier.name);
+  }
+  const extraSuppliers = extraNames.map(n => ({
+    id: 'x_' + n.replace(/[^a-zA-Z0-9]/g,'').toLowerCase().slice(0,40) || ('x_' + Math.random().toString(36).slice(2,8)),
+    name: n, contact: '', email: '', phone: '', preferred: false
+  }));
+  const ALL_SUPPLIERS = SUPPLIERS.concat(extraSuppliers);
+
+  const activeS  = ALL_SUPPLIERS.find(s=>s.id===_activeTab) || ALL_SUPPLIERS[0];
   const activeQ  = quotes.find(x=>x.supplier_name===activeS.name);
 
-  const tabsHtml = SUPPLIERS.map(s => {
+  const tabsHtml = ALL_SUPPLIERS.map(s => {
     const hasQ = !!quotes.find(x=>x.supplier_name===s.name);
     return `<button class="sup-tab ${_activeTab===s.id?'active':''}" onclick="switchTab('${s.id}')">${esc(s.name)}${s.preferred?' <span style="font-size:9px;font-weight:700;color:#22c55e;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:3px;padding:1px 4px;vertical-align:middle">PREFERRED</span>':''} <span style="font-size:11px;color:var(--muted)">${esc(s.contact)}</span>${hasQ?' ✓':''}</button>`;
-  }).join('');
+  }).join('') + `<button class="sup-tab" style="color:var(--accent);font-weight:700" onclick="addNewSupplierTab()">+ New Supplier</button>`;
 
   // Budget guidance bar
   const bg = scope.budget_guidance ? Number(scope.budget_guidance) : null;
@@ -1466,7 +1479,7 @@ function renderScope(scope, quotes) {
       if (!reqItems.length) return '';
       if (!quotes.length) return '';
       const gaps = [];
-      SUPPLIERS.forEach(s => {
+      ALL_SUPPLIERS.forEach(s => {
         const xq = quotes.find(x=>x.supplier_name===s.name);
         if (!xq) return;
         const items = xq.line_items||[];
@@ -1961,6 +1974,36 @@ function clearForm() {
 
 function switchTab(id) {
   _activeTab = id;
+  loadScopeDetail();
+}
+
+function addNewSupplierTab() {
+  openModal('Add Supplier', `
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="req">Supplier Name</label>
+      <input type="text" id="new-sup-name" placeholder="e.g. Kirk Mechanical" />
+    </div>
+    <div style="font-size:12px;color:var(--muted)">
+      Not on the standard roster? Add them here — their quote will save to this scope and register them in the Supplier Database automatically.
+    </div>
+  `, `
+    <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary btn-sm" onclick="confirmNewSupplierTab()">Add Supplier</button>
+  `);
+  setTimeout(()=>document.getElementById('new-sup-name')&&document.getElementById('new-sup-name').focus(),60);
+}
+
+function confirmNewSupplierTab() {
+  const input = document.getElementById('new-sup-name');
+  const name  = (input?.value||'').trim();
+  if (!name) { toast('Enter a supplier name','error'); return; }
+  if (SUPPLIERS.some(s=>s.name.toLowerCase()===name.toLowerCase())) {
+    toast(name+' is already on the standard roster — use that tab','error'); return;
+  }
+  const id = 'x_' + name.replace(/[^a-zA-Z0-9]/g,'').toLowerCase().slice(0,40) || ('x_' + Math.random().toString(36).slice(2,8));
+  _pendingNewSupplier = { id, name };
+  _activeTab = id;
+  closeModal();
   loadScopeDetail();
 }
 
@@ -4396,15 +4439,22 @@ async function loadSuppliers() {
 
       const scopeBadges = scopes.map(s=>'<span style="font-size:10px;background:#1e3a5f;color:#93c5fd;border-radius:4px;padding:2px 7px;margin-right:3px">'+s+'</span>').join('');
       const prefBadge   = prof.preferred ? '<span style="font-size:10px;background:#14532d;color:#4ade80;border-radius:4px;padding:2px 8px;font-weight:700;margin-left:6px">PREFERRED</span>' : '';
+      const catBadge     = prof.category ? '<span style="font-size:10px;background:#3f3117;color:#fbbf24;border-radius:4px;padding:2px 8px;font-weight:600;margin-left:6px">'+esc(prof.category)+'</span>' : '';
+      const capScopes    = (prof.capability_scopes||[]).map(s=>'<span style="font-size:10px;background:#1e3a5f;color:#93c5fd;border-radius:4px;padding:2px 7px;margin-right:3px">'+esc(s)+'</span>').join('');
 
       return '<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;">'
         +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">'
           +'<div>'
-            +'<div style="font-size:14px;font-weight:700;color:#f1f5f9">'+esc(prof.name)+prefBadge+'</div>'
+            +'<div style="font-size:14px;font-weight:700;color:#f1f5f9">'+esc(prof.name)+prefBadge+catBadge+'</div>'
             +'<div style="font-size:12px;color:#64748b;margin-top:2px">'+(prof.contact_name&&prof.contact_name!=='Contact TBD'?esc(prof.contact_name):'—')+(prof.contact_email?' · <span style="color:#60a5fa">'+esc(prof.contact_email)+'</span>':'')+(prof.contact_phone?' · '+esc(prof.contact_phone):'')+'</div>'
           +'</div>'
-          +(hasActivity?'<button onclick="showSupplierDetail(\''+safeJs(prof.name)+'\')" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">View History →</button>':'<span style="font-size:11px;color:#475569;padding:5px 0">No quotes yet</span>')
+          +'<div style="display:flex;gap:6px;flex-shrink:0">'
+            +(hasActivity?'<button onclick="showSupplierDetail(\''+safeJs(prof.name)+'\')" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">View History →</button>':'')
+            +'<button onclick="editSupplierProfile(\''+safeJs(prof.name)+'\')" style="background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">Edit</button>'
+          +'</div>'
         +'</div>'
+        +(capScopes ? '<div>'+capScopes+'</div>' : '')
+        +(prof.notes ? '<div style="font-size:12px;color:#cbd5e1;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:8px 10px;line-height:1.5">'+esc(prof.notes)+'</div>' : '')
         +(hasActivity
           ?'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid #334155;padding-top:10px;">'
             +'<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:#f1f5f9">'+quoteCount+'</div><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.04em">Quotes</div></div>'
@@ -4424,7 +4474,10 @@ async function loadSuppliers() {
       const st = statsMap[name];
       return '<div style="background:#1e293b;border:1px dashed #475569;border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;">'
         +'<div><div style="font-size:13px;font-weight:600;color:#f1f5f9">'+esc(name)+'</div><div style="font-size:11px;color:#64748b;margin-top:2px">Auto-registered · '+st.quotes.length+' quote(s)</div></div>'
-        +'<button onclick="showSupplierDetail(\''+safeJs(name)+'\')" style="background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer">View History →</button>'
+        +'<div style="display:flex;gap:6px;flex-shrink:0">'
+          +'<button onclick="showSupplierDetail(\''+safeJs(name)+'\')" style="background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer">View History →</button>'
+          +'<button onclick="editSupplierProfile(\''+safeJs(name)+'\')" style="background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer">Edit</button>'
+        +'</div>'
         +'</div>';
     });
 
@@ -4453,6 +4506,64 @@ async function loadSuppliers() {
   } catch(e) {
     document.getElementById('page-suppliers').innerHTML = '<div style="padding:40px;text-align:center;color:#f87171">Error loading suppliers: '+esc(e.message)+'</div>';
   }
+}
+
+const CAPABILITY_SCOPE_OPTIONS = [
+  { key: 'steel_cover_plates',        label: 'Steel Structures' },
+  { key: 'crane_rigging',             label: 'Crane & Rigging' },
+  { key: 'mechanical_compressed_air', label: 'Mechanical' },
+  { key: 'electrical',                label: 'Electrical' },
+];
+
+async function editSupplierProfile(supplierName) {
+  const profiles = window._supplierProfiles || await q('supplier_profiles','select');
+  const prof = profiles.find(p=>p.name===supplierName) || { name: supplierName, category:'', capability_scopes:[], notes:'', preferred:false };
+  const scopesChecked = new Set(prof.capability_scopes||[]);
+
+  openModal('Edit Supplier — ' + supplierName, `
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Category</label>
+      <input type="text" id="edit-sup-category" value="${esc(prof.category||'')}" placeholder="e.g. Steel / Crane" />
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Capability Scopes</label>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px">
+        ${CAPABILITY_SCOPE_OPTIONS.map(o=>`
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);font-weight:400">
+            <input type="checkbox" class="edit-sup-scope" value="${o.key}" ${scopesChecked.has(o.key)?'checked':''} /> ${o.label}
+          </label>
+        `).join('')}
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:6px;font-weight:400">
+        <input type="checkbox" id="edit-sup-preferred" ${prof.preferred?'checked':''} /> Preferred supplier
+      </label>
+    </div>
+    <div class="form-group" style="margin-bottom:4px">
+      <label>Notes — strengths, specialties, past performance</label>
+      <textarea id="edit-sup-notes" rows="4" placeholder="e.g. Strong on large steel structures, responsive turnaround, based in SE Michigan…" style="resize:vertical">${esc(prof.notes||'')}</textarea>
+    </div>
+  `, `
+    <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary btn-sm" onclick="saveSupplierProfile('${safeJs(supplierName)}')">Save</button>
+  `);
+}
+
+async function saveSupplierProfile(supplierName) {
+  const category   = (document.getElementById('edit-sup-category')?.value||'').trim();
+  const notes      = (document.getElementById('edit-sup-notes')?.value||'').trim();
+  const preferred  = !!document.getElementById('edit-sup-preferred')?.checked;
+  const scopes     = Array.from(document.querySelectorAll('.edit-sup-scope:checked')).map(el=>el.value);
+  try {
+    await q('supplier_profiles','upsert',{
+      data: { name: supplierName, category: category||null, capability_scopes: scopes, notes: notes||null, preferred, updated_at: new Date().toISOString() },
+      onConflict: 'name'
+    });
+    closeModal();
+    toast('Supplier profile saved','success');
+    loadSuppliers();
+  } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
 async function showSupplierDetail(supplierName) {
