@@ -583,6 +583,7 @@ let _projectName    = null;
 let _projectData    = null;
 let _scopeId        = null;
 let _scopeType      = null;
+let _scopeStatus    = null;
 let _activeTab      = 'dhgriffin';
 
 // ══════════════════════════════════════════════════
@@ -1323,6 +1324,7 @@ async function loadScopeDetail() {
 }
 
 function renderScope(scope, quotes) {
+  _scopeStatus = scope.status;
   const sc    = SCOPES[_scopeType];
   const STEPS = ['draft','rfq_sent','quotes_received','ae_review','awarded'];
   const SLABELS = ['Draft','RFQ Sent','Quotes In','AE Review','Awarded'];
@@ -2894,32 +2896,6 @@ async function generateApprovalPackagePDF(projectId, approverName) {
       <span>Generated: ${today}</span>
     </div>
     
-<button id="feedback-btn" onclick="openFeedback()">&#128172; <span>Feedback</span></button>
-<div id="feedback-overlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeFeedback()">
-  <div class="fb-modal">
-    <h3>Send Feedback</h3>
-    <p>Spotted a bug or have a suggestion? Let the team know.</p>
-    <div class="fb-type-row">
-      <button class="fb-type-btn active" id="fb-type-bug" onclick="setFbType('bug')">Bug</button>
-      <button class="fb-type-btn" id="fb-type-suggestion" onclick="setFbType('suggestion')">Suggestion</button>
-      <button class="fb-type-btn" id="fb-type-other" onclick="setFbType('other')">Other</button>
-    </div>
-    <div class="form-group" style="margin-bottom:14px">
-      <label>Current page</label>
-      <input type="text" id="fb-page" readonly style="color:var(--muted)" />
-    </div>
-    <div class="form-group" style="margin-bottom:18px">
-      <label class="req">Description</label>
-      <textarea id="fb-desc" rows="4" placeholder="Describe what happened or what you would like to see" style="resize:vertical"></textarea>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-secondary btn-sm" onclick="closeFeedback()">Cancel</button>
-      <button class="btn btn-primary btn-sm" id="fb-submit-btn" onclick="submitFeedback()">Send Feedback</button>
-    </div>
-  </div>
-</div>
-<input type="file" id="project-doc-input" accept=".pdf,.doc,.docx,.txt,.eml,image/*" style="display:none" onchange="handleProjectDocUpload(this)" />
-<input type="file" id="quote-doc-input" accept=".pdf,.doc,.docx,.txt,.eml,image/*" style="display:none" onchange="handleQuoteDocUpload(this)" />
 </body></html>`;
 
     const w = window.open('','_blank','width=960,height=780');
@@ -5722,6 +5698,9 @@ async function processProjectDoc(file) {
 function injectQuoteUploadZone() {
   if(document.getElementById('quote-upload-zone'))return;
   const tabsEl=document.querySelector('.supplier-tabs');if(!tabsEl)return;
+  // Only offer quote upload once the scope has actually been RFQ'd to suppliers —
+  // not while it's still in draft with no RFQ sent yet.
+  if(!_scopeStatus||_scopeStatus==='draft')return;
   const div=document.createElement('div');div.id='quote-upload-zone';div.style.cssText='margin-bottom:16px';
   div.innerHTML='<div class="upload-zone" style="padding:16px 20px;display:flex;align-items:center;gap:14px;text-align:left" onclick="document.getElementById('quote-doc-input').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');handleQuoteDocDrop(event)"><div style="font-size:22px;flex-shrink:0">&#128203;</div><div><div class="upload-zone-text" style="margin-bottom:2px">Upload a supplier quote</div><div class="upload-zone-sub">PDF, Word, or image - AI extracts line items and flags compliance gaps</div></div><div style="margin-left:auto;flex-shrink:0"><span class="btn btn-ghost btn-sm">Browse</span></div></div><div class="upload-processing" id="quote-upload-proc"><div style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600"><span class="spinner"></span> Reading quote...</div></div><div class="upload-gap-flags" id="quote-compliance-flags"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--warning);margin-bottom:8px">Compliance flags</div><div id="quote-compliance-list"></div></div>';
   tabsEl.parentNode.insertBefore(div,tabsEl);
@@ -5780,5 +5759,31 @@ document.addEventListener('DOMContentLoaded',function(){
   setTimeout(function(){if(document.getElementById('page-new-project')&&document.getElementById('page-new-project').classList.contains('active'))injectProjectUploadZone();},200);
 });
 </script>
+<button id="feedback-btn" onclick="openFeedback()">&#128172; <span>Feedback</span></button>
+<div id="feedback-overlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeFeedback()">
+  <div class="fb-modal">
+    <h3>Send Feedback</h3>
+    <p>Spotted a bug or have a suggestion? Let the team know.</p>
+    <div class="fb-type-row">
+      <button class="fb-type-btn active" id="fb-type-bug" onclick="setFbType('bug')">Bug</button>
+      <button class="fb-type-btn" id="fb-type-suggestion" onclick="setFbType('suggestion')">Suggestion</button>
+      <button class="fb-type-btn" id="fb-type-other" onclick="setFbType('other')">Other</button>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Current page</label>
+      <input type="text" id="fb-page" readonly style="color:var(--muted)" />
+    </div>
+    <div class="form-group" style="margin-bottom:18px">
+      <label class="req">Description</label>
+      <textarea id="fb-desc" rows="4" placeholder="Describe what happened or what you would like to see" style="resize:vertical"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary btn-sm" onclick="closeFeedback()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="fb-submit-btn" onclick="submitFeedback()">Send Feedback</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="project-doc-input" accept=".pdf,.doc,.docx,.txt,.eml,image/*" style="display:none" onchange="handleProjectDocUpload(this)" />
+<input type="file" id="quote-doc-input" accept=".pdf,.doc,.docx,.txt,.eml,image/*" style="display:none" onchange="handleQuoteDocUpload(this)" />
 </body>
 </html>
