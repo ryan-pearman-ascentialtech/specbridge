@@ -2667,7 +2667,7 @@ async function generateRFQ(scopeId) {
         <input type="date" id="rfq-deadline-input" value="${scope.rfq_deadline||''}" style="max-width:160px;font-size:12px;padding:5px 8px" />
         <button class="btn btn-secondary btn-sm" onclick="saveRFQDeadline('${scope.id}')">Save Deadline</button>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="window.print()">🖨 Print / Save as PDF</button>`;
+      <button class="btn btn-primary btn-sm" onclick="(()=>{const b=new Blob([rfqHtml],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='RFQ.html';a.click();})()">💾 Save as PDF</button>`
 
     openModal(`RFQ Document — ${sc.label}`, rfqHtml, footer);
   } catch(e) {
