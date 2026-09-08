@@ -2489,7 +2489,7 @@ async function generateSOW(scopeId) {
 
       '</div>';
 
-    openModal('SOW — ' + sc.label, sowHtml, '<button class="btn btn-primary btn-sm" onclick="window.print()">🖨 Print / Save PDF</button><button class="btn btn-secondary btn-sm" onclick="closeModal()">Close</button>');
+    const _b=new Blob([sowHtml],{type:'text/html'});const _a=document.createElement('a');_a.href=URL.createObjectURL(_b);_a.download='SOW.html';_a.click();
   } catch(e) { toast('SOW error: '+e.message,'error'); }
 }
 
