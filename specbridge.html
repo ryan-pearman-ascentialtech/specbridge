@@ -2669,12 +2669,12 @@ async function generateRFQ(scopeId) {
       </div>
 
 
-      <button class="btn btn-primary btn-sm" onclick="(()=>{const b=new Blob([window._rfqHtml],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='RFQ.html';a.click();})()">&#128190; Save as PDF</button>`
+      <button class="btn btn-primary btn-sm" onclick="(()=>{const b=new Blob([window._rfqHtml],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='RFQ.html';a.click();})()">&#128190; Save as PDF</button>`;
+    openModal(`RFQ Document — ${sc.label}`, rfqHtml, footer);
   } catch(e) {
     toast('Error generating RFQ: '+e.message,'error');
   }
 }
-
 async function saveRFQDeadline(scopeId) {
   const val = document.getElementById('rfq-deadline-input')?.value;
   if (!val) return;
