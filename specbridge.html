@@ -2670,7 +2670,7 @@ async function generateRFQ(scopeId) {
 
 
       <button class="btn btn-primary btn-sm" onclick="(()=>{const b=new Blob([window._rfqHtml],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='RFQ.html';a.click();})()">&#128190; Save as PDF</button>`;
-    openModal(`RFQ Document — ${sc.label}`, rfqHtml, footer);
+    openModal(`RFQ Document \u2014 ${sc.label}`, rfqHtml, footer);
   } catch(e) {
     toast('Error generating RFQ: '+e.message,'error');
   }
