@@ -2488,7 +2488,7 @@ async function generateSOW(scopeId) {
         '</div>' +
 
       '</div>';
-    const _b=new Blob([sowHtml],{type:'text/html'});const _a=document.createElement('a');_a.href=URL.createObjectURL(_b);_a.download='SOW.html';_a.click();
+    const printBtn='<div style="text-align:center;padding:20px;background:#f8fafc;border-top:1px solid #e2e8f0"><button onclick="window.print()" style="background:#0f172a;color:#fff;border:none;border-radius:6px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer">&#128190; Save as PDF</button><div style="font-size:11px;color:#94a3b8;margin-top:8px">Click above then choose Save as PDF from the print dialog</div></div>';const _b=new Blob([sowHtml+printBtn],{type:'text/html'});const _a=document.createElement('a');_a.href=URL.createObjectURL(_b);_a.download='SOW.html';_a.click();
 
   } catch(e) { toast('SOW error: '+e.message,'error'); }
 }
@@ -2669,7 +2669,7 @@ async function generateRFQ(scopeId) {
       </div>
 
 
-      <button class="btn btn-primary btn-sm" onclick="(()=>{const u=URL.createObjectURL(new Blob([window._rfqHtml],{type:'text/html'}));window.open(u,'_blank');})()">&#128190; Save as PDF</button>`;
+      <button class="btn btn-primary btn-sm" onclick="(()=>{const d=document.getElementById('modal-body');const w=window.open('about:blank','_blank');w.document.write('<!DOCTYPE html><html><head><meta charset=UTF-8><style>body{margin:0;padding:0}@media print{body{margin:0}}</style></head><body>'+d.innerHTML+'<script>setTimeout(()=>{window.print()},800)<\/script></body></html>');w.document.close();})()">&#128190; Save as PDF</button>`;
     openModal(`RFQ Document \u2014 ${sc.label}`, rfqHtml, footer);
   } catch(e) {
     toast('Error generating RFQ: '+e.message,'error');
